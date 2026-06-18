@@ -159,6 +159,22 @@ public class InventoryTest {
     }
 
     @Test
+    public void records_native_binary_when_present() throws IOException {
+        Path manifests = Files.createDirectory(root.resolve("manifests"));
+        SequencedProperties module = new SequencedProperties();
+        module.setProperty("path", "");
+        module.store(manifests.resolve(BuildStep.MODULE));
+        Path produce = Files.createDirectory(root.resolve("produce"));
+        Path nativeOutput = Files.createDirectory(produce.resolve("native"));
+        Files.writeString(nativeOutput.resolve("demo.image"), "binary");
+
+        run(args("manifests", manifests, "produce", produce));
+
+        SequencedProperties inventory = read(next.resolve(Inventory.INVENTORY));
+        assertThat(inventory.getProperty("module.native")).isEqualTo(relativize(nativeOutput));
+    }
+
+    @Test
     public void records_test_reports_when_present() throws IOException {
         Path manifests = Files.createDirectory(root.resolve("manifests"));
         SequencedProperties module = new SequencedProperties();

@@ -166,6 +166,14 @@ public class InferredMultiProjectAssemblerTest {
     }
 
     @Test
+    public void native_image_enabled_wires_package_inventory_so_the_binary_is_stageable() throws IOException {
+        Fixture fixture = setUp("path=\n", false, false, false, null, false, false, true);
+        assertThat(fixture.execute("package/inventory"))
+                .as("a native-image-only package phase still feeds the binary through an inventory step")
+                .containsKey("package/inventory");
+    }
+
+    @Test
     public void source_flag_enabled_adds_sources_jar_step() throws IOException {
         Fixture fixture = setUp("path=\n", false, true, false);
         Files.createDirectory(fixture.sources.resolve(BuildStep.SOURCES));
@@ -243,6 +251,17 @@ public class InferredMultiProjectAssemblerTest {
                           String packageType,
                           boolean jmod,
                           boolean jlink) throws IOException {
+        return setUp(moduleProperties, tests, source, documentation, packageType, jmod, jlink, false);
+    }
+
+    private Fixture setUp(String moduleProperties,
+                          boolean tests,
+                          boolean source,
+                          boolean documentation,
+                          String packageType,
+                          boolean jmod,
+                          boolean jlink,
+                          boolean nativeImage) throws IOException {
         Path manifests = Files.createDirectory(root.resolve("manifests"));
         Files.writeString(manifests.resolve(BuildStep.MODULE), moduleProperties);
         Path sources = Files.createDirectory(root.resolve("sources"));
@@ -286,7 +305,7 @@ public class InferredMultiProjectAssemblerTest {
         };
         ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, sources, tests, source, documentation, null, PathPlacement.INFERRED);
         AssemblyDescriptor assembled = new InferredMultiProjectAssembler()
-                .packaging(packageType).jmod(jmod).jlink(jlink).apply(descriptor, Map.of(), Map.of());
+                .packaging(packageType).jmod(jmod).jlink(jlink).nativeImage(nativeImage).apply(descriptor, Map.of(), Map.of());
         BuildExecutor executor = BuildExecutor.of(build,
                 Duration.ZERO,
                 new HashDigestFunction("MD5"),

@@ -75,6 +75,26 @@ public class ImageStagingTest {
     }
 
     @Test
+    public void stages_native_binary_under_native_key() throws IOException {
+        Path folder = Files.createDirectory(source.resolve("module"));
+        Path image = folder.resolve("native");
+        Files.createDirectories(image);
+        Files.writeString(image.resolve("demo.image"), "binary");
+        SequencedProperties inventory = new SequencedProperties();
+        inventory.setProperty("module.native", "native");
+        inventory.store(folder.resolve(Inventory.INVENTORY));
+
+        BuildStepResult result = new ImageStaging("native").apply(Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("module", new BuildStepArgument(folder, Map.of()))))
+                .toCompletableFuture()
+                .join();
+
+        assertThat(result.next()).isTrue();
+        assertThat(next.resolve("demo.image")).hasContent("binary");
+    }
+
+    @Test
     public void arguments_without_inventory_are_skipped() throws IOException {
         Path stray = Files.createDirectory(source.resolve("stray"));
         Files.createDirectories(stray.resolve("packages").resolve("app"));

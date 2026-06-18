@@ -18,6 +18,7 @@ import build.jenesis.module.ModularProject;
 import build.jenesis.module.ModularStaging;
 import build.jenesis.module.PinModuleInfo;
 import build.jenesis.project.AssemblyDescriptor;
+import build.jenesis.project.Ide;
 import build.jenesis.project.InferredMultiProjectAssembler;
 import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.MultiProjectModule;
@@ -52,6 +53,7 @@ public record Project(
             EXPORT = "export",
             PIN = "pin",
             DEPENDENCIES = "dependencies",
+            IDE = "ide",
             METADATA = "metadata",
             HELP = "help",
             SKILL = "skill";
@@ -102,6 +104,7 @@ public record Project(
             executor.addModule(STAGE, (stage, inherited) -> {
                 stage.addStep("maven", new MavenRepositoryStaging(), inherited.sequencedKeySet());
                 stage.addStep("packages", new ImageStaging("package"), inherited.sequencedKeySet());
+                stage.addStep("native", new ImageStaging("native"), inherited.sequencedKeySet());
                 stage.addStep("reports", new ReportStaging(), inherited.sequencedKeySet());
             }, BUILD);
             executor.addModule(EXPORT, (export, _) -> export.addStep(
@@ -112,6 +115,11 @@ public record Project(
                     (path, file) -> new PinPom("maven", path, List.of(file), project.hashFunction())), BUILD);
             executor.addModule(DEPENDENCIES, (tree, inherited) -> tree.addStep(
                     "tree", new Tree(), inherited.sequencedKeySet()), BUILD);
+            executor.addModule(IDE, (ide, inherited) -> {
+                ide.addStep("idea", new Ide(project.root(), Ide.IDEA), inherited.sequencedKeySet());
+                ide.addStep("vscode", new Ide(project.root(), Ide.VSCODE), inherited.sequencedKeySet());
+                ide.addStep("eclipse", new Ide(project.root(), Ide.ECLIPSE), inherited.sequencedKeySet());
+            }, BUILD);
             return name -> {
                 int slash = name.indexOf('/');
                 return slash == -1
@@ -162,6 +170,7 @@ public record Project(
                 stage.addStep("modular", new ModularStaging(), inherited.sequencedKeySet());
                 stage.addStep("packages", new ImageStaging("package"), inherited.sequencedKeySet());
                 stage.addStep("runtime", new ImageStaging("image"), inherited.sequencedKeySet());
+                stage.addStep("native", new ImageStaging("native"), inherited.sequencedKeySet());
                 stage.addStep("reports", new ReportStaging(), inherited.sequencedKeySet());
             }, BUILD);
             executor.addModule(EXPORT, (export, _) -> export.addStep(
@@ -171,6 +180,11 @@ public record Project(
                     (path, file) -> new PinModuleInfo("module", path, List.of(file), project.hashFunction())), BUILD);
             executor.addModule(DEPENDENCIES, (tree, inherited) -> tree.addStep(
                     "tree", new Tree(), inherited.sequencedKeySet()), BUILD);
+            executor.addModule(IDE, (ide, inherited) -> {
+                ide.addStep("idea", new Ide(project.root(), Ide.IDEA), inherited.sequencedKeySet());
+                ide.addStep("vscode", new Ide(project.root(), Ide.VSCODE), inherited.sequencedKeySet());
+                ide.addStep("eclipse", new Ide(project.root(), Ide.ECLIPSE), inherited.sequencedKeySet());
+            }, BUILD);
             return name -> {
                 int slash = name.indexOf('/');
                 return slash == -1
@@ -230,6 +244,7 @@ public record Project(
                 stage.addStep("modular", new ModularStaging(), inherited.sequencedKeySet());
                 stage.addStep("packages", new ImageStaging("package"), inherited.sequencedKeySet());
                 stage.addStep("runtime", new ImageStaging("image"), inherited.sequencedKeySet());
+                stage.addStep("native", new ImageStaging("native"), inherited.sequencedKeySet());
                 stage.addStep("reports", new ReportStaging(), inherited.sequencedKeySet());
             }, BUILD);
             executor.addModule(EXPORT, (export, _) -> {
@@ -243,6 +258,11 @@ public record Project(
                             (path, file) -> new PinModuleInfo("module", path, List.of(file), project.hashFunction())),
                     BUILD);
             executor.addStep(DEPENDENCIES, new Tree(), BUILD);
+            executor.addModule(IDE, (ide, inherited) -> {
+                ide.addStep("idea", new Ide(project.root(), Ide.IDEA), inherited.sequencedKeySet());
+                ide.addStep("vscode", new Ide(project.root(), Ide.VSCODE), inherited.sequencedKeySet());
+                ide.addStep("eclipse", new Ide(project.root(), Ide.ECLIPSE), inherited.sequencedKeySet());
+            }, BUILD);
             return name -> {
                 int slash = name.indexOf('/');
                 return slash == -1
@@ -351,6 +371,7 @@ public record Project(
                       %{name}export%{reset}       Export the staged repository as the build deliverable
                       %{name}pin%{reset}          Rewrite version/checksum pins into pom.xml or module-info.java
                       %{name}dependencies%{reset} Print each module's resolved dependency graph (with licenses)
+                      %{name}ide%{reset}          Generate IntelliJ IDEA, VS Code, and Eclipse project metadata
                       %{name}metadata%{reset}     Refresh the metadata module outputs
                       %{name}help%{reset}         Print this message
                       %{name}skill%{reset}        Print an agent-oriented onboarding briefing (plain text)
@@ -644,9 +665,15 @@ public record Project(
                     6. Address the graph with selectors
                     -----------------------------------
                     Selectors address points in the build graph:
-                    
-                      build, stage, export, pin, metadata, help, skill
+
+                      build, stage, export, pin, dependencies, ide,
+                      metadata, help, skill
                                             Top-level entry points.
+                      ide[/idea|/vscode|/eclipse]
+                                            Generate IDE project metadata at the
+                                            project root from each module's
+                                            inventory; drill into one tool with
+                                            the sub-step name.
                       +<module>             Module subgraph inside `build` (does
                                             not run stage/export/pin). The
                                             <module> matches the source folder of

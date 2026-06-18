@@ -27,6 +27,7 @@ public class Inventory implements BuildStep {
                 Path.of(JPackage.PACKAGES),
                 Path.of(JMod.JMODS),
                 Path.of(JLink.RUNTIME),
+                Path.of(NativeImage.NATIVE),
                 Path.of(NativeImage.METADATA),
                 Path.of(REPORTS)));
     }
@@ -46,6 +47,7 @@ public class Inventory implements BuildStep {
         boolean modular = false;
         Path image = null;
         Path runtimeImage = null;
+        Path nativeBinary = null;
         Path metadataImage = null;
         SequencedSet<Path> artifacts = new LinkedHashSet<>();
         SequencedSet<Path> sources = new LinkedHashSet<>();
@@ -125,6 +127,10 @@ public class Inventory implements BuildStep {
             if (runtimeImage == null && Files.isDirectory(runtime)) {
                 runtimeImage = runtime;
             }
+            Path nativeOutput = folder.resolve(NativeImage.NATIVE);
+            if (nativeBinary == null && Files.isDirectory(nativeOutput)) {
+                nativeBinary = nativeOutput;
+            }
             Path metadata = folder.resolve(NativeImage.METADATA);
             if (metadataImage == null && Files.isDirectory(metadata)) {
                 metadataImage = metadata;
@@ -178,6 +184,9 @@ public class Inventory implements BuildStep {
         }
         if (runtimeImage != null) {
             inventory.setProperty(prefix + "image", relativize(context, runtimeImage));
+        }
+        if (nativeBinary != null) {
+            inventory.setProperty(prefix + "native", relativize(context, nativeBinary));
         }
         if (metadataImage != null) {
             inventory.setProperty(prefix + "nativeimage", relativize(context, metadataImage));

@@ -30,24 +30,24 @@ and the native compilation reads what it recorded (`-Djenesis.java.native=true`)
 then the running JDK's own `bin/` (`java.home`), then `PATH` - so either run the build
 with a GraalVM JDK:
 
-    ~/.sdkman/candidates/java/25.0.3-graal/bin/java -Djenesis.observe.native=true -Djenesis.java.native=true build/jenesis/Project.java
+    ~/.sdkman/candidates/java/25.0.3-graal/bin/java -Djenesis.observe.native=true -Djenesis.java.native=true build/jenesis/Project.java stage
 
 or keep your usual JDK 25 and point `GRAALVM_HOME` at a GraalVM install (here one
 managed by [SDKMAN](https://sdkman.io/), `sdk install java 25.0.3-graal`):
 
-    GRAALVM_HOME=~/.sdkman/candidates/java/25.0.3-graal java -Djenesis.observe.native=true -Djenesis.java.native=true build/jenesis/Project.java
+    GRAALVM_HOME=~/.sdkman/candidates/java/25.0.3-graal java -Djenesis.observe.native=true -Djenesis.java.native=true build/jenesis/Project.java stage
 
 The build compiles the modules, runs the test under the agent, then runs
 `native-image` over the produced module path. The image build is the slow step (a
-minute or two - it analyses the whole reachable program), after which the standalone
-binary lands at:
+minute or two - it analyses the whole reachable program), after which the `stage`
+goal collects the standalone binary into its canonical target directory:
 
-    target/build/modules/compose/module/package/module-sources/package/native-image/output/native/demo.graal.image
+    target/stage/native/output/demo.graal.image
 
 Run it directly - there is no `java` in the command, because there is no JVM:
 
-    .../native/demo.graal.image            # Hello, world, from a native binary built by Jenesis (reflectively)!
-    .../native/demo.graal.image Ada        # Hello, Ada, from a native binary built by Jenesis (reflectively)!
+    target/stage/native/output/demo.graal.image            # Hello, world, from a native binary built by Jenesis (reflectively)!
+    target/stage/native/output/demo.graal.image Ada        # Hello, Ada, from a native binary built by Jenesis (reflectively)!
 
 The result is a ~15 MB ELF executable (`.exe` on Windows, a Mach-O binary on macOS)
 that links `java.base` statically and starts without a runtime. The greeting comes
@@ -108,9 +108,10 @@ adds the test-captured config directory, and invokes:
 
     native-image --no-fallback -H:ConfigurationFileDirectories=<captured> -o <name> --module-path <jars> --module <module>/<main-class>
 
-The native binary is **not** collected by the `STAGE` module (there is no
-`stage/native` analogue of `stage/packages`); it stays under its step's output
-directory shown above.
+The produced binary is recorded in the package phase's `inventory.properties` under
+this module's `native` key, and the `STAGE` module's `native` step collects it into
+`stage/native/output/` - the native-image analogue of `stage/packages` (jpackage) and
+`stage/runtime` (jlink).
 
 Layout
 ------

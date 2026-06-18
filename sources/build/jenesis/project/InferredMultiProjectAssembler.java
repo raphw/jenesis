@@ -212,6 +212,7 @@ public record InferredMultiProjectAssembler(String packaging,
                     sub.addStep("reachability", new NativeImageMetadata(), inherited.sequencedKeySet().stream());
                     sub.addStep("native-image", new NativeImage(descriptor.modulePath()),
                             Stream.concat(inherited.sequencedKeySet().stream(), Stream.of("reachability")));
+                    images.add("native-image");
                 }
                 if (!images.isEmpty()) {
                     sub.addStep("inventory", new Inventory(), images.stream());

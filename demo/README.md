@@ -388,11 +388,12 @@ dependencies.
 A second observation engine plugs into the same slot: `-Djenesis.observe.native=true`
 attaches the **GraalVM native-image tracing agent**, which records the reflection,
 JNI, resource and proxy use the tests exercise and stages it as reachability
-metadata under `reports/native-image/`. Committed into `META-INF/native-image/`, that
-metadata is what lets the ahead-of-time `native-image` build (section 23) resolve
-dynamic access its closed-world analysis cannot see on its own. It needs a GraalVM
-JDK (the agent ships in the GraalVM runtime), so like `native-image` it is a local
-exercise.
+metadata under `nativeimage/` (a build-internal capture, deliberately not a `reports/`
+report). The ahead-of-time `native-image` build (section 25) picks that capture up
+automatically - routed from the test module to the image it tests through the build's
+inventory - so it resolves dynamic access its closed-world analysis cannot see on its
+own, with no committed file in between. It needs a GraalVM JDK (the agent ships in the
+GraalVM runtime), so like `native-image` it is a local exercise.
 
 `test-selection` is the testing demo's other half: a feedback-loop optimisation
 rather than an observation. With `-Djenesis.test.incremental` (or a named digest), most useful under
@@ -695,14 +696,19 @@ The new idea is **closed-world ahead-of-time compilation**, and its catch:
 JNI, resources, proxies) needs reachability metadata. The demo walks the whole loop:
 `Sample` loads its greeter by a name assembled at run time, so the binary needs
 metadata; `-Djenesis.observe.native=true` runs the tracing agent during the test
-(the second observation engine from section 13) and stages what it records; you
-commit that into `sources/META-INF/native-image/`, where native-image auto-discovers
-it from the jar. Build with the metadata and the reflective greeting works; delete it
-and the binary fails with `ClassNotFoundException`. native-image is an *alternative*
-to jpackage, not a successor: jpackage for a faithful bundle of the JVM you tested
-against, native-image when startup latency and footprint dominate. Like
-`docker-isolation`, it needs tooling the CI runners lack (GraalVM), so it is a local
-exercise.
+(the second observation engine from section 13) and stages what it records under
+`nativeimage/`. Because packaging runs in a cross-module *package* phase after every
+module builds, the `native-image` step picks that capture up automatically - routed
+from the test module to the image it tests - so one build produces the working binary
+with no committed `META-INF/native-image/`. The `stage` goal then collects the
+executable into `stage/native/output/`, the native-image analogue of `stage/packages`
+and `stage/runtime`. Build without `-Djenesis.observe.native=true` and nothing is
+captured, so the binary fails at run time with `ClassNotFoundException`; committing the
+metadata into `sources/META-INF/native-image/` stays the way to vet exactly what a
+published artifact bakes in. native-image is an *alternative* to jpackage, not a
+successor: jpackage for a faithful bundle of the JVM you tested against, native-image
+when startup latency and footprint dominate. Like `docker-isolation`, it needs tooling
+the CI runners lack (GraalVM), so it is a local exercise.
 
 Cross-cutting concepts
 ----------------------

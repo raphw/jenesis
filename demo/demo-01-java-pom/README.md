@@ -45,6 +45,18 @@ Each node shows the property-file key, the requested version (with the negotiate
 version inline when it differs), the Maven scope, the resolved module name, and
 the declared license.
 
+Opening it in your IDE
+----------------------
+
+If you want to run or debug this project from an IDE, the `ide` selector generates
+the project metadata for you (run a sub-step like `ide/idea` for just one editor):
+
+    java build/jenesis/Project.java ide
+
+It writes IntelliJ IDEA, VS Code, and Eclipse files at the project root from the
+resolved sources and dependencies - see *Generating IDE metadata* in the root
+README for details.
+
 Pinned dependency
 -----------------
 
