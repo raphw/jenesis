@@ -38,7 +38,7 @@ public class IdeTest {
         String iml = Files.readString(root.resolve("greeter").resolve("greeter.iml"));
         assertThat(iml).contains("<sourceFolder url=\"file://$MODULE_DIR$/sources\" isTestSource=\"false\"/>");
         assertThat(iml).contains("jar://$PROJECT_DIR$/"
-                + root.toAbsolutePath().normalize().relativize(jar.toAbsolutePath().normalize()) + "!/");
+                + slash(root.toAbsolutePath().normalize().relativize(jar.toAbsolutePath().normalize())) + "!/");
         String modules = Files.readString(root.resolve(".idea").resolve("modules.xml"));
         assertThat(modules).contains("$PROJECT_DIR$/greeter/greeter.iml");
         assertThat(root.resolve(".idea").resolve("misc.xml")).exists();
@@ -81,7 +81,7 @@ public class IdeTest {
         String classpath = Files.readString(root.resolve("greeter").resolve(".classpath"));
         assertThat(classpath).contains("<classpathentry kind=\"src\" path=\"sources\"/>");
         assertThat(classpath).contains("<attribute name=\"test\" value=\"true\"/>");
-        assertThat(classpath).contains("kind=\"lib\" path=\"" + inventory.resolve("lib/lib.jar").toAbsolutePath().normalize());
+        assertThat(classpath).contains("kind=\"lib\" path=\"" + slash(inventory.resolve("lib/lib.jar").toAbsolutePath().normalize()));
         assertThat(classpath).contains("org.eclipse.jdt.launching.JRE_CONTAINER");
     }
 
@@ -112,6 +112,10 @@ public class IdeTest {
 
         String iml = Files.readString(root.resolve("greeter").resolve("greeter.iml"));
         assertThat(iml).contains("<sourceFolder url=\"file://$MODULE_DIR$\" isTestSource=\"false\"/>");
+    }
+
+    private static String slash(Path path) {
+        return path.toString().replace(File.separatorChar, '/');
     }
 
     private Path inventory(String prefix, Consumer<SequencedProperties> values) throws IOException {

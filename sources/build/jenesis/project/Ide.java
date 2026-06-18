@@ -283,7 +283,7 @@ public class Ide implements BuildStep {
         }
         for (Path library : module.libraries()) {
             content.append("  <classpathentry kind=\"lib\" path=\"")
-                    .append(escape(library.toString()))
+                    .append(escape(library.toString().replace(File.separatorChar, '/')))
                     .append("\"/>\n");
         }
         content.append("  <classpathentry kind=\"output\" path=\"bin\"/>\n");
