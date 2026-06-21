@@ -3,6 +3,7 @@ package build.jenesis.test.project;
 import module java.base;
 import module org.junit.jupiter.api;
 import build.jenesis.BuildExecutor;
+import build.jenesis.BuildExecutorCache;
 import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepHashFunction;
@@ -94,7 +95,7 @@ public class CheckstyleModuleRunTest {
                 Duration.ZERO,
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
-                BuildExecutorCallback.nop(), false);
+                BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false);
     }
 
     private static Repository mavenCentral() {

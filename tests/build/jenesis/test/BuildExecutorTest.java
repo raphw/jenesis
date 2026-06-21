@@ -3,6 +3,7 @@ package build.jenesis.test;
 import module java.base;
 import module org.junit.jupiter.api;
 import build.jenesis.BuildExecutor;
+import build.jenesis.BuildExecutorCache;
 import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildExecutorException;
 import build.jenesis.BuildStep;
@@ -39,7 +40,7 @@ public class BuildExecutorTest implements Serializable {
                 Duration.ZERO,
                 hash,
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
-                BuildExecutorCallback.nop(), false);
+                BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false);
     }
 
     @Test

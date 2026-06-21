@@ -3,6 +3,7 @@ package build.jenesis.test;
 import module java.base;
 import module org.junit.jupiter.api;
 import build.jenesis.BuildExecutor;
+import build.jenesis.BuildExecutorCache;
 import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildStepHashFunction;
 import build.jenesis.HashDigestFunction;
@@ -200,7 +201,7 @@ public class ProjectTest {
                         Duration.ZERO,
                         new HashDigestFunction("MD5"),
                         BuildStepHashFunction.ofSerializationDigest("MD5"),
-                        BuildExecutorCallback.nop(), false),
+                        BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false),
                 project,
                 new InferredMultiProjectAssembler(), false);
         assertThat(resolver.apply("sources")).isEqualTo("build/maven/compose/module/module-sources");
@@ -216,7 +217,7 @@ public class ProjectTest {
                         Duration.ZERO,
                         new HashDigestFunction("MD5"),
                         BuildStepHashFunction.ofSerializationDigest("MD5"),
-                        BuildExecutorCallback.nop(), false),
+                        BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false),
                 project,
                 new InferredMultiProjectAssembler(), false);
         assertThat(resolver.apply("sources")).isEqualTo("build/modules/compose/module/module-sources");
@@ -232,7 +233,7 @@ public class ProjectTest {
                         Duration.ZERO,
                         new HashDigestFunction("MD5"),
                         BuildStepHashFunction.ofSerializationDigest("MD5"),
-                        BuildExecutorCallback.nop(), false),
+                        BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false),
                 project,
                 new InferredMultiProjectAssembler(), false);
         assertThat(resolver.apply("sources/compile/dependencies/artifacts"))
@@ -250,7 +251,7 @@ public class ProjectTest {
                         Duration.ZERO,
                         new HashDigestFunction("MD5"),
                         BuildStepHashFunction.ofSerializationDigest("MD5"),
-                        BuildExecutorCallback.nop(), false),
+                        BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false),
                 project,
                 new InferredMultiProjectAssembler(), false);
         assertThat(resolver.apply("sources/compile/dependencies/artifacts"))
@@ -268,7 +269,7 @@ public class ProjectTest {
                         Duration.ZERO,
                         new HashDigestFunction("MD5"),
                         BuildStepHashFunction.ofSerializationDigest("MD5"),
-                        BuildExecutorCallback.nop(), false),
+                        BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false),
                 project,
                 new InferredMultiProjectAssembler(), false);
         assertThat(resolver.apply("sources/compile/dependencies/artifacts"))
@@ -285,7 +286,7 @@ public class ProjectTest {
                 Duration.ZERO,
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
-                BuildExecutorCallback.nop(), false);
+                BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false);
 
         Project.Layout.MODULAR.apply(executor, project, new InferredMultiProjectAssembler(), false);
 
@@ -303,7 +304,7 @@ public class ProjectTest {
                         Duration.ZERO,
                         new HashDigestFunction("MD5"),
                         BuildStepHashFunction.ofSerializationDigest("MD5"),
-                        BuildExecutorCallback.nop(), false),
+                        BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false),
                 project,
                 new InferredMultiProjectAssembler(), false);
         assertThat(resolver.apply("sources")).isEqualTo("build/modules/compose/module/module-sources");

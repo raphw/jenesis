@@ -3,6 +3,7 @@ package build.jenesis.test.module;
 import module java.base;
 import module org.junit.jupiter.api;
 import build.jenesis.BuildExecutor;
+import build.jenesis.BuildExecutorCache;
 import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepHashFunction;
@@ -38,7 +39,7 @@ public class ModularProjectTest {
                 Duration.ZERO,
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
-                BuildExecutorCallback.nop(), false);
+                BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false);
         executor.addModule("module", new ModularProject("module", project));
         assertThatThrownBy(() -> executor.execute(Runnable::run).toCompletableFuture().join())
                 .hasRootCauseInstanceOf(IllegalStateException.class)
@@ -57,7 +58,7 @@ public class ModularProjectTest {
                 Duration.ZERO,
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
-                BuildExecutorCallback.nop(), false);
+                BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false);
         executor.addModule("module", new ModularProject("module", project));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(results).containsKeys("module/module-/sources",
@@ -91,7 +92,7 @@ public class ModularProjectTest {
                 Duration.ZERO,
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
-                BuildExecutorCallback.nop(), false);
+                BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false);
         executor.addModule("module", new ModularProject("module", project));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         assertThat(results).containsKey("module/module-/sources");
@@ -112,7 +113,7 @@ public class ModularProjectTest {
                 Duration.ZERO,
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
-                BuildExecutorCallback.nop(), false);
+                BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false);
         executor.addModule("module", new ModularProject("module", project));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         Path module = results.get("module/module-/manifests");
@@ -139,7 +140,7 @@ public class ModularProjectTest {
                 Duration.ZERO,
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
-                BuildExecutorCallback.nop(), false);
+                BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false);
         executor.addModule("module", new ModularProject("module", project)
                 .platform(Platform.of("windows,x86_64")));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
@@ -163,7 +164,7 @@ public class ModularProjectTest {
                 Duration.ZERO,
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
-                BuildExecutorCallback.nop(), false);
+                BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false);
         executor.addModule("module", new ModularProject("module", project)
                 .platform(Platform.of("windows,x86_64")));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
@@ -187,7 +188,7 @@ public class ModularProjectTest {
                 Duration.ZERO,
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
-                BuildExecutorCallback.nop(), false);
+                BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false);
         executor.addModule("module", new ModularProject("module", project)
                 .platform(Platform.of("linux,x86_64")));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
@@ -211,7 +212,7 @@ public class ModularProjectTest {
                 Duration.ZERO,
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
-                BuildExecutorCallback.nop(), false);
+                BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false);
         executor.addModule("module", new ModularProject("module", project)
                 .platform(Platform.of("windows,aarch64")));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
@@ -235,7 +236,7 @@ public class ModularProjectTest {
                 Duration.ZERO,
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
-                BuildExecutorCallback.nop(), false);
+                BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false);
         executor.addModule("module", new ModularProject("module", project)
                 .platform(Platform.of("windows,x86_64")));
         assertThatThrownBy(() -> executor.execute(Runnable::run).toCompletableFuture().join())
@@ -259,7 +260,7 @@ public class ModularProjectTest {
                 Duration.ZERO,
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
-                BuildExecutorCallback.nop(), false);
+                BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false);
         executor.addModule("module", new ModularProject("module", project)
                 .platform(Platform.of("linux,x86_64")));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
@@ -280,7 +281,7 @@ public class ModularProjectTest {
                 Duration.ZERO,
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
-                BuildExecutorCallback.nop(), false);
+                BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false);
         executor.addModule("module", new ModularProject("module", project));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         Path module = results.get("module/module-/manifests");
@@ -313,7 +314,7 @@ public class ModularProjectTest {
                 Duration.ZERO,
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
-                BuildExecutorCallback.nop(), false);
+                BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false);
         root.addModule("modules", ModularProject.make(project,
                 "main",
                 "module",
@@ -402,7 +403,7 @@ public class ModularProjectTest {
                 Duration.ZERO,
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
-                BuildExecutorCallback.nop(), false);
+                BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false);
         executor.addModule("module", new ModularProject("module", project));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         SequencedProperties module = SequencedProperties.ofFiles(
@@ -421,7 +422,7 @@ public class ModularProjectTest {
                 Duration.ZERO,
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
-                BuildExecutorCallback.nop(), false);
+                BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false);
         executor.addModule("module", new ModularProject("module", project));
         SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
         SequencedProperties module = SequencedProperties.ofFiles(

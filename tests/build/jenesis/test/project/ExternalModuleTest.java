@@ -5,6 +5,7 @@ import module java.compiler;
 import module org.junit.jupiter.api;
 import javax.tools.ToolProvider;
 import build.jenesis.BuildExecutor;
+import build.jenesis.BuildExecutorCache;
 import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildStepHashFunction;
 import build.jenesis.BuildStepResult;
@@ -58,7 +59,7 @@ public class ExternalModuleTest {
                 Duration.ZERO,
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
-                BuildExecutorCallback.nop(), false);
+                BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false);
     }
 
     @AfterEach

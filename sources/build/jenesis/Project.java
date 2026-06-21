@@ -46,7 +46,8 @@ public record Project(
         SequencedSet<String> defaultTarget,
         MultiProjectAssembler<? super ProjectModuleDescriptor> assembler,
         Map<String, Repository> repositories,
-        Map<String, Resolver> resolvers) {
+        Map<String, Resolver> resolvers,
+        Supplier<BuildExecutor.Configuration> configurator) {
 
     public static final String BUILD = "build",
             STAGE = "stage",
@@ -1108,7 +1109,8 @@ public record Project(
                 Collections.unmodifiableSequencedSet(new LinkedHashSet<>(List.of(BUILD))),
                 new InferredMultiProjectAssembler(),
                 Map.of(),
-                Map.of());
+                Map.of(),
+                BuildExecutor.Configuration::new);
     }
 
     public Project root(Path root) {
@@ -1127,7 +1129,8 @@ public record Project(
                 defaultTarget,
                 assembler,
                 repositories,
-                resolvers);
+                resolvers,
+                configurator);
     }
 
     public Project target(Path target) {
@@ -1146,7 +1149,8 @@ public record Project(
                 defaultTarget,
                 assembler,
                 repositories,
-                resolvers);
+                resolvers,
+                configurator);
     }
 
     public Project cache(Path cache) {
@@ -1165,7 +1169,8 @@ public record Project(
                 defaultTarget,
                 assembler,
                 repositories,
-                resolvers);
+                resolvers,
+                configurator);
     }
 
     public Project hashFunction(HashDigestFunction hashFunction) {
@@ -1184,7 +1189,8 @@ public record Project(
                 defaultTarget,
                 assembler,
                 repositories,
-                resolvers);
+                resolvers,
+                configurator);
     }
 
     public Project layout(Layout layout) {
@@ -1203,7 +1209,8 @@ public record Project(
                 defaultTarget,
                 assembler,
                 repositories,
-                resolvers);
+                resolvers,
+                configurator);
     }
 
     public Project tests(boolean tests) {
@@ -1222,7 +1229,8 @@ public record Project(
                 defaultTarget,
                 assembler,
                 repositories,
-                resolvers);
+                resolvers,
+                configurator);
     }
 
     public Project sources(boolean sources) {
@@ -1241,7 +1249,8 @@ public record Project(
                 defaultTarget,
                 assembler,
                 repositories,
-                resolvers);
+                resolvers,
+                configurator);
     }
 
     public Project documentation(boolean documentation) {
@@ -1260,7 +1269,8 @@ public record Project(
                 defaultTarget,
                 assembler,
                 repositories,
-                resolvers);
+                resolvers,
+                configurator);
     }
 
     public Project pinning(Pinning pinning) {
@@ -1279,7 +1289,8 @@ public record Project(
                 defaultTarget,
                 assembler,
                 repositories,
-                resolvers);
+                resolvers,
+                configurator);
     }
 
     public Project metadata(Path... metadata) {
@@ -1298,7 +1309,8 @@ public record Project(
                 defaultTarget,
                 assembler,
                 repositories,
-                resolvers);
+                resolvers,
+                configurator);
     }
 
     public Project version(String version) {
@@ -1317,7 +1329,8 @@ public record Project(
                 defaultTarget,
                 assembler,
                 repositories,
-                resolvers);
+                resolvers,
+                configurator);
     }
 
     public Project defaultTarget(String... defaultTarget) {
@@ -1336,7 +1349,8 @@ public record Project(
                 Collections.unmodifiableSequencedSet(new LinkedHashSet<>(List.of(defaultTarget))),
                 assembler,
                 repositories,
-                resolvers);
+                resolvers,
+                configurator);
     }
 
     public Project assembler(MultiProjectAssembler<? super ProjectModuleDescriptor> assembler) {
@@ -1355,7 +1369,8 @@ public record Project(
                 defaultTarget,
                 assembler,
                 repositories,
-                resolvers);
+                resolvers,
+                configurator);
     }
 
     public Project repositories(Map<String, Repository> repositories) {
@@ -1374,7 +1389,8 @@ public record Project(
                 defaultTarget,
                 assembler,
                 repositories,
-                resolvers);
+                resolvers,
+                configurator);
     }
 
     public Project resolvers(Map<String, Resolver> resolvers) {
@@ -1393,7 +1409,28 @@ public record Project(
                 defaultTarget,
                 assembler,
                 repositories,
-                resolvers);
+                resolvers,
+                configurator);
+    }
+
+    public Project configurator(Supplier<BuildExecutor.Configuration> configurator) {
+        return new Project(root,
+                configuration,
+                target,
+                cache,
+                hashFunction,
+                layout,
+                tests,
+                sources,
+                documentation,
+                pinning,
+                metadata,
+                version,
+                defaultTarget,
+                assembler,
+                repositories,
+                resolvers,
+                configurator);
     }
 
     public SequencedMap<String, Path> build(String... selectors) throws IOException {
@@ -1401,7 +1438,7 @@ public record Project(
     }
 
     public SequencedMap<String, Path> build(boolean printDependencies, String... selectors) throws IOException {
-        BuildExecutor executor = BuildExecutor.of(target);
+        BuildExecutor executor = configurator.get().of(target);
         Function<String, String> resolver = layout.apply(executor, this, assembler, printDependencies);
         return executor.execute(Arrays.stream(selectors.length == 0 ? defaultTarget.toArray(String[]::new) : selectors)
                 .map(selector -> selector.startsWith("+") ? resolver.apply(selector.substring(1)) : selector)
