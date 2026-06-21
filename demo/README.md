@@ -7,8 +7,9 @@ Jenesis' features: start with a single Maven project, turn it into a module,
 scale to many modules, package a module into a runnable application image, build
 a multi-release JAR, infer code-quality tools, bring in other JVM languages and
 lint them too, customize or replace the build template itself, lock down the
-supply chain, assemble a release for Maven Central, and finally compile a module
-ahead of time into a GraalVM native binary.
+supply chain, assemble a release for Maven Central, compile a module ahead of
+time into a GraalVM native binary, and finally share build outputs through a
+content-addressed cache.
 
 Every demo has its own `build/jenesis` symlink into this repository's
 `sources/build/jenesis`, so each runs in isolation from inside its own directory
@@ -90,6 +91,7 @@ Quick index
 | 35 | [`supply-chain-security`](demo-35-supply-chain-security/README.md) | Two modules that must *not* build: an unpinned dependency rejected by strict pinning, and a wrong checksum rejected always | `java build/Demo.java`             |
 | 36 | [`publishing`](demo-36-publishing/README.md)                 | Assemble a Maven Central ready bundle (POM metadata + sources/javadoc jars) and resolve it back | `java build/Demo.java`             |
 | 37 | [`native-image`](demo-37-native-image/README.md)             | Compile a modular app ahead of time into a standalone GraalVM native binary with `-Djenesis.java.native=true` (needs GraalVM `native-image`; local-only) | `java build/jenesis/Project.java`  |
+| 38 | [`build-cache`](demo-38-build-cache/README.md)               | A shared content-addressed build cache (`-Djenesis.executor.cache=<folder>`) that serves step outputs across builds; shown by bootstrapping it then serving a full `-Djenesis.executor.rebuild=true` from it | `java build/jenesis/Project.java`  |
 
 ## 1. A single Maven project - [`java-pom`](demo-01-java-pom/README.md)
 
@@ -709,6 +711,33 @@ published artifact bakes in. native-image is an *alternative* to jpackage, not a
 successor: jpackage for a faithful bundle of the JVM you tested against, native-image
 when startup latency and footprint dominate. Like `docker-isolation`, it needs tooling
 the CI runners lack (GraalVM), so it is a local exercise.
+
+## 26. A shared build cache - [`build-cache`](demo-38-build-cache/README.md)
+
+Every build already caches incrementally under `target/`: each step is
+content-hashed on its inputs and outputs, so a warm rebuild only re-runs what
+changed. `build-cache` adds the second tier - a **shared cache** outside
+`target/`, switched on with `-Djenesis.executor.cache=<folder>`, that hands a
+step its finished output instead of running it. The folder is content-addressed
+(`<folder>/<step-hash>/<inputs-hash>/`): the step hash identifies the step from
+its serialized form, the inputs hash folds every input file's content hash, and a
+hit materializes the cached output by hard link, so reads are near free while the
+step body is skipped entirely.
+
+The demo makes the second tier visible with `-Djenesis.executor.rebuild=true`,
+which deletes `target/` before building so the *incremental* cache is gone and
+every step is a forced miss. The shared cache lives outside `target/`, so a first
+build bootstraps it and a second `rebuild` is served from it - the compile,
+class, and jar steps return in ~0.00s, marked `[EXECUTED]` because the output was
+produced, just not by `javac`. An optional `cache.properties` at the cache root
+tunes the writes (`steps`/`versions` caps with `lru` eviction, `touch`,
+`frozen` for read-only consumers, `compressed` for a packed zip layout, and
+`disabled`), all defaulted so the file is optional. `BuildExecutorFileCache` is
+one implementation of the pluggable `BuildExecutorCache` seam: a remote
+HTTP/object-store backend is another implementation of the same `fetch`/`store`
+interface, and the local folder is the on-disk analogue - point several checkouts
+or a CI workspace and a laptop at one folder and a step compiled once is reused
+wherever its inputs match.
 
 Cross-cutting concepts
 ----------------------

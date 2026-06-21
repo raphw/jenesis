@@ -9,7 +9,9 @@ public record BuildExecutorFileCache(Path root,
                                      int versions,
                                      boolean touch,
                                      boolean lru,
-                                     boolean frozen) implements BuildExecutorCache {
+                                     boolean frozen,
+                                     boolean compressed,
+                                     boolean disabled) implements BuildExecutorCache {
 
     public BuildExecutorFileCache(Path root) {
         Path file = root.resolve("cache.properties");
@@ -25,7 +27,9 @@ public record BuildExecutorFileCache(Path root,
                 versions = properties.getProperty("versions"),
                 touch = properties.getProperty("touch"),
                 lru = properties.getProperty("lru"),
-                frozen = properties.getProperty("frozen");
+                frozen = properties.getProperty("frozen"),
+                compressed = properties.getProperty("compressed"),
+                disabled = properties.getProperty("disabled");
         this(root,
                 digest == null ? "SHA-256" : digest,
                 true,
@@ -33,7 +37,9 @@ public record BuildExecutorFileCache(Path root,
                 versions == null ? 10 : Integer.parseInt(versions.trim()),
                 touch == null || Boolean.parseBoolean(touch.trim()),
                 lru == null || Boolean.parseBoolean(lru.trim()),
-                frozen != null && Boolean.parseBoolean(frozen.trim()));
+                frozen != null && Boolean.parseBoolean(frozen.trim()),
+                compressed != null && Boolean.parseBoolean(compressed.trim()),
+                disabled != null && Boolean.parseBoolean(disabled.trim()));
     }
 
     @Override
@@ -42,12 +48,18 @@ public record BuildExecutorFileCache(Path root,
                                            byte[] step,
                                            SequencedMap<String, Map<Path, byte[]>> inputs,
                                            Path target) throws IOException {
-        Path folder = root.resolve(HexFormat.of().formatHex(step));
-        Path entry = folder.resolve(HexFormat.of().formatHex(fold(inputs)));
-        if (!Files.isDirectory(entry)) {
+        if (disabled) {
             return Optional.empty();
         }
-        materialize(entry, target, links);
+        Path folder = root.resolve(HexFormat.of().formatHex(step));
+        Path entry = folder.resolve(HexFormat.of().formatHex(fold(inputs)));
+        if (Files.isDirectory(entry)) {
+            materialize(entry, target, links);
+        } else if (Files.isRegularFile(entry)) {
+            unzip(entry, target);
+        } else {
+            return Optional.empty();
+        }
         if (touch && !frozen) {
             touch(entry);
             touch(folder);
@@ -61,7 +73,7 @@ public record BuildExecutorFileCache(Path root,
                       byte[] step,
                       SequencedMap<String, Map<Path, byte[]>> inputs,
                       Path output) throws IOException {
-        if (frozen) {
+        if (disabled || frozen) {
             return;
         }
         Path folder = root.resolve(HexFormat.of().formatHex(step));
@@ -70,9 +82,15 @@ public record BuildExecutorFileCache(Path root,
             return;
         }
         Files.createDirectories(folder);
-        Path temporary = Files.createTempDirectory(folder, "tmp");
+        Path temporary = compressed
+                ? Files.createTempFile(folder, "tmp", null)
+                : Files.createTempDirectory(folder, "tmp");
         try {
-            materialize(output, temporary, false);
+            if (compressed) {
+                zip(output, temporary);
+            } else {
+                materialize(output, temporary, false);
+            }
             try {
                 Files.move(temporary, entry, StandardCopyOption.ATOMIC_MOVE);
             } catch (AtomicMoveNotSupportedException _) {
@@ -112,22 +130,22 @@ public record BuildExecutorFileCache(Path root,
         if (limit <= 0) {
             return;
         }
-        List<Path> folders = new ArrayList<>();
+        List<Path> entries = new ArrayList<>();
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(parent)) {
             for (Path path : stream) {
-                if (isHex(path.getFileName().toString()) && Files.isDirectory(path)) {
-                    folders.add(path);
+                if (isHex(path.getFileName().toString())) {
+                    entries.add(path);
                 }
             }
         }
-        int excess = folders.size() - limit;
+        int excess = entries.size() - limit;
         if (excess <= 0) {
             return;
         }
-        folders.sort(Comparator.comparing(BuildExecutorFileCache::lastModified));
+        entries.sort(Comparator.comparing(BuildExecutorFileCache::lastModified));
         for (int index = 0; index < excess; index++) {
             try {
-                delete(lru ? folders.get(index) : folders.get(folders.size() - 1 - index));
+                delete(lru ? entries.get(index) : entries.get(entries.size() - 1 - index));
             } catch (IOException _) {
             }
         }
@@ -182,6 +200,37 @@ public record BuildExecutorFileCache(Path root,
                 return FileVisitResult.CONTINUE;
             }
         });
+    }
+
+    private static void zip(Path source, Path target) throws IOException {
+        try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(target))) {
+            Files.walkFileTree(source, new SimpleFileVisitor<>() {
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) throws IOException {
+                    zip.putNextEntry(new ZipEntry(source.relativize(file).toString().replace(File.separatorChar, '/')));
+                    Files.copy(file, zip);
+                    zip.closeEntry();
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        }
+    }
+
+    private static void unzip(Path source, Path target) throws IOException {
+        Path base = target.normalize();
+        try (ZipInputStream zip = new ZipInputStream(Files.newInputStream(source))) {
+            for (ZipEntry entry = zip.getNextEntry(); entry != null; entry = zip.getNextEntry()) {
+                if (entry.isDirectory()) {
+                    continue;
+                }
+                Path destination = base.resolve(entry.getName()).normalize();
+                if (!destination.startsWith(base)) {
+                    throw new IOException("Bad cache entry: " + entry.getName());
+                }
+                Files.createDirectories(destination.getParent());
+                Files.copy(zip, destination, StandardCopyOption.REPLACE_EXISTING);
+            }
+        }
     }
 
     private static void delete(Path path) throws IOException {

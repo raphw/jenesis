@@ -260,6 +260,45 @@ public class BuildExecutorFileCacheTest implements Serializable {
         assertThat(cacheRoot.resolve(HexFormat.of().formatHex(new byte[]{1}))).doesNotExist();
     }
 
+    @Test
+    public void compressed_stores_zip_and_serves_round_trip() throws IOException {
+        Files.writeString(cacheRoot.resolve("cache.properties"), "compressed=true\n");
+        BuildExecutorFileCache cache = new BuildExecutorFileCache(cacheRoot);
+        byte[] step = {1};
+        SequencedMap<String, Map<Path, byte[]>> in = inputs("source", "file", new byte[]{9});
+        Files.writeString(output.resolve("file"), "result");
+        cache.store(Runnable::run, "step", step, in, output);
+        Path entry;
+        try (Stream<Path> entries = Files.list(cacheRoot.resolve(HexFormat.of().formatHex(step)))) {
+            entry = entries.findFirst().orElseThrow();
+        }
+        assertThat(entry).isRegularFile();
+        Optional<BuildStepResult> result = cache.fetch(Runnable::run, "step", step, in, target);
+        assertThat(result).isPresent();
+        assertThat(target.resolve("file")).content().isEqualTo("result");
+    }
+
+    @Test
+    public void disabled_cache_does_not_write() throws IOException {
+        Files.writeString(cacheRoot.resolve("cache.properties"), "disabled=true\n");
+        BuildExecutorFileCache cache = new BuildExecutorFileCache(cacheRoot);
+        byte[] step = {1};
+        Files.writeString(output.resolve("file"), "result");
+        cache.store(Runnable::run, "step", step, inputs("source", "file", new byte[]{9}), output);
+        assertThat(cacheRoot.resolve(HexFormat.of().formatHex(step))).doesNotExist();
+    }
+
+    @Test
+    public void disabled_cache_does_not_read() throws IOException {
+        byte[] step = {1};
+        SequencedMap<String, Map<Path, byte[]>> in = inputs("source", "file", new byte[]{9});
+        store(new BuildExecutorFileCache(cacheRoot), step, new byte[]{9});
+        Files.writeString(cacheRoot.resolve("cache.properties"), "disabled=true\n");
+        Optional<BuildStepResult> result = new BuildExecutorFileCache(cacheRoot)
+                .fetch(Runnable::run, "step", step, in, target);
+        assertThat(result).isEmpty();
+    }
+
     private Path store(BuildExecutorFileCache cache, byte[] step, byte[] inputHash) throws IOException {
         Files.writeString(output.resolve("file"), "x");
         Path folder = cacheRoot.resolve(HexFormat.of().formatHex(step));
