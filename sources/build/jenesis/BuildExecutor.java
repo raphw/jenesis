@@ -13,19 +13,17 @@ public interface BuildExecutor {
     record Configuration(Duration timeout, String digest, boolean verbose, boolean rebuild, BuildExecutorCache cache) {
 
         public Configuration() {
-            String location = System.getProperty("jenesis.executor.cache");
+            String location = System.getProperty("jenesis.cache");
             BuildExecutorCache cache;
             if (location == null) {
                 cache = BuildExecutorCache.nop();
-            } else if (location.startsWith("http://") || location.startsWith("https://")) {
-                String key = System.getProperty("jenesis.executor.cache.key", System.getenv("JENESIS_CACHE_KEY"));
-                String project = System.getProperty("jenesis.executor.cache.project", System.getenv("JENESIS_CACHE_PROJECT"));
-                String connectTimeout = System.getProperty("jenesis.executor.cache.timeout");
-                cache = connectTimeout == null
-                        ? new BuildExecutorHttpCache(URI.create(location), key, project)
-                        : new BuildExecutorHttpCache(URI.create(location), key, project, "SHA-256", Duration.parse(connectTimeout), true, true);
             } else {
-                cache = new BuildExecutorFileCache(Path.of(location));
+                BuildExecutorCache backend = location.startsWith("http://") || location.startsWith("https://")
+                        ? new BuildExecutorHttpCache(URI.create(location))
+                        : new BuildExecutorFileCache(Path.of(location));
+                cache = Boolean.getBoolean("jenesis.print.cache")
+                        ? BuildExecutorCache.printing(backend, System.out)
+                        : backend;
             }
             this(Duration.parse(System.getProperty("jenesis.executor.timeout", Duration.ZERO.toString())),
                     System.getProperty("jenesis.executor.digest", "MD5"),

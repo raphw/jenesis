@@ -11,7 +11,7 @@ public class JenesisModuleRepositoryExport implements BuildStep {
     private final Path target;
 
     public JenesisModuleRepositoryExport() {
-        String override = System.getenv("JENESIS_REPOSITORY_LOCAL");
+        String override = System.getProperty("jenesis.module.local", System.getenv("JENESIS_REPOSITORY_LOCAL"));
         target = override == null
                 ? Path.of(System.getProperty("user.home")).resolve(".jenesis")
                 : Path.of(override);

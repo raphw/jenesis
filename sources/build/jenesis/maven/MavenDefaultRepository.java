@@ -15,24 +15,24 @@ public class MavenDefaultRepository implements MavenRepository {
     private final String token;
 
     public MavenDefaultRepository() {
-        String environment = System.getenv("MAVEN_REPOSITORY_URI");
+        String environment = System.getProperty("jenesis.maven.uri", System.getenv("MAVEN_REPOSITORY_URI"));
         if (environment != null && !environment.endsWith("/")) {
             environment += "/";
         }
         repository = URI.create(environment == null ? "https://repo1.maven.org/maven2/" : environment);
-        String localOverride = System.getenv("MAVEN_REPOSITORY_LOCAL");
+        String localOverride = System.getProperty("jenesis.maven.local", System.getenv("MAVEN_REPOSITORY_LOCAL"));
         if (localOverride == null) {
             Path local = Path.of(System.getProperty("user.home"), ".m2", "repository");
             this.local = Files.isDirectory(local) ? local : null;
         } else {
             Path local = Path.of(localOverride);
             if (!Files.isDirectory(local)) {
-                throw new IllegalStateException("MAVEN_REPOSITORY_LOCAL does not point at a directory: " + local);
+                throw new IllegalStateException("Local Maven repository does not point at a directory: " + local);
             }
             this.local = local;
         }
         this.writable = this.local != null && Files.isWritable(this.local);
-        token = System.getenv("MAVEN_REPOSITORY_TOKEN");
+        token = System.getProperty("jenesis.maven.token", System.getenv("MAVEN_REPOSITORY_TOKEN"));
         Map<String, URI> validations = new LinkedHashMap<>();
         validations.put("SHA512", repository);
         validations.put("SHA256", repository);

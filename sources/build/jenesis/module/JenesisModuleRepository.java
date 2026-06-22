@@ -10,14 +10,14 @@ public class JenesisModuleRepository implements Repository {
     private final String token;
 
     public JenesisModuleRepository(boolean requireNamedModules) {
-        String uri = System.getenv("JENESIS_REPOSITORY_URI");
+        String uri = System.getProperty("jenesis.module.uri", System.getenv("JENESIS_REPOSITORY_URI"));
         if (uri == null) {
             uri = "https://repo.jenesis.build/";
         } else if (!uri.endsWith("/")) {
             uri = uri + "/";
         }
         this.root = URI.create(uri + (requireNamedModules ? "module/" : "artifact/"));
-        this.token = System.getenv("JENESIS_REPOSITORY_TOKEN");
+        this.token = System.getProperty("jenesis.module.token", System.getenv("JENESIS_REPOSITORY_TOKEN"));
     }
 
     public JenesisModuleRepository(URI root) {
@@ -31,7 +31,7 @@ public class JenesisModuleRepository implements Repository {
     }
 
     public static JenesisModuleRepository ofLocal() {
-        String override = System.getenv("JENESIS_REPOSITORY_LOCAL");
+        String override = System.getProperty("jenesis.module.local", System.getenv("JENESIS_REPOSITORY_LOCAL"));
         Path path = override == null
                 ? Path.of(System.getProperty("user.home")).resolve(".jenesis")
                 : Path.of(override);

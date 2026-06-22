@@ -94,6 +94,21 @@ public class BuildExecutorCacheTest implements Serializable {
         assertThat(delegate.stores).hasValue(0);
     }
 
+    @Test
+    public void printing_logs_loads_and_stores() throws IOException {
+        SequencedMap<String, Map<Path, byte[]>> inputs = new LinkedHashMap<>();
+        ByteArrayOutputStream hitOut = new ByteArrayOutputStream();
+        BuildExecutorCache hit = BuildExecutorCache.printing(new RecordingCache(true), new PrintStream(hitOut));
+        hit.fetch(Runnable::run, "compile/javac", new byte[]{1}, inputs, root);
+        hit.store(Runnable::run, "compile/javac", new byte[]{1}, inputs, root);
+        assertThat(hitOut.toString()).contains("[LOADED]").contains("[STORED]").contains("compile/javac");
+
+        ByteArrayOutputStream missOut = new ByteArrayOutputStream();
+        BuildExecutorCache.printing(new RecordingCache(false), new PrintStream(missOut))
+                .fetch(Runnable::run, "compile/javac", new byte[]{1}, inputs, root);
+        assertThat(missOut.toString()).doesNotContain("[LOADED]");
+    }
+
     private static final class RecordingCache implements BuildExecutorCache {
 
         private final boolean hit;
