@@ -127,6 +127,28 @@ public class BuildExecutorHttpCacheTest {
     }
 
     @Test
+    public void corrupt_cache_entry_leaves_the_target_empty() throws IOException {
+        BuildExecutorHttpCache cache = new BuildExecutorHttpCache(uri).key("team-alpha").project("demo");
+        byte[] step = {1};
+        SequencedMap<String, Map<Path, byte[]>> in = inputs("source", "file", new byte[]{9});
+        Files.writeString(output.resolve("file"), "result");
+        cache.store(Runnable::run, "step", step, in, output);
+        String identifier = blobs.keySet().iterator().next();
+        ByteArrayOutputStream malicious = new ByteArrayOutputStream();
+        try (ZipOutputStream zip = new ZipOutputStream(malicious)) {
+            zip.putNextEntry(new ZipEntry("../escape"));
+            zip.write(new byte[]{1});
+            zip.closeEntry();
+        }
+        blobs.put(identifier, malicious.toByteArray());
+        Files.writeString(target.resolve("stale"), "leftover");
+        assertThat(cache.fetch(Runnable::run, "step", step, in, target)).isEmpty();
+        try (Stream<Path> contents = Files.list(target)) {
+            assertThat(contents.findAny()).isEmpty();
+        }
+    }
+
+    @Test
     public void omits_headers_when_key_and_project_are_unset() throws IOException {
         new BuildExecutorHttpCache(uri)
                 .fetch(Runnable::run, "step", new byte[]{1}, inputs("source", "file", new byte[]{9}), target);

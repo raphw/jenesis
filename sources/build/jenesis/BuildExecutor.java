@@ -17,13 +17,10 @@ public interface BuildExecutor {
             BuildExecutorCache cache;
             if (location == null) {
                 cache = BuildExecutorCache.nop();
+            } else if (location.startsWith("http://") || location.startsWith("https://")) {
+                cache = new BuildExecutorHttpCache(URI.create(location));
             } else {
-                BuildExecutorCache backend = location.startsWith("http://") || location.startsWith("https://")
-                        ? new BuildExecutorHttpCache(URI.create(location))
-                        : new BuildExecutorFileCache(Path.of(location));
-                cache = Boolean.getBoolean("jenesis.print.cache")
-                        ? BuildExecutorCache.printing(backend, System.out)
-                        : backend;
+                cache = new BuildExecutorFileCache(Path.of(location));
             }
             this(Duration.parse(System.getProperty("jenesis.executor.timeout", Duration.ZERO.toString())),
                     System.getProperty("jenesis.executor.digest", "MD5"),
@@ -58,7 +55,7 @@ public interface BuildExecutor {
                     new HashDigestFunction(digest),
                     BuildStepHashFunction.ofSerializationDigest(digest),
                     Boolean.parseBoolean(System.getProperty("jenesis.print.progress", "true"))
-                            ? BuildExecutorCallback.printing(System.out, verbose, target)
+                            ? BuildExecutorCallback.printing(System.out, verbose, Boolean.getBoolean("jenesis.print.cache"), target)
                             : BuildExecutorCallback.nop(),
                     cache,
                     rebuild);

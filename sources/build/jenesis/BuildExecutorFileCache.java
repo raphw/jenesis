@@ -56,11 +56,16 @@ public record BuildExecutorFileCache(Path root,
         }
         Path folder = root.resolve(HexFormat.of().formatHex(step));
         Path entry = folder.resolve(HexFormat.of().formatHex(fold(inputs)));
-        if (Files.isDirectory(entry)) {
-            materialize(entry, target, links);
-        } else if (Files.isRegularFile(entry)) {
-            unzip(entry, target);
-        } else {
+        try {
+            if (Files.isDirectory(entry)) {
+                materialize(entry, target, links);
+            } else if (Files.isRegularFile(entry)) {
+                unzip(entry, target);
+            } else {
+                return Optional.empty();
+            }
+        } catch (IOException _) {
+            clean(target);
             return Optional.empty();
         }
         if (touch && write) {
@@ -76,12 +81,8 @@ public record BuildExecutorFileCache(Path root,
                       byte[] step,
                       SequencedMap<String, Map<Path, byte[]>> inputs,
                       Path output) throws IOException {
-        if (!write) {
-            return;
-        }
-        try {
-            executor.execute(() -> persist(step, inputs, output));
-        } catch (RejectedExecutionException _) {
+        if (write) {
+            persist(step, inputs, output);
         }
     }
 
@@ -311,6 +312,15 @@ public record BuildExecutorFileCache(Path root,
                 Files.createDirectories(destination.getParent());
                 Files.copy(zip, destination, StandardCopyOption.REPLACE_EXISTING);
             }
+        }
+    }
+
+    private static void clean(Path target) {
+        try (DirectoryStream<Path> children = Files.newDirectoryStream(target)) {
+            for (Path child : children) {
+                delete(child);
+            }
+        } catch (IOException _) {
         }
     }
 

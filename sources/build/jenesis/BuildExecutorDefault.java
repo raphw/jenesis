@@ -144,6 +144,7 @@ class BuildExecutorDefault implements BuildExecutor {
                     Path next = Files.createTempDirectory(target, BuildExecutorModule.encode(identity));
                     Path nextOutput = Files.createDirectory(next.resolve("output"));
                     Path nextSupplement = Files.createDirectory(next.resolve("supplement"));
+                    long fetchStarted = System.nanoTime();
                     Optional<BuildStepResult> cached = cache.fetch(
                             executor,
                             location + identity,
@@ -151,6 +152,9 @@ class BuildExecutorDefault implements BuildExecutor {
                             inputs,
                             nextOutput);
                     boolean fromCache = cached.isPresent();
+                    if (fromCache) {
+                        callback.loaded(location + identity, System.nanoTime() - fetchStarted);
+                    }
                     CompletionStage<BuildStepResult> stepStage;
                     if (fromCache) {
                         stepStage = CompletableFuture.completedStage(cached.get());
@@ -188,7 +192,18 @@ class BuildExecutorDefault implements BuildExecutor {
                             stepProperties.setProperty("serialization", HexFormat.of().formatHex(currentStepHash));
                             stepProperties.store(checksum.resolve("step.properties"));
                             if (!fromCache && result.next()) {
-                                cache.store(executor, location + identity, currentStepHash, inputs, output);
+                                String stored = location + identity;
+                                try {
+                                    executor.execute(() -> {
+                                        long storeStarted = System.nanoTime();
+                                        try {
+                                            cache.store(executor, stored, currentStepHash, inputs, output);
+                                        } catch (IOException _) {
+                                        }
+                                        callback.stored(stored, System.nanoTime() - storeStarted);
+                                    });
+                                } catch (RejectedExecutionException _) {
+                                }
                             }
                             completion.accept(result.next(), null);
                             return CompletableFuture.completedStage(Map.of(

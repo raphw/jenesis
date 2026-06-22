@@ -93,6 +93,7 @@ public final class BuildExecutorHttpCache implements BuildExecutorCache {
             }
             return Optional.of(new BuildStepResult(true));
         } catch (IOException _) {
+            clean(target);
             return Optional.empty();
         } finally {
             connection.disconnect();
@@ -105,12 +106,8 @@ public final class BuildExecutorHttpCache implements BuildExecutorCache {
                       byte[] step,
                       SequencedMap<String, Map<Path, byte[]>> inputs,
                       Path output) throws IOException {
-        if (!write) {
-            return;
-        }
-        try {
-            executor.execute(() -> upload(step, inputs, output));
-        } catch (RejectedExecutionException _) {
+        if (write) {
+            upload(step, inputs, output);
         }
     }
 
@@ -222,6 +219,27 @@ public final class BuildExecutorHttpCache implements BuildExecutorCache {
             }
             Files.createDirectories(destination.getParent());
             Files.copy(zip, destination, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    private static void clean(Path target) {
+        try (DirectoryStream<Path> children = Files.newDirectoryStream(target)) {
+            for (Path child : children) {
+                Files.walkFileTree(child, new SimpleFileVisitor<>() {
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) throws IOException {
+                        Files.deleteIfExists(file);
+                        return FileVisitResult.CONTINUE;
+                    }
+
+                    @Override
+                    public FileVisitResult postVisitDirectory(Path directory, IOException exception) throws IOException {
+                        Files.deleteIfExists(directory);
+                        return FileVisitResult.CONTINUE;
+                    }
+                });
+            }
+        } catch (IOException _) {
         }
     }
 }
