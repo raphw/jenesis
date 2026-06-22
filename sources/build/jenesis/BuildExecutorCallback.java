@@ -5,12 +5,12 @@ import module java.base;
 @FunctionalInterface
 public interface BuildExecutorCallback {
 
-    String RESET = "[0m";
-    String RED = "[31m";
-    String GREEN = "[32m";
-    String YELLOW = "[33m";
-    String BLUE = "[34m";
-    String CYAN = "[36m";
+    String RESET = "\033[0m";
+    String RED = "\033[31m";
+    String GREEN = "\033[32m";
+    String YELLOW = "\033[33m";
+    String BLUE = "\033[34m";
+    String CYAN = "\033[36m";
 
     BiConsumer<Boolean, Throwable> step(String identity, SequencedSet<String> keys);
 
