@@ -192,6 +192,20 @@ public class BuildExecutorFileCacheTest implements Serializable {
     }
 
     @Test
+    public void evicts_entries_idle_longer_than_ttl_on_a_background_sweep() throws IOException {
+        Files.writeString(cacheRoot.resolve("cache.properties"), "ttl=PT60S\n");
+        BuildExecutorFileCache cache = new BuildExecutorFileCache(cacheRoot);
+        byte[] step = {1};
+        Path stale = store(cache, step, new byte[]{1});
+        Path fresh = store(cache, step, new byte[]{2});
+        Files.setLastModifiedTime(stale, FileTime.from(Instant.now().minusSeconds(300)));
+        Path latest = store(cache, step, new byte[]{3});
+        assertThat(stale).doesNotExist();
+        assertThat(fresh).isDirectory();
+        assertThat(latest).isDirectory();
+    }
+
+    @Test
     public void evicts_most_recently_updated_when_configured() throws IOException {
         Files.writeString(cacheRoot.resolve("cache.properties"), "steps=2\nlru=false\n");
         BuildExecutorFileCache cache = new BuildExecutorFileCache(cacheRoot);

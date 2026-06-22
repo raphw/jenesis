@@ -136,13 +136,17 @@ omitted entirely:
 | `size`       | unset     | maximum total bytes kept; over it, whole entries are evicted by `lru` until under (unset = no size cap) |
 | `lru`        | `true`    | evict the least-recently-updated entry when over a limit (`false` = most-recently) |
 | `touch`      | `true`    | bump an entry's timestamp on read, so reads keep hot entries alive     |
+| `ttl`        | unset     | ISO-8601 duration (e.g. `P30D`); entries not touched within it are evicted on a background sweep (unset = no age eviction) |
 | `compressed` | `false`   | store each entry as a single zip file rather than a folder of files    |
 | `read`       | `true`    | serve cache reads; `read=false` makes every lookup a miss              |
 | `write`      | `true`    | populate the cache; `write=false` serves reads but never writes, evicts, or touches |
 
 Eviction is by file timestamp, performed on write; `touch` keeps recently-read
 entries fresh so the count caps (`steps`, `versions`) and the byte cap (`size`)
-approximate an LRU. `compressed` trades the hard-linked reads of the folder format
+approximate an LRU. `ttl` adds an age dimension: when set, a store also dispatches a
+background sweep to the executor (off the storing thread) that drops every entry whose
+last touch is older than the duration, so an idle entry leaves even while the caps have
+room. `compressed` trades the hard-linked reads of the folder format
 for a packed, transport-friendly layout, approaching the shape a remote cache
 server would store. `read` and `write` are the typical CI split: a privileged job
 builds with the defaults (both `true`) to populate the cache, while everyone else

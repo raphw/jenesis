@@ -8,6 +8,7 @@ public record BuildExecutorFileCache(Path root,
                                      int steps,
                                      int versions,
                                      long size,
+                                     Duration ttl,
                                      boolean touch,
                                      boolean lru,
                                      boolean compressed,
@@ -27,6 +28,7 @@ public record BuildExecutorFileCache(Path root,
                 steps = properties.getProperty("steps"),
                 versions = properties.getProperty("versions"),
                 size = properties.getProperty("size"),
+                ttl = properties.getProperty("ttl"),
                 touch = properties.getProperty("touch"),
                 lru = properties.getProperty("lru"),
                 compressed = properties.getProperty("compressed"),
@@ -38,6 +40,7 @@ public record BuildExecutorFileCache(Path root,
                 steps == null ? 250 : Integer.parseInt(steps.trim()),
                 versions == null ? 10 : Integer.parseInt(versions.trim()),
                 size == null ? 0 : Long.parseLong(size.trim()),
+                ttl == null ? null : Duration.parse(ttl.trim()),
                 touch == null || Boolean.parseBoolean(touch.trim()),
                 lru == null || Boolean.parseBoolean(lru.trim()),
                 compressed != null && Boolean.parseBoolean(compressed.trim()),
@@ -83,6 +86,14 @@ public record BuildExecutorFileCache(Path root,
                       Path output) throws IOException {
         if (write) {
             persist(step, inputs, output);
+            if (ttl != null && !ttl.isZero() && !ttl.isNegative()) {
+                executor.execute(() -> {
+                    try {
+                        evictByAge(ttl);
+                    } catch (IOException _) {
+                    }
+                });
+            }
         }
     }
 
@@ -221,6 +232,38 @@ public record BuildExecutorFileCache(Path root,
             try {
                 delete(entry);
                 total -= sizes.get(entry);
+                Path folder = entry.getParent();
+                try (DirectoryStream<Path> remaining = Files.newDirectoryStream(folder)) {
+                    if (!remaining.iterator().hasNext()) {
+                        Files.deleteIfExists(folder);
+                    }
+                }
+            } catch (IOException _) {
+            }
+        }
+    }
+
+    private void evictByAge(Duration ttl) throws IOException {
+        Instant threshold = Instant.now().minus(ttl);
+        List<Path> expired = new ArrayList<>();
+        try (DirectoryStream<Path> folders = Files.newDirectoryStream(root)) {
+            for (Path folder : folders) {
+                if (!isHex(folder.getFileName().toString()) || !Files.isDirectory(folder)) {
+                    continue;
+                }
+                try (DirectoryStream<Path> entries = Files.newDirectoryStream(folder)) {
+                    for (Path entry : entries) {
+                        if (isHex(entry.getFileName().toString())
+                                && lastModified(entry).toInstant().isBefore(threshold)) {
+                            expired.add(entry);
+                        }
+                    }
+                }
+            }
+        }
+        for (Path entry : expired) {
+            try {
+                delete(entry);
                 Path folder = entry.getParent();
                 try (DirectoryStream<Path> remaining = Files.newDirectoryStream(folder)) {
                     if (!remaining.iterator().hasNext()) {
