@@ -125,20 +125,19 @@ public final class BuildExecutorHttpCache implements BuildExecutorCache {
             return;
         }
         try {
-            HttpURLConnection connection = connect("HEAD", step, inputs);
-            try {
-                connection.getResponseCode();
-            } finally {
-                connection.disconnect();
-            }
-        } catch (IOException _) {
-            // A touch only refreshes the server's recency for the entry; losing it is harmless.
+            executor.execute(() -> {
+                try {
+                    HttpURLConnection connection = connect("HEAD", step, inputs);
+                    try {
+                        connection.getResponseCode();
+                    } finally {
+                        connection.disconnect();
+                    }
+                } catch (IOException | RuntimeException _) {
+                }
+            });
+        } catch (RejectedExecutionException _) {
         }
-    }
-
-    @Override
-    public boolean touches() {
-        return read;
     }
 
     private void upload(byte[] step, SequencedMap<String, Map<Path, byte[]>> inputs, Path output) {

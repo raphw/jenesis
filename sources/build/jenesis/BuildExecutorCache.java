@@ -28,14 +28,6 @@ public interface BuildExecutorCache {
                        SequencedMap<String, Map<Path, byte[]>> inputs) throws IOException {
     }
 
-    default boolean touches() {
-        return false;
-    }
-
-    default BuildExecutorCache readOnly() {
-        return this::fetch;
-    }
-
     static BuildExecutorCache nop() {
         return (_, _, _, _, _) -> Optional.empty();
     }

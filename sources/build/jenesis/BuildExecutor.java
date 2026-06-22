@@ -13,14 +13,28 @@ public interface BuildExecutor {
     record Configuration(Duration timeout, String digest, boolean verbose, boolean rebuild, BuildExecutorCache cache) {
 
         public Configuration() {
-            String location = System.getProperty("jenesis.cache");
-            BuildExecutorCache cache;
+            String location = System.getProperty("jenesis.cache.uri");
+            boolean localEnabled = Boolean.getBoolean("jenesis.cache.local");
+            BuildExecutorCache remote;
             if (location == null) {
-                cache = BuildExecutorCache.nop();
+                remote = null;
             } else if (location.startsWith("http://") || location.startsWith("https://")) {
-                cache = new BuildExecutorHttpCache(URI.create(location));
+                remote = new BuildExecutorHttpCache(URI.create(location));
             } else {
-                cache = new BuildExecutorFileCache(Path.of(location));
+                remote = new BuildExecutorFileCache(Path.of(location));
+            }
+            BuildExecutorCache local = localEnabled
+                    ? new BuildExecutorFileCache(Path.of(".jenesis", "build"))
+                    : null;
+            BuildExecutorCache cache;
+            if (local == null && remote == null) {
+                cache = BuildExecutorCache.nop();
+            } else if (remote == null) {
+                cache = local;
+            } else if (local == null) {
+                cache = remote;
+            } else {
+                cache = new BuildExecutorLayeredCache(local, remote);
             }
             this(Duration.parse(System.getProperty("jenesis.executor.timeout", Duration.ZERO.toString())),
                     System.getProperty("jenesis.executor.digest", "MD5"),

@@ -228,17 +228,9 @@ class BuildExecutorDefault implements BuildExecutor {
                     }, executor);
                 } else {
                     completion.accept(false, null);
-                    if (cache.touches()) {
-                        String touched = location + identity;
-                        try {
-                            executor.execute(() -> {
-                                try {
-                                    cache.touch(executor, touched, currentStepHash, inputs);
-                                } catch (IOException _) {
-                                }
-                            });
-                        } catch (RejectedExecutionException _) {
-                        }
+                    try {
+                        cache.touch(executor, location + identity, currentStepHash, inputs);
+                    } catch (IOException _) {
                     }
                     return CompletableFuture.completedStage(Map.of(identity, Map.of(
                             identity,

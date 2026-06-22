@@ -223,13 +223,6 @@ public class BuildExecutorHttpCacheTest {
         assertThat(heads).isEmpty();
     }
 
-    @Test
-    public void touches_follows_the_read_flag() {
-        BuildExecutorHttpCache cache = new BuildExecutorHttpCache(uri).key("team-alpha").project("demo");
-        assertThat(cache.touches()).isTrue();
-        assertThat(cache.read(false).touches()).isFalse();
-    }
-
     private static SequencedMap<String, Map<Path, byte[]>> inputs(String argument, String file, byte[] hash) {
         Map<Path, byte[]> files = new LinkedHashMap<>();
         files.put(Path.of(file), hash);

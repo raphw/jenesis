@@ -91,6 +91,22 @@ public record BuildExecutorFileCache(Path root,
         return write;
     }
 
+    @Override
+    public void touch(Executor executor,
+                      String identity,
+                      byte[] step,
+                      SequencedMap<String, Map<Path, byte[]>> inputs) {
+        if (!touch || !write) {
+            return;
+        }
+        Path folder = root.resolve(HexFormat.of().formatHex(step));
+        Path entry = folder.resolve(HexFormat.of().formatHex(fold(inputs)));
+        if (Files.exists(entry)) {
+            touch(entry);
+            touch(folder);
+        }
+    }
+
     private void persist(byte[] step, SequencedMap<String, Map<Path, byte[]>> inputs, Path output) {
         Path folder = root.resolve(HexFormat.of().formatHex(step));
         Path entry = folder.resolve(HexFormat.of().formatHex(fold(inputs)));

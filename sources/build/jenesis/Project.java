@@ -57,7 +57,8 @@ public record Project(
             IDE = "ide",
             METADATA = "metadata",
             HELP = "help",
-            SKILL = "skill";
+            SKILL = "skill",
+            PROPERTIES = "properties";
 
     @FunctionalInterface
     public interface Layout {
@@ -376,6 +377,7 @@ public record Project(
                       %{name}metadata%{reset}     Refresh the metadata module outputs
                       %{name}help%{reset}         Print this message
                       %{name}skill%{reset}        Print an agent-oriented onboarding briefing (plain text)
+                      %{name}properties%{reset}   Print the active -Djenesis.* system properties, sorted by key
                     
                     %{header}Module-scoped selector:%{reset}
                       A selector starting with %{name}+%{reset} is shorthand for a single project module:
@@ -462,7 +464,7 @@ public record Project(
                     %{header}Staging (-Djenesis.stage.<key>=<value>):%{reset}
                       %{name}tests%{reset}                            Stage test-variant artifacts alongside main artifacts
                     
-                    %{header}Build cache (-Djenesis.cache=<folder|url>):%{reset}
+                    %{header}Build cache (-Djenesis.cache.uri=<folder|url>):%{reset}
                       Reuse step outputs across builds. A local %{name}<folder>%{reset} is an on-disk
                       cache, tuned by an optional %{name}cache.properties%{reset} at its root; an
                       %{name}http(s)://%{reset} URL is a remote cache server, configured through
@@ -471,6 +473,9 @@ public record Project(
                       (default %{name}PT1S%{reset}) and %{name}insecure%{reset} permits the key over plaintext http
                       off loopback. Reads block the build; writes run on a background
                       thread. Trace them with %{name}-Djenesis.print.cache%{reset}.
+                      %{name}-Djenesis.cache.local=true%{reset} also keeps a project-local cache at
+                      %{name}.jenesis/build%{reset}; with a remote configured it layers in front, and a
+                      local hit still sends the remote a HEAD touch so its LRU stays warm.
 
                     %{header}Cache invalidation:%{reset}
                       Changes to the sources of the project being built are always
@@ -803,7 +808,7 @@ public record Project(
                                                   JENESIS_REPOSITORY_URI/LOCAL/TOKEN).
 
                     Build cache:
-                      -Djenesis.cache=<folder|url>        Reuse step outputs across
+                      -Djenesis.cache.uri=<folder|url>    Reuse step outputs across
                                                   builds: a folder is an on-disk
                                                   cache (tuned by a cache.properties
                                                   at its root), an http(s) URL a
@@ -814,6 +819,11 @@ public record Project(
                                                   JENESIS_CACHE_PROJECT/KEY);
                                                   -Djenesis.cache.timeout and
                                                   -Djenesis.cache.insecure tune it.
+                      -Djenesis.cache.local=true          Also cache locally at
+                                                  .jenesis/build, layered in front
+                                                  of the remote; a local hit HEAD-
+                                                  touches the remote to keep its
+                                                  LRU warm.
 
                     Executor-level:
                       -Djenesis.executor.rebuild=true   Wipe target/ before build.
@@ -1536,6 +1546,16 @@ public record Project(
     }
 
     SequencedMap<String, Path> doMain(String... selectors) throws IOException, InterruptedException {
+        if (selectors.length == 1 && selectors[0].equals(PROPERTIES)) {
+            SortedMap<String, String> properties = new TreeMap<>();
+            for (String name : System.getProperties().stringPropertyNames()) {
+                if (name.startsWith("jenesis.")) {
+                    properties.put(name, System.getProperty(name));
+                }
+            }
+            properties.forEach((name, value) -> System.out.println(name + "=" + value));
+            return new LinkedHashMap<>();
+        }
         if (Boolean.getBoolean("jenesis.project.watch")) {
             watch(selectors);
             return new LinkedHashMap<>();

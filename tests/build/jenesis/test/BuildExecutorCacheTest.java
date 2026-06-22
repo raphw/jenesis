@@ -115,19 +115,6 @@ public class BuildExecutorCacheTest implements Serializable {
     }
 
     @Test
-    public void read_only_delegates_fetch_and_suppresses_store() throws IOException {
-        RecordingCache delegate = new RecordingCache(true);
-        BuildExecutorCache readOnly = delegate.readOnly();
-        SequencedMap<String, Map<Path, byte[]>> inputs = new LinkedHashMap<>();
-        Optional<BuildStepResult> result = readOnly.fetch(Runnable::run, "step", new byte[]{1}, inputs, root);
-        assertThat(result).isPresent();
-        assertThat(delegate.fetches).hasValue(1);
-        assertThat(delegate.fetchIdentity).isEqualTo("step");
-        readOnly.store(Runnable::run, "step", new byte[]{1}, inputs, root);
-        assertThat(delegate.stores).hasValue(0);
-    }
-
-    @Test
     public void callback_prints_cache_loads_and_stores_with_timing() {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         BuildExecutorCallback callback = BuildExecutorCallback.printing(new PrintStream(bytes), false, true, root);
@@ -161,11 +148,6 @@ public class BuildExecutorCacheTest implements Serializable {
 
         @Override
         public boolean stores() {
-            return true;
-        }
-
-        @Override
-        public boolean touches() {
             return true;
         }
 

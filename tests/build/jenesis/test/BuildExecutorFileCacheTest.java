@@ -6,6 +6,7 @@ import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorCache;
 import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildExecutorFileCache;
+import build.jenesis.BuildExecutorLayeredCache;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepHashFunction;
 import build.jenesis.BuildStepResult;
@@ -92,19 +93,32 @@ public class BuildExecutorFileCacheTest implements Serializable {
     }
 
     @Test
-    public void configuration_resolves_cache_from_property() throws IOException {
-        String previous = System.getProperty("jenesis.cache");
+    public void configuration_resolves_cache_from_properties() throws IOException {
+        String previousUri = System.getProperty("jenesis.cache.uri");
+        String previousLocal = System.getProperty("jenesis.cache.local");
         try {
-            System.clearProperty("jenesis.cache");
-            assertThat(new BuildExecutor.Configuration().cache()).isNotInstanceOf(BuildExecutorFileCache.class);
-            System.setProperty("jenesis.cache", cacheRoot.toString());
+            System.clearProperty("jenesis.cache.uri");
+            System.clearProperty("jenesis.cache.local");
+            assertThat(new BuildExecutor.Configuration().cache())
+                    .isNotInstanceOf(BuildExecutorFileCache.class)
+                    .isNotInstanceOf(BuildExecutorLayeredCache.class);
+            System.setProperty("jenesis.cache.uri", cacheRoot.toString());
+            assertThat(new BuildExecutor.Configuration().cache()).isInstanceOf(BuildExecutorFileCache.class);
+            System.setProperty("jenesis.cache.local", "true");
+            assertThat(new BuildExecutor.Configuration().cache()).isInstanceOf(BuildExecutorLayeredCache.class);
+            System.clearProperty("jenesis.cache.uri");
             assertThat(new BuildExecutor.Configuration().cache()).isInstanceOf(BuildExecutorFileCache.class);
         } finally {
-            if (previous == null) {
-                System.clearProperty("jenesis.cache");
-            } else {
-                System.setProperty("jenesis.cache", previous);
-            }
+            restore("jenesis.cache.uri", previousUri);
+            restore("jenesis.cache.local", previousLocal);
+        }
+    }
+
+    private static void restore(String key, String previous) {
+        if (previous == null) {
+            System.clearProperty(key);
+        } else {
+            System.setProperty(key, previous);
         }
     }
 
@@ -236,6 +250,42 @@ public class BuildExecutorFileCacheTest implements Serializable {
         FileTime before = Files.getLastModifiedTime(entry);
         cache.fetch(Runnable::run, "step", step, in, target);
         assertThat(Files.getLastModifiedTime(entry)).isEqualTo(before);
+    }
+
+    @Test
+    public void touch_refreshes_timestamps_for_a_present_entry() throws IOException {
+        BuildExecutorFileCache cache = new BuildExecutorFileCache(cacheRoot);
+        byte[] step = {1};
+        SequencedMap<String, Map<Path, byte[]>> in = inputs("source", "file", new byte[]{9});
+        Path entry = store(cache, step, new byte[]{9});
+        Path folder = cacheRoot.resolve(HexFormat.of().formatHex(step));
+        Files.setLastModifiedTime(entry, FileTime.from(Instant.now().minusSeconds(300)));
+        Files.setLastModifiedTime(folder, FileTime.from(Instant.now().minusSeconds(300)));
+        FileTime entryBefore = Files.getLastModifiedTime(entry);
+        FileTime folderBefore = Files.getLastModifiedTime(folder);
+        cache.touch(Runnable::run, "step", step, in);
+        assertThat(Files.getLastModifiedTime(entry)).isGreaterThan(entryBefore);
+        assertThat(Files.getLastModifiedTime(folder)).isGreaterThan(folderBefore);
+    }
+
+    @Test
+    public void touch_is_a_no_op_when_touching_is_off() throws IOException {
+        Files.writeString(cacheRoot.resolve("cache.properties"), "touch=false\n");
+        BuildExecutorFileCache cache = new BuildExecutorFileCache(cacheRoot);
+        byte[] step = {1};
+        SequencedMap<String, Map<Path, byte[]>> in = inputs("source", "file", new byte[]{9});
+        Path entry = store(cache, step, new byte[]{9});
+        Files.setLastModifiedTime(entry, FileTime.from(Instant.now().minusSeconds(300)));
+        FileTime before = Files.getLastModifiedTime(entry);
+        cache.touch(Runnable::run, "step", step, in);
+        assertThat(Files.getLastModifiedTime(entry)).isEqualTo(before);
+    }
+
+    @Test
+    public void touch_on_a_missing_entry_does_nothing() throws IOException {
+        new BuildExecutorFileCache(cacheRoot)
+                .touch(Runnable::run, "step", new byte[]{7}, inputs("source", "file", new byte[]{9}));
+        assertThat(cacheRoot.resolve(HexFormat.of().formatHex(new byte[]{7}))).doesNotExist();
     }
 
     @Test
