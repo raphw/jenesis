@@ -111,6 +111,11 @@ public final class BuildExecutorHttpCache implements BuildExecutorCache {
         }
     }
 
+    @Override
+    public boolean stores() {
+        return write;
+    }
+
     private void upload(byte[] step, SequencedMap<String, Map<Path, byte[]>> inputs, Path output) {
         Path temporary = null;
         try {
