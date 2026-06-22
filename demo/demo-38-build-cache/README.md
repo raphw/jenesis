@@ -108,9 +108,11 @@ identical.
 
 Giving `-Djenesis.executor.cache` an `http://` or `https://` URL instead of a
 folder selects `BuildExecutorHttpCache`, the networked sibling that GETs and PUTs
-the same zip entries to any compatible HTTP cache server, authenticating with
-`-Djenesis.executor.cache.key=<key>`:
+the same zip entries to any compatible HTTP cache server, naming the cache project
+with `-Djenesis.executor.cache.project=<project>` and authenticating with
+`-Djenesis.executor.cache.key=<key>` (both sent as headers, never in the URL):
 
     java -Djenesis.executor.cache=https://cache.example.com \
-         -Djenesis.executor.cache.key=team-alpha \
+         -Djenesis.executor.cache.project=acme \
+         -Djenesis.executor.cache.key=alice \
          build/jenesis/Project.java

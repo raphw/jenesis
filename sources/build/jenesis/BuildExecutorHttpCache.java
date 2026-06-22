@@ -4,15 +4,17 @@ import module java.base;
 
 public record BuildExecutorHttpCache(URI uri,
                                      String key,
+                                     String project,
                                      String algorithm,
                                      Duration connectTimeout,
                                      boolean read,
                                      boolean write) implements BuildExecutorCache {
 
-    public static final String HEADER = "Jenesis-Cache-Key";
+    public static final String KEY = "Jenesis-Cache-Key";
+    public static final String PROJECT = "Jenesis-Cache-Project";
 
-    public BuildExecutorHttpCache(URI uri, String key) {
-        this(uri, key, "SHA-256", Duration.ofSeconds(1), true, true);
+    public BuildExecutorHttpCache(URI uri, String key, String project) {
+        this(uri, key, project, "SHA-256", Duration.ofSeconds(1), true, true);
     }
 
     @Override
@@ -109,7 +111,10 @@ public record BuildExecutorHttpCache(URI uri,
         connection.setInstanceFollowRedirects(false);
         connection.setRequestProperty("User-Agent", "Jenesis");
         if (key != null) {
-            connection.setRequestProperty(HEADER, key);
+            connection.setRequestProperty(KEY, key);
+        }
+        if (project != null) {
+            connection.setRequestProperty(PROJECT, project);
         }
         return connection;
     }
