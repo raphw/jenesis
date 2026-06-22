@@ -6,7 +6,7 @@
 
     <groupId>build.jenesis</groupId>
     <artifactId>build.jenesis</artifactId>
-    <version>0-SNAPSHOT</version>
+    <version>1-SNAPSHOT</version>
 
     <name>Jenesis</name>
     <description>A build tool for Java projects, written and configured in Java itself.</description>
