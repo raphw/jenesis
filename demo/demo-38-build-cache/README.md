@@ -82,23 +82,33 @@ key has a default, so the file may be omitted entirely:
 | `versions`   | `10`      | maximum input-variants kept per step                                   |
 | `lru`        | `true`    | evict the least-recently-updated entry when over a limit (`false` = most-recently) |
 | `touch`      | `true`    | bump an entry's timestamp on read, so reads keep hot entries alive     |
-| `frozen`     | `false`   | serve reads but never write or evict (consume a shared cache read-only) |
 | `compressed` | `false`   | store each entry as a single zip file rather than a folder of files    |
-| `disabled`   | `false`   | disable the cache entirely (both reads and writes)                     |
+| `read`       | `true`    | serve cache reads; `read=false` makes every lookup a miss              |
+| `write`      | `true`    | populate the cache; `write=false` serves reads but never writes, evicts, or touches |
 
 Eviction is by file timestamp, performed on write; `touch` keeps recently-read
 entries fresh so the caps approximate an LRU. `compressed` trades the hard-linked
 reads of the folder format for a packed, transport-friendly layout, approaching
-the shape a remote cache server would store. `frozen` is the typical CI setting:
-a privileged job populates the cache and everyone else consumes it without
-mutating it.
+the shape a remote cache server would store. `read` and `write` are the typical CI
+split: a privileged job builds with the defaults (both `true`) to populate the
+cache, while everyone else sets `write=false` to consume it read-only without
+mutating it. Setting both to `false` turns the cache off entirely.
 
 Where this fits
 ---------------
 
 `BuildExecutorFileCache` is one implementation of the pluggable
-`BuildExecutorCache` seam; a remote (HTTP/object-store) backend is just another
-implementation of the same `fetch`/`store` interface, wired the same way. The
-local folder cache here is the on-disk analogue: point several checkouts (or a CI
-workspace and your laptop) at a shared folder and a step compiled once is reused
-everywhere its inputs are identical.
+`BuildExecutorCache` seam; a remote backend is just another implementation of the
+same `fetch`/`store` interface, wired the same way. The local folder cache here is
+the on-disk analogue: point several checkouts (or a CI workspace and your laptop)
+at a shared folder and a step compiled once is reused everywhere its inputs are
+identical.
+
+Giving `-Djenesis.executor.cache` an `http://` or `https://` URL instead of a
+folder selects `BuildExecutorHttpCache`, the networked sibling that GETs and PUTs
+the same zip entries to any compatible HTTP cache server, authenticating with
+`-Djenesis.executor.cache.key=<key>`:
+
+    java -Djenesis.executor.cache=https://cache.example.com \
+         -Djenesis.executor.cache.key=team-alpha \
+         build/jenesis/Project.java

@@ -212,7 +212,7 @@ public class BuildExecutorFileCacheTest implements Serializable {
     }
 
     @Test
-    public void does_not_touch_when_disabled() throws IOException {
+    public void does_not_touch_when_touch_off() throws IOException {
         Files.writeString(cacheRoot.resolve("cache.properties"), "touch=false\n");
         BuildExecutorFileCache cache = new BuildExecutorFileCache(cacheRoot);
         byte[] step = {1};
@@ -237,11 +237,11 @@ public class BuildExecutorFileCacheTest implements Serializable {
     }
 
     @Test
-    public void frozen_cache_serves_reads_without_touching() throws IOException {
+    public void write_disabled_serves_reads_without_touching() throws IOException {
         byte[] step = {1};
         SequencedMap<String, Map<Path, byte[]>> in = inputs("source", "file", new byte[]{9});
         Path entry = store(new BuildExecutorFileCache(cacheRoot), step, new byte[]{9});
-        Files.writeString(cacheRoot.resolve("cache.properties"), "frozen=true\n");
+        Files.writeString(cacheRoot.resolve("cache.properties"), "write=false\n");
         Files.setLastModifiedTime(entry, FileTime.from(Instant.now().minusSeconds(300)));
         FileTime before = Files.getLastModifiedTime(entry);
         Optional<BuildStepResult> result = new BuildExecutorFileCache(cacheRoot)
@@ -252,8 +252,8 @@ public class BuildExecutorFileCacheTest implements Serializable {
     }
 
     @Test
-    public void reads_frozen_from_cache_properties() throws IOException {
-        Files.writeString(cacheRoot.resolve("cache.properties"), "frozen=true\n");
+    public void reads_write_flag_from_cache_properties() throws IOException {
+        Files.writeString(cacheRoot.resolve("cache.properties"), "write=false\n");
         BuildExecutorFileCache cache = new BuildExecutorFileCache(cacheRoot);
         Files.writeString(output.resolve("file"), "result");
         cache.store(Runnable::run, "step", new byte[]{1}, inputs("source", "file", new byte[]{9}), output);
@@ -279,8 +279,8 @@ public class BuildExecutorFileCacheTest implements Serializable {
     }
 
     @Test
-    public void disabled_cache_does_not_write() throws IOException {
-        Files.writeString(cacheRoot.resolve("cache.properties"), "disabled=true\n");
+    public void write_disabled_does_not_store() throws IOException {
+        Files.writeString(cacheRoot.resolve("cache.properties"), "write=false\n");
         BuildExecutorFileCache cache = new BuildExecutorFileCache(cacheRoot);
         byte[] step = {1};
         Files.writeString(output.resolve("file"), "result");
@@ -289,11 +289,11 @@ public class BuildExecutorFileCacheTest implements Serializable {
     }
 
     @Test
-    public void disabled_cache_does_not_read() throws IOException {
+    public void read_disabled_does_not_fetch() throws IOException {
         byte[] step = {1};
         SequencedMap<String, Map<Path, byte[]>> in = inputs("source", "file", new byte[]{9});
         store(new BuildExecutorFileCache(cacheRoot), step, new byte[]{9});
-        Files.writeString(cacheRoot.resolve("cache.properties"), "disabled=true\n");
+        Files.writeString(cacheRoot.resolve("cache.properties"), "read=false\n");
         Optional<BuildStepResult> result = new BuildExecutorFileCache(cacheRoot)
                 .fetch(Runnable::run, "step", step, in, target);
         assertThat(result).isEmpty();

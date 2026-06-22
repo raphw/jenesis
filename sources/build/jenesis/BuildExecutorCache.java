@@ -18,6 +18,10 @@ public interface BuildExecutorCache {
                        Path output) throws IOException {
     }
 
+    default BuildExecutorCache readOnly() {
+        return this::fetch;
+    }
+
     static BuildExecutorCache nop() {
         return (_, _, _, _, _) -> Optional.empty();
     }

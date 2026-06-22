@@ -731,8 +731,9 @@ build bootstraps it and a second `rebuild` is served from it - the compile,
 class, and jar steps return in ~0.00s, marked `[EXECUTED]` because the output was
 produced, just not by `javac`. An optional `cache.properties` at the cache root
 tunes the writes (`steps`/`versions` caps with `lru` eviction, `touch`,
-`frozen` for read-only consumers, `compressed` for a packed zip layout, and
-`disabled`), all defaulted so the file is optional. `BuildExecutorFileCache` is
+`compressed` for a packed zip layout, and `read`/`write` toggles - `write=false`
+for read-only consumers, both off to disable), all defaulted so the file is
+optional. `BuildExecutorFileCache` is
 one implementation of the pluggable `BuildExecutorCache` seam: a remote
 HTTP/object-store backend is another implementation of the same `fetch`/`store`
 interface, and the local folder is the on-disk analogue - point several checkouts

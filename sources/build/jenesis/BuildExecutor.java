@@ -14,11 +14,23 @@ public interface BuildExecutor {
 
         public Configuration() {
             String location = System.getProperty("jenesis.executor.cache");
+            BuildExecutorCache cache;
+            if (location == null) {
+                cache = BuildExecutorCache.nop();
+            } else if (location.startsWith("http://") || location.startsWith("https://")) {
+                String key = System.getProperty("jenesis.executor.cache.key", System.getenv("JENESIS_CACHE_KEY"));
+                String connectTimeout = System.getProperty("jenesis.executor.cache.timeout");
+                cache = connectTimeout == null
+                        ? new BuildExecutorHttpCache(URI.create(location), key)
+                        : new BuildExecutorHttpCache(URI.create(location), key, "SHA-256", Duration.parse(connectTimeout), true, true);
+            } else {
+                cache = new BuildExecutorFileCache(Path.of(location));
+            }
             this(Duration.parse(System.getProperty("jenesis.executor.timeout", Duration.ZERO.toString())),
                     System.getProperty("jenesis.executor.digest", "MD5"),
                     Boolean.getBoolean("jenesis.print.checksum"),
                     Boolean.getBoolean("jenesis.executor.rebuild"),
-                    location == null ? BuildExecutorCache.nop() : new BuildExecutorFileCache(Path.of(location)));
+                    cache);
         }
 
         public Configuration timeout(Duration timeout) {
