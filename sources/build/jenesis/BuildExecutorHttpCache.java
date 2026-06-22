@@ -64,8 +64,13 @@ public record BuildExecutorHttpCache(URI uri,
             connection.setDoOutput(true);
             connection.setFixedLengthStreamingMode(Files.size(temporary));
             connection.setRequestProperty("Content-Type", "application/zip");
+            connection.setRequestProperty("Expect", "100-continue");
             try (OutputStream out = connection.getOutputStream()) {
                 Files.copy(temporary, out);
+            } catch (ProtocolException _) {
+                // The server answered the Expect: 100-continue with a final status instead of
+                // 100 Continue (it already holds the entry, or refuses the write), so the body
+                // is never sent; the status is read below to release the connection.
             }
             connection.getResponseCode();
             connection.disconnect();
