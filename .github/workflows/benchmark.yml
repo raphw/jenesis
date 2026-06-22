@@ -112,7 +112,7 @@ jobs:
       - name: Warm caches
         shell: bash
         run: |
-          java build/jenesis/Project.java build
+          java -Djenesis.project.layout=maven build/jenesis/Project.java build
           case " $TABLES " in
             *" full "*) "$MVN" -B -ntp package ;;
             *" compile "*|*" maven "*) "$MVN" -B -ntp -DskipTests package ;;

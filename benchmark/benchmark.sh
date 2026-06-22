@@ -99,7 +99,7 @@ build_native() {
   build_launcher
   note "Capturing reachability metadata and building the native launcher (one-off)"
   local cfg; cfg="$(mktemp -d)"
-  "$GRAALVM_HOME/bin/java" -Djenesis.process.factory=tool -Djenesis.test.skip=true \
+  "$GRAALVM_HOME/bin/java" $LAYOUT -Djenesis.process.factory=tool -Djenesis.test.skip=true \
       -agentlib:native-image-agent=config-output-dir="$cfg" \
       -cp "$LAUNCHER" build.jenesis.Project build >/dev/null 2>&1
   rm -rf target
@@ -112,10 +112,14 @@ build_native() {
 
 M_NT() { echo "$1 package -o -q -ntp -DskipTests"; }
 M_F()  { echo "$1 package -o -q -ntp"; }
-SRC_NT="java -Djenesis.test.skip=true $ENGINE/Project.java build"
-JAVAC_NT="java -Djenesis.test.skip=true -cp $LAUNCHER build.jenesis.Project build"
-NATIVE_NT="$NATIVE_BIN -Djenesis.test.skip=true build"
-SRC_F="java $ENGINE/Project.java build"
+# The repository defaults to MODULAR_TO_MAVEN, which would stage a modular jar on top of
+# the Maven jar; pin the Maven layout so a Jenesis build produces the same single artifact
+# as the Maven baseline and the comparison stays like-for-like (as it was before the default).
+LAYOUT="-Djenesis.project.layout=maven"
+SRC_NT="java $LAYOUT -Djenesis.test.skip=true $ENGINE/Project.java build"
+JAVAC_NT="java $LAYOUT -Djenesis.test.skip=true -cp $LAUNCHER build.jenesis.Project build"
+NATIVE_NT="$NATIVE_BIN $LAYOUT -Djenesis.test.skip=true build"
+SRC_F="java $LAYOUT $ENGINE/Project.java build"
 
 table_launch() {
   note "Table: build-tool launch overhead (run 'help', no project work)"
@@ -182,7 +186,7 @@ table_aot() {
   build_launcher
   local jar="$ROOT/.jenesis/launcher.jar" aot="$ROOT/.jenesis/build.aot"
   rm -f "$jar"; jar --create --file "$jar" -C "$LAUNCHER" .
-  local B="-Djenesis.test.skip=true -cp $jar build.jenesis.Project build"
+  local B="$LAYOUT -Djenesis.test.skip=true -cp $jar build.jenesis.Project build"
   local J="java $B" JA="java -XX:AOTCache=$aot $B"
   local H="java -cp $jar build.jenesis.Project help" HA="java -XX:AOTCache=$aot -cp $jar build.jenesis.Project help"
   note "recording run (-XX:AOTCacheOutput captures classes + method profiles)"
@@ -214,8 +218,8 @@ table_aot() {
 table_pinning() {
   note "Table: dependency pinning - default (checksums verified) vs versions (checksums stripped)"
   build_launcher
-  local def="java -Djenesis.test.skip=true -cp $LAUNCHER build.jenesis.Project build"
-  local ver="java -Djenesis.dependency.pin=versions -Djenesis.test.skip=true -cp $LAUNCHER build.jenesis.Project build"
+  local def="java $LAYOUT -Djenesis.test.skip=true -cp $LAUNCHER build.jenesis.Project build"
+  local ver="java $LAYOUT -Djenesis.dependency.pin=versions -Djenesis.test.skip=true -cp $LAUNCHER build.jenesis.Project build"
   echo "-- cold (Dependencies step runs; default validates artifact digests) --"
   bench "default"      "$RUNS_COLD" "rm -rf target" "$def"
   bench "pin=versions" "$RUNS_COLD" "rm -rf target" "$ver"
