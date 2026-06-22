@@ -16,12 +16,14 @@ public class BuildExecutorHttpCacheTest {
     private URI uri;
     private final Map<String, byte[]> blobs = new ConcurrentHashMap<>();
     private final List<String> keys = new CopyOnWriteArrayList<>();
+    private final List<String> projects = new CopyOnWriteArrayList<>();
 
     @BeforeEach
     public void setUp() throws IOException {
         server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
         server.createContext("/", exchange -> {
-            keys.add(String.valueOf(exchange.getRequestHeaders().getFirst(BuildExecutorHttpCache.HEADER)));
+            keys.add(String.valueOf(exchange.getRequestHeaders().getFirst(BuildExecutorHttpCache.KEY)));
+            projects.add(String.valueOf(exchange.getRequestHeaders().getFirst(BuildExecutorHttpCache.PROJECT)));
             String identifier = exchange.getRequestURI().getPath();
             try {
                 switch (exchange.getRequestMethod()) {
@@ -59,7 +61,7 @@ public class BuildExecutorHttpCacheTest {
 
     @Test
     public void stores_and_fetches_round_trip() throws IOException {
-        BuildExecutorHttpCache cache = new BuildExecutorHttpCache(uri, "team-alpha");
+        BuildExecutorHttpCache cache = new BuildExecutorHttpCache(uri, "team-alpha", "demo");
         byte[] step = {1};
         SequencedMap<String, Map<Path, byte[]>> in = inputs("source", "file", new byte[]{9});
         Files.writeString(output.resolve("file"), "result");
@@ -71,11 +73,12 @@ public class BuildExecutorHttpCacheTest {
         assertThat(target.resolve("file")).content().isEqualTo("result");
         assertThat(target.resolve("nested").resolve("inner")).content().isEqualTo("deep");
         assertThat(keys).contains("team-alpha");
+        assertThat(projects).contains("demo");
     }
 
     @Test
     public void fetch_returns_empty_on_miss() throws IOException {
-        BuildExecutorHttpCache cache = new BuildExecutorHttpCache(uri, "team-alpha");
+        BuildExecutorHttpCache cache = new BuildExecutorHttpCache(uri, "team-alpha", "demo");
         Optional<BuildStepResult> result = cache.fetch(
                 Runnable::run,
                 "step",
@@ -90,15 +93,15 @@ public class BuildExecutorHttpCacheTest {
         byte[] step = {1};
         SequencedMap<String, Map<Path, byte[]>> in = inputs("source", "file", new byte[]{9});
         Files.writeString(output.resolve("file"), "result");
-        new BuildExecutorHttpCache(uri, "team-alpha", "SHA-256", Duration.ofSeconds(1), true, false)
+        new BuildExecutorHttpCache(uri, "team-alpha", "demo", "SHA-256", Duration.ofSeconds(1), true, false)
                 .store(Runnable::run, "step", step, in, output);
         assertThat(blobs).isEmpty();
-        assertThat(new BuildExecutorHttpCache(uri, "team-alpha").fetch(Runnable::run, "step", step, in, target)).isEmpty();
+        assertThat(new BuildExecutorHttpCache(uri, "team-alpha", "demo").fetch(Runnable::run, "step", step, in, target)).isEmpty();
     }
 
     @Test
     public void read_disabled_does_not_fetch() throws IOException {
-        BuildExecutorHttpCache cache = new BuildExecutorHttpCache(uri, "team-alpha", "SHA-256", Duration.ofSeconds(1), false, true);
+        BuildExecutorHttpCache cache = new BuildExecutorHttpCache(uri, "team-alpha", "demo", "SHA-256", Duration.ofSeconds(1), false, true);
         byte[] step = {1};
         SequencedMap<String, Map<Path, byte[]>> in = inputs("source", "file", new byte[]{9});
         Files.writeString(output.resolve("file"), "result");
@@ -109,7 +112,7 @@ public class BuildExecutorHttpCacheTest {
 
     @Test
     public void default_connect_timeout_is_short() {
-        assertThat(new BuildExecutorHttpCache(uri, "team-alpha").connectTimeout())
+        assertThat(new BuildExecutorHttpCache(uri, "team-alpha", "demo").connectTimeout())
                 .isEqualTo(Duration.ofSeconds(1));
     }
 
@@ -141,7 +144,7 @@ public class BuildExecutorHttpCacheTest {
         responder.start();
 
         Files.writeString(output.resolve("file"), "x".repeat(100_000));
-        new BuildExecutorHttpCache(URI.create("http://localhost:" + rejecting.getLocalPort()), "team-alpha")
+        new BuildExecutorHttpCache(URI.create("http://localhost:" + rejecting.getLocalPort()), "team-alpha", "demo")
                 .store(Runnable::run, "step", new byte[]{1}, inputs("source", "file", new byte[]{9}), output);
         responder.join(2_000);
         rejecting.close();

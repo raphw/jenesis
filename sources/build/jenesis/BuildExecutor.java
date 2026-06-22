@@ -19,10 +19,11 @@ public interface BuildExecutor {
                 cache = BuildExecutorCache.nop();
             } else if (location.startsWith("http://") || location.startsWith("https://")) {
                 String key = System.getProperty("jenesis.executor.cache.key", System.getenv("JENESIS_CACHE_KEY"));
+                String project = System.getProperty("jenesis.executor.cache.project", System.getenv("JENESIS_CACHE_PROJECT"));
                 String connectTimeout = System.getProperty("jenesis.executor.cache.timeout");
                 cache = connectTimeout == null
-                        ? new BuildExecutorHttpCache(URI.create(location), key)
-                        : new BuildExecutorHttpCache(URI.create(location), key, "SHA-256", Duration.parse(connectTimeout), true, true);
+                        ? new BuildExecutorHttpCache(URI.create(location), key, project)
+                        : new BuildExecutorHttpCache(URI.create(location), key, project, "SHA-256", Duration.parse(connectTimeout), true, true);
             } else {
                 cache = new BuildExecutorFileCache(Path.of(location));
             }
