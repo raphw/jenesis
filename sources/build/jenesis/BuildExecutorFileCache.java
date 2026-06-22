@@ -9,9 +9,9 @@ public record BuildExecutorFileCache(Path root,
                                      int versions,
                                      boolean touch,
                                      boolean lru,
-                                     boolean frozen,
                                      boolean compressed,
-                                     boolean disabled) implements BuildExecutorCache {
+                                     boolean read,
+                                     boolean write) implements BuildExecutorCache {
 
     public BuildExecutorFileCache(Path root) {
         Path file = root.resolve("cache.properties");
@@ -27,9 +27,9 @@ public record BuildExecutorFileCache(Path root,
                 versions = properties.getProperty("versions"),
                 touch = properties.getProperty("touch"),
                 lru = properties.getProperty("lru"),
-                frozen = properties.getProperty("frozen"),
                 compressed = properties.getProperty("compressed"),
-                disabled = properties.getProperty("disabled");
+                read = properties.getProperty("read"),
+                write = properties.getProperty("write");
         this(root,
                 digest == null ? "SHA-256" : digest,
                 true,
@@ -37,9 +37,9 @@ public record BuildExecutorFileCache(Path root,
                 versions == null ? 10 : Integer.parseInt(versions.trim()),
                 touch == null || Boolean.parseBoolean(touch.trim()),
                 lru == null || Boolean.parseBoolean(lru.trim()),
-                frozen != null && Boolean.parseBoolean(frozen.trim()),
                 compressed != null && Boolean.parseBoolean(compressed.trim()),
-                disabled != null && Boolean.parseBoolean(disabled.trim()));
+                read == null || Boolean.parseBoolean(read.trim()),
+                write == null || Boolean.parseBoolean(write.trim()));
     }
 
     @Override
@@ -48,7 +48,7 @@ public record BuildExecutorFileCache(Path root,
                                            byte[] step,
                                            SequencedMap<String, Map<Path, byte[]>> inputs,
                                            Path target) throws IOException {
-        if (disabled) {
+        if (!read) {
             return Optional.empty();
         }
         Path folder = root.resolve(HexFormat.of().formatHex(step));
@@ -60,7 +60,7 @@ public record BuildExecutorFileCache(Path root,
         } else {
             return Optional.empty();
         }
-        if (touch && !frozen) {
+        if (touch && write) {
             touch(entry);
             touch(folder);
         }
@@ -73,19 +73,27 @@ public record BuildExecutorFileCache(Path root,
                       byte[] step,
                       SequencedMap<String, Map<Path, byte[]>> inputs,
                       Path output) throws IOException {
-        if (disabled || frozen) {
+        if (!write) {
             return;
         }
+        try {
+            executor.execute(() -> persist(step, inputs, output));
+        } catch (RejectedExecutionException _) {
+        }
+    }
+
+    private void persist(byte[] step, SequencedMap<String, Map<Path, byte[]>> inputs, Path output) {
         Path folder = root.resolve(HexFormat.of().formatHex(step));
         Path entry = folder.resolve(HexFormat.of().formatHex(fold(inputs)));
         if (Files.exists(entry)) {
             return;
         }
-        Files.createDirectories(folder);
-        Path temporary = compressed
-                ? Files.createTempFile(folder, "tmp", null)
-                : Files.createTempDirectory(folder, "tmp");
+        Path temporary = null;
         try {
+            Files.createDirectories(folder);
+            temporary = compressed
+                    ? Files.createTempFile(folder, "tmp", null)
+                    : Files.createTempDirectory(folder, "tmp");
             if (compressed) {
                 zip(output, temporary);
             } else {
@@ -96,15 +104,18 @@ public record BuildExecutorFileCache(Path root,
             } catch (AtomicMoveNotSupportedException _) {
                 Files.move(temporary, entry);
             }
-        } catch (FileAlreadyExistsException | DirectoryNotEmptyException _) {
-            delete(temporary);
-            return;
-        } catch (IOException | RuntimeException e) {
-            delete(temporary);
-            throw e;
+            temporary = null;
+            evict(folder, versions);
+            evict(root, steps);
+        } catch (IOException | RuntimeException _) {
+        } finally {
+            if (temporary != null) {
+                try {
+                    delete(temporary);
+                } catch (IOException _) {
+                }
+            }
         }
-        evict(folder, versions);
-        evict(root, steps);
     }
 
     private byte[] fold(SequencedMap<String, Map<Path, byte[]>> inputs) {

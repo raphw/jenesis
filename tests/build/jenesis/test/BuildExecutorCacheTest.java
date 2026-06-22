@@ -81,6 +81,19 @@ public class BuildExecutorCacheTest implements Serializable {
         assertThat(cache.storeOutput.resolve("file")).content().isEqualTo("foobar");
     }
 
+    @Test
+    public void read_only_delegates_fetch_and_suppresses_store() throws IOException {
+        RecordingCache delegate = new RecordingCache(true);
+        BuildExecutorCache readOnly = delegate.readOnly();
+        SequencedMap<String, Map<Path, byte[]>> inputs = new LinkedHashMap<>();
+        Optional<BuildStepResult> result = readOnly.fetch(Runnable::run, "step", new byte[]{1}, inputs, root);
+        assertThat(result).isPresent();
+        assertThat(delegate.fetches).hasValue(1);
+        assertThat(delegate.fetchIdentity).isEqualTo("step");
+        readOnly.store(Runnable::run, "step", new byte[]{1}, inputs, root);
+        assertThat(delegate.stores).hasValue(0);
+    }
+
     private static final class RecordingCache implements BuildExecutorCache {
 
         private final boolean hit;
