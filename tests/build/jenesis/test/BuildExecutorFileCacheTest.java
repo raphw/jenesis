@@ -313,6 +313,23 @@ public class BuildExecutorFileCacheTest implements Serializable {
         assertThat(result).isEmpty();
     }
 
+    @Test
+    public void folds_inputs_independent_of_separator() throws IOException {
+        BuildExecutorFileCache cache = new BuildExecutorFileCache(cacheRoot);
+        Files.writeString(output.resolve("file"), "x");
+        byte[] step = {1};
+        cache.store(Runnable::run, "step", step, inputPath(Path.of("a", "b")), output);
+        assertThat(cache.fetch(Runnable::run, "step", step, inputPath(Path.of("a\\b")), target)).isPresent();
+    }
+
+    private static SequencedMap<String, Map<Path, byte[]>> inputPath(Path path) {
+        Map<Path, byte[]> files = new LinkedHashMap<>();
+        files.put(path, new byte[]{9});
+        SequencedMap<String, Map<Path, byte[]>> inputs = new LinkedHashMap<>();
+        inputs.put("source", files);
+        return inputs;
+    }
+
     private Path store(BuildExecutorFileCache cache, byte[] step, byte[] inputHash) throws IOException {
         Files.writeString(output.resolve("file"), "x");
         Path folder = cacheRoot.resolve(HexFormat.of().formatHex(step));

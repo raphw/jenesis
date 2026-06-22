@@ -111,6 +111,22 @@ public class BuildExecutorHttpCacheTest {
     }
 
     @Test
+    public void zip_entries_use_forward_slashes() throws IOException {
+        Files.createDirectory(output.resolve("nested"));
+        Files.writeString(output.resolve("nested").resolve("inner"), "deep");
+        new BuildExecutorHttpCache(uri).key("team-alpha").project("demo")
+                .store(Runnable::run, "step", new byte[]{1}, inputs("source", "file", new byte[]{9}), output);
+        List<String> names = new ArrayList<>();
+        try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(blobs.values().iterator().next()))) {
+            for (ZipEntry entry = zip.getNextEntry(); entry != null; entry = zip.getNextEntry()) {
+                names.add(entry.getName());
+            }
+        }
+        assertThat(names).contains("nested/inner");
+        assertThat(names).noneMatch(name -> name.contains("\\"));
+    }
+
+    @Test
     public void omits_headers_when_key_and_project_are_unset() throws IOException {
         new BuildExecutorHttpCache(uri)
                 .fetch(Runnable::run, "step", new byte[]{1}, inputs("source", "file", new byte[]{9}), target);

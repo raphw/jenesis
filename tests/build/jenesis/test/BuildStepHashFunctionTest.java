@@ -24,6 +24,14 @@ public class BuildStepHashFunctionTest {
     }
 
     @Test
+    public void hashes_path_fields_independent_of_separator() throws IOException {
+        BuildStepHashFunction hash = BuildStepHashFunction.ofSerializationDigest("MD5");
+        byte[] forwardSlash = hash.hash(new PathStep(Path.of("nested", "file")));
+        byte[] backSlash = hash.hash(new PathStep(Path.of("nested\\file")));
+        assertThat(forwardSlash).isEqualTo(backSlash);
+    }
+
+    @Test
     public void throws_for_non_serializable_step() {
         BuildStepHashFunction hash = BuildStepHashFunction.ofSerializationDigest("MD5");
         BuildStep step = new NonSerializableStep();
@@ -31,6 +39,15 @@ public class BuildStepHashFunctionTest {
     }
 
     private record ConfigurableStep(String value) implements BuildStep {
+        @Override
+        public CompletionStage<BuildStepResult> apply(Executor executor,
+                                                      BuildStepContext context,
+                                                      SequencedMap<String, BuildStepArgument> arguments) {
+            return CompletableFuture.completedStage(new BuildStepResult(true));
+        }
+    }
+
+    private record PathStep(Path path) implements BuildStep {
         @Override
         public CompletionStage<BuildStepResult> apply(Executor executor,
                                                       BuildStepContext context,

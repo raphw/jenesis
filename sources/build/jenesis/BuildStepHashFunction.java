@@ -18,7 +18,7 @@ public interface BuildStepHashFunction {
                     @Override
                     protected Object replaceObject(Object value) {
                         return value instanceof Path path
-                                ? path.toString().replace(File.separatorChar, '/')
+                                ? path.toString().replace('\\', '/')
                                 : value;
                     }
                 }) {
