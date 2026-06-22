@@ -5,12 +5,12 @@ import module java.base;
 @FunctionalInterface
 public interface BuildExecutorCallback {
 
-    String RESET = "[0m";
-    String RED = "[31m";
-    String GREEN = "[32m";
-    String YELLOW = "[33m";
-    String BLUE = "[34m";
-    String CYAN = "[36m";
+    String RESET = "[0m";
+    String RED = "[31m";
+    String GREEN = "[32m";
+    String YELLOW = "[33m";
+    String BLUE = "[34m";
+    String CYAN = "[36m";
 
     BiConsumer<Boolean, Throwable> step(String identity, SequencedSet<String> keys);
 
@@ -19,12 +19,18 @@ public interface BuildExecutorCallback {
         };
     }
 
+    default void loaded(String identity, long duration) {
+    }
+
+    default void stored(String identity, long duration) {
+    }
+
     static BuildExecutorCallback nop() {
         return (_, _) -> (_, _) -> {
         };
     }
 
-    static BuildExecutorCallback printing(PrintStream out, boolean verbose, Path target) {
+    static BuildExecutorCallback printing(PrintStream out, boolean verbose, boolean cache, Path target) {
         return new BuildExecutorCallback() {
             @Override
             public BiConsumer<Boolean, Throwable> step(String identity, SequencedSet<String> keys) {
@@ -84,6 +90,22 @@ public interface BuildExecutorCallback {
                                 GREEN, "[RESOLVED]", RESET, identity, CYAN, time, RESET);
                     }
                 };
+            }
+
+            @Override
+            public void loaded(String identity, long duration) {
+                if (cache) {
+                    out.printf("%s%-11s%s %s %sin %.2f seconds%s\n",
+                            YELLOW, "[LOADED]", RESET, identity, CYAN, ((double) duration / 1_000_000) / 1_000, RESET);
+                }
+            }
+
+            @Override
+            public void stored(String identity, long duration) {
+                if (cache) {
+                    out.printf("%s%-11s%s %s %sin %.2f seconds%s\n",
+                            YELLOW, "[STORED]", RESET, identity, CYAN, ((double) duration / 1_000_000) / 1_000, RESET);
+                }
             }
         };
     }

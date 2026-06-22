@@ -95,18 +95,22 @@ public class BuildExecutorCacheTest implements Serializable {
     }
 
     @Test
-    public void printing_logs_loads_and_stores() throws IOException {
-        SequencedMap<String, Map<Path, byte[]>> inputs = new LinkedHashMap<>();
-        ByteArrayOutputStream hitOut = new ByteArrayOutputStream();
-        BuildExecutorCache hit = BuildExecutorCache.printing(new RecordingCache(true), new PrintStream(hitOut));
-        hit.fetch(Runnable::run, "compile/javac", new byte[]{1}, inputs, root);
-        hit.store(Runnable::run, "compile/javac", new byte[]{1}, inputs, root);
-        assertThat(hitOut.toString()).contains("[LOADED]").contains("[STORED]").contains("compile/javac");
+    public void callback_prints_cache_loads_and_stores_with_timing() {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        BuildExecutorCallback callback = BuildExecutorCallback.printing(new PrintStream(bytes), false, true, root);
+        callback.loaded("compile/javac", 5_000_000L);
+        callback.stored("compile/javac", 7_000_000L);
+        String printed = bytes.toString();
+        assertThat(printed).contains("[LOADED]").contains("[STORED]").contains("compile/javac").contains("seconds");
+    }
 
-        ByteArrayOutputStream missOut = new ByteArrayOutputStream();
-        BuildExecutorCache.printing(new RecordingCache(false), new PrintStream(missOut))
-                .fetch(Runnable::run, "compile/javac", new byte[]{1}, inputs, root);
-        assertThat(missOut.toString()).doesNotContain("[LOADED]");
+    @Test
+    public void callback_omits_cache_lines_when_not_requested() {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        BuildExecutorCallback callback = BuildExecutorCallback.printing(new PrintStream(bytes), false, false, root);
+        callback.loaded("compile/javac", 5_000_000L);
+        callback.stored("compile/javac", 7_000_000L);
+        assertThat(bytes.toString()).isEmpty();
     }
 
     private static final class RecordingCache implements BuildExecutorCache {

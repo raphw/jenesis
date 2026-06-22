@@ -12,7 +12,7 @@ public class BuildExecutorCallbackTest {
     public void can_print_executed() {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         try (PrintStream printStream = new PrintStream(outputStream)) {
-            BuildExecutorCallback.printing(printStream, false, null)
+            BuildExecutorCallback.printing(printStream, false, false, null)
                     .step("foo", new LinkedHashSet<>(Set.of("bar")))
                     .accept(true, null);
         }
@@ -29,7 +29,7 @@ public class BuildExecutorCallbackTest {
     public void can_print_skipped() {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         try (PrintStream printStream = new PrintStream(outputStream)) {
-            BuildExecutorCallback.printing(printStream, false, null)
+            BuildExecutorCallback.printing(printStream, false, false, null)
                     .step("foo", new LinkedHashSet<>(Set.of("bar")))
                     .accept(false, null);
         }
@@ -41,7 +41,7 @@ public class BuildExecutorCallbackTest {
     public void can_print_failed() {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         try (PrintStream printStream = new PrintStream(outputStream)) {
-            BuildExecutorCallback.printing(printStream, false, null)
+            BuildExecutorCallback.printing(printStream, false, false, null)
                     .step("foo", new LinkedHashSet<>(Set.of("bar")))
                     .accept(null, new RuntimeException("message"));
         }
