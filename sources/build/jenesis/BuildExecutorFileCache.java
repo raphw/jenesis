@@ -7,6 +7,7 @@ public record BuildExecutorFileCache(Path root,
                                      boolean links,
                                      int steps,
                                      int versions,
+                                     long size,
                                      boolean touch,
                                      boolean lru,
                                      boolean compressed,
@@ -25,6 +26,7 @@ public record BuildExecutorFileCache(Path root,
         String digest = properties.getProperty("digest"),
                 steps = properties.getProperty("steps"),
                 versions = properties.getProperty("versions"),
+                size = properties.getProperty("size"),
                 touch = properties.getProperty("touch"),
                 lru = properties.getProperty("lru"),
                 compressed = properties.getProperty("compressed"),
@@ -35,6 +37,7 @@ public record BuildExecutorFileCache(Path root,
                 true,
                 steps == null ? 250 : Integer.parseInt(steps.trim()),
                 versions == null ? 10 : Integer.parseInt(versions.trim()),
+                size == null ? 0 : Long.parseLong(size.trim()),
                 touch == null || Boolean.parseBoolean(touch.trim()),
                 lru == null || Boolean.parseBoolean(lru.trim()),
                 compressed != null && Boolean.parseBoolean(compressed.trim()),
@@ -107,6 +110,7 @@ public record BuildExecutorFileCache(Path root,
             temporary = null;
             evict(folder, versions);
             evict(root, steps);
+            evictBySize(size);
         } catch (IOException | RuntimeException _) {
         } finally {
             if (temporary != null) {
@@ -160,6 +164,72 @@ public record BuildExecutorFileCache(Path root,
             } catch (IOException _) {
             }
         }
+    }
+
+    private void evictBySize(long limit) throws IOException {
+        if (limit <= 0) {
+            return;
+        }
+        Map<Path, Long> sizes = new LinkedHashMap<>();
+        long total = 0;
+        try (DirectoryStream<Path> folders = Files.newDirectoryStream(root)) {
+            for (Path folder : folders) {
+                if (!isHex(folder.getFileName().toString()) || !Files.isDirectory(folder)) {
+                    continue;
+                }
+                try (DirectoryStream<Path> entries = Files.newDirectoryStream(folder)) {
+                    for (Path entry : entries) {
+                        if (!isHex(entry.getFileName().toString())) {
+                            continue;
+                        }
+                        long bytes = sizeOf(entry);
+                        sizes.put(entry, bytes);
+                        total += bytes;
+                    }
+                }
+            }
+        }
+        if (total <= limit) {
+            return;
+        }
+        List<Path> entries = new ArrayList<>(sizes.keySet());
+        entries.sort(Comparator.comparing(BuildExecutorFileCache::lastModified));
+        for (int index = 0; index < entries.size() && total > limit; index++) {
+            Path entry = lru ? entries.get(index) : entries.get(entries.size() - 1 - index);
+            try {
+                delete(entry);
+                total -= sizes.get(entry);
+                Path folder = entry.getParent();
+                try (DirectoryStream<Path> remaining = Files.newDirectoryStream(folder)) {
+                    if (!remaining.iterator().hasNext()) {
+                        Files.deleteIfExists(folder);
+                    }
+                }
+            } catch (IOException _) {
+            }
+        }
+    }
+
+    private static long sizeOf(Path path) {
+        if (Files.isRegularFile(path)) {
+            try {
+                return Files.size(path);
+            } catch (IOException _) {
+                return 0;
+            }
+        }
+        long[] total = {0};
+        try {
+            Files.walkFileTree(path, new SimpleFileVisitor<>() {
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) {
+                    total[0] += attributes.size();
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        } catch (IOException _) {
+        }
+        return total[0];
     }
 
     private static void touch(Path path) {
