@@ -127,6 +127,11 @@ public class BuildExecutorCacheTest implements Serializable {
         }
 
         @Override
+        public boolean stores() {
+            return true;
+        }
+
+        @Override
         public Optional<BuildStepResult> fetch(Executor executor,
                                                String identity,
                                                byte[] step,

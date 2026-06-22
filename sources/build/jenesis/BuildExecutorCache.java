@@ -18,6 +18,10 @@ public interface BuildExecutorCache {
                        Path output) throws IOException {
     }
 
+    default boolean stores() {
+        return false;
+    }
+
     default BuildExecutorCache readOnly() {
         return this::fetch;
     }

@@ -86,6 +86,11 @@ public record BuildExecutorFileCache(Path root,
         }
     }
 
+    @Override
+    public boolean stores() {
+        return write;
+    }
+
     private void persist(byte[] step, SequencedMap<String, Map<Path, byte[]>> inputs, Path output) {
         Path folder = root.resolve(HexFormat.of().formatHex(step));
         Path entry = folder.resolve(HexFormat.of().formatHex(fold(inputs)));

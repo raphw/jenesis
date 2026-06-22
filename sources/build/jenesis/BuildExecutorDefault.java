@@ -191,7 +191,7 @@ class BuildExecutorDefault implements BuildExecutor {
                             SequencedProperties stepProperties = new SequencedProperties();
                             stepProperties.setProperty("serialization", HexFormat.of().formatHex(currentStepHash));
                             stepProperties.store(checksum.resolve("step.properties"));
-                            if (!fromCache && result.next()) {
+                            if (cache.stores() && !fromCache && result.next()) {
                                 String stored = location + identity;
                                 try {
                                     executor.execute(() -> {
