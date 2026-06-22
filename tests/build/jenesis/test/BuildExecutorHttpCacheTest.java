@@ -113,6 +113,41 @@ public class BuildExecutorHttpCacheTest {
                 .isEqualTo(Duration.ofSeconds(1));
     }
 
+    @Test
+    public void server_rejection_aborts_the_upload_without_sending_the_body() throws IOException, InterruptedException {
+        ServerSocket rejecting = new ServerSocket(0, 0, InetAddress.getLoopbackAddress());
+        AtomicBoolean bodySeen = new AtomicBoolean(false);
+        Thread responder = new Thread(() -> {
+            try (Socket socket = rejecting.accept()) {
+                InputStream in = socket.getInputStream();
+                int read, state = 0;
+                while (state < 4 && (read = in.read()) != -1) {
+                    state = (read == '\r') ? (state == 2 ? 3 : 1)
+                          : (read == '\n') ? (state == 1 ? 2 : (state == 3 ? 4 : 0)) : 0;
+                }
+                socket.getOutputStream().write(
+                        "HTTP/1.1 409 Conflict\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                                .getBytes(StandardCharsets.ISO_8859_1));
+                socket.getOutputStream().flush();
+                socket.setSoTimeout(500);
+                try {
+                    bodySeen.set(in.read() != -1);
+                } catch (SocketTimeoutException _) {
+                }
+            } catch (IOException _) {
+            }
+        });
+        responder.setDaemon(true);
+        responder.start();
+
+        Files.writeString(output.resolve("file"), "x".repeat(100_000));
+        new BuildExecutorHttpCache(URI.create("http://localhost:" + rejecting.getLocalPort()), "team-alpha")
+                .store(Runnable::run, "step", new byte[]{1}, inputs("source", "file", new byte[]{9}), output);
+        responder.join(2_000);
+        rejecting.close();
+        assertThat(bodySeen).isFalse();
+    }
+
     private static SequencedMap<String, Map<Path, byte[]>> inputs(String argument, String file, byte[] hash) {
         Map<Path, byte[]> files = new LinkedHashMap<>();
         files.put(Path.of(file), hash);
