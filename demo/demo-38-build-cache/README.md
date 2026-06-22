@@ -80,6 +80,7 @@ key has a default, so the file may be omitted entirely:
 | `digest`     | `SHA-256` | algorithm folding the inputs into the entry-folder name                |
 | `steps`      | `250`     | maximum number of step folders kept                                    |
 | `versions`   | `10`      | maximum input-variants kept per step                                   |
+| `size`       | unset     | maximum total bytes kept; over it, whole entries are evicted by `lru` until under (unset = no size cap) |
 | `lru`        | `true`    | evict the least-recently-updated entry when over a limit (`false` = most-recently) |
 | `touch`      | `true`    | bump an entry's timestamp on read, so reads keep hot entries alive     |
 | `compressed` | `false`   | store each entry as a single zip file rather than a folder of files    |
@@ -87,7 +88,8 @@ key has a default, so the file may be omitted entirely:
 | `write`      | `true`    | populate the cache; `write=false` serves reads but never writes, evicts, or touches |
 
 Eviction is by file timestamp, performed on write; `touch` keeps recently-read
-entries fresh so the caps approximate an LRU. `compressed` trades the hard-linked
+entries fresh so the count caps (`steps`, `versions`) and the byte cap (`size`)
+approximate an LRU. `compressed` trades the hard-linked
 reads of the folder format for a packed, transport-friendly layout, approaching
 the shape a remote cache server would store. `read` and `write` are the typical CI
 split: a privileged job builds with the defaults (both `true`) to populate the

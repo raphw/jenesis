@@ -196,6 +196,20 @@ public class BuildExecutorFileCacheTest implements Serializable {
     }
 
     @Test
+    public void evicts_least_recently_updated_until_under_size() throws IOException {
+        Files.writeString(cacheRoot.resolve("cache.properties"), "size=2500\nsteps=0\nversions=0\n");
+        BuildExecutorFileCache cache = new BuildExecutorFileCache(cacheRoot);
+        Path a = storeSized(cache, new byte[]{1}, 1000);
+        Path b = storeSized(cache, new byte[]{2}, 1000);
+        Files.setLastModifiedTime(a, FileTime.from(Instant.now().minusSeconds(300)));
+        Files.setLastModifiedTime(b, FileTime.from(Instant.now().minusSeconds(60)));
+        Path c = storeSized(cache, new byte[]{3}, 1000);
+        assertThat(a).doesNotExist();
+        assertThat(b).isDirectory();
+        assertThat(c).isDirectory();
+    }
+
+    @Test
     public void touch_updates_timestamps_on_read() throws IOException {
         BuildExecutorFileCache cache = new BuildExecutorFileCache(cacheRoot);
         byte[] step = {1};
@@ -304,6 +318,16 @@ public class BuildExecutorFileCacheTest implements Serializable {
         Path folder = cacheRoot.resolve(HexFormat.of().formatHex(step));
         Set<Path> before = children(folder);
         cache.store(Runnable::run, "step", step, inputs("source", "file", inputHash), output);
+        Set<Path> after = children(folder);
+        after.removeAll(before);
+        return after.isEmpty() ? null : after.iterator().next();
+    }
+
+    private Path storeSized(BuildExecutorFileCache cache, byte[] step, int bytes) throws IOException {
+        Files.write(output.resolve("file"), new byte[bytes]);
+        Path folder = cacheRoot.resolve(HexFormat.of().formatHex(step));
+        Set<Path> before = children(folder);
+        cache.store(Runnable::run, "step", step, inputs("source", "file", new byte[]{9}), output);
         Set<Path> after = children(folder);
         after.removeAll(before);
         return after.isEmpty() ? null : after.iterator().next();

@@ -730,7 +730,7 @@ every step is a forced miss. The shared cache lives outside `target/`, so a firs
 build bootstraps it and a second `rebuild` is served from it - the compile,
 class, and jar steps return in ~0.00s, marked `[EXECUTED]` because the output was
 produced, just not by `javac`. An optional `cache.properties` at the cache root
-tunes the writes (`steps`/`versions` caps with `lru` eviction, `touch`,
+tunes the writes (`steps`/`versions`/`size` caps with `lru` eviction, `touch`,
 `compressed` for a packed zip layout, and `read`/`write` toggles - `write=false`
 for read-only consumers, both off to disable), all defaulted so the file is
 optional. `BuildExecutorFileCache` is
