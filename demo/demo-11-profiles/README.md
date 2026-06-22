@@ -43,12 +43,12 @@ Property files feed the same `jenesis.*` system properties the command line sets
 so anything you can pass with `-D` can live in a profile. They are loaded before
 the build is configured, by the `main` launcher:
 
-- `jenesis.properties` at the project root is the **base profile**. It is always
+- `jenesis.properties` at the project root is the **base file**. It is always
   loaded when present, and it is optional - this demo ships none.
 - `jenesis.project.properties` is a **comma-separated list of profiles** to load,
-  resolved relative to the project root. The `.properties` suffix is optional, so
-  `release` and `release.properties` are equivalent. A listed file that does not
-  exist is an error (the base `jenesis.properties` is the only optional one).
+  resolved relative to the folder of the file that names them. The `.properties`
+  suffix is optional, so `release` and `release.properties` are equivalent. A
+  listed profile that does not exist is an error (only the base files are optional).
 - Profiles **chain**: any loaded file may itself set `jenesis.project.properties`
   to pull in more, transitively, until everything is loaded. Here `release`
   chains to `supply-chain`:
@@ -58,9 +58,17 @@ the build is configured, by the `main` launcher:
       supply-chain.properties   jenesis.sbom.cyclonedx=json
 
   so selecting `release` also applies `supply-chain`.
-- Every property a profile sets is a **default**: the command line wins. So
-  `-Djenesis.project.sources=false` on a release build switches the source jar
-  back off, and a profile never overrides a value you passed explicitly.
+- A user-global `jenesis.properties` is loaded for **every** project as the
+  weakest layer - shared personal defaults. It lives in `~/.jenesis/`;
+  `jenesis.project.global` moves that folder (default `$HOME`) or, set to an empty
+  string, switches it off, and a missing file is ignored. It may declare its own
+  profiles too, relative to its `.jenesis` folder.
+- **Precedence**, highest first: an explicit `-D` on the command line, then the
+  profiles, then the project `jenesis.properties`, then the user-global
+  `jenesis.properties`. So `-Djenesis.project.sources=false` on a release build
+  switches the source jar back off (the command line always wins), and selecting
+  the `release` profile overrides whatever the project's base `jenesis.properties`
+  set.
 
 What the release build produces
 -------------------------------

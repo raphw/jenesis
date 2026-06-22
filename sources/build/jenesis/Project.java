@@ -1568,13 +1568,42 @@ public record Project(
     }
 
     public static void loadJenesisProperties(Path path) throws IOException {
+        Path base = path.resolve("jenesis.properties");
+        SequencedProperties project = Files.isRegularFile(base) ? SequencedProperties.ofFiles(base) : null;
+        String location = System.getProperty("jenesis.project.global");
+        if (location == null && project != null) {
+            location = project.getProperty("jenesis.project.global");
+        }
+        if (location == null) {
+            location = System.getProperty("user.home");
+        }
+        SequencedProperties user = null;
+        Path home = null;
+        if (!location.isEmpty()) {
+            home = Path.of(location).resolve(".jenesis");
+            Path file = home.resolve("jenesis.properties");
+            user = Files.isRegularFile(file) ? SequencedProperties.ofFiles(file) : null;
+        }
         Set<Path> loaded = new LinkedHashSet<>();
         Deque<Path> pending = new ArrayDeque<>();
-        Path base = path.resolve("jenesis.properties");
-        if (Files.isRegularFile(base)) {
-            pending.add(base);
-        }
         addProfiles(pending, path, System.getProperty("jenesis.project.properties"));
+        if (project != null) {
+            addProfiles(pending, path, project.getProperty("jenesis.project.properties"));
+        }
+        loadProfiles(loaded, pending, path);
+        if (user != null) {
+            addProfiles(pending, home, user.getProperty("jenesis.project.properties"));
+            loadProfiles(loaded, pending, home);
+        }
+        if (project != null) {
+            apply(project);
+        }
+        if (user != null) {
+            apply(user);
+        }
+    }
+
+    private static void loadProfiles(Set<Path> loaded, Deque<Path> pending, Path base) throws IOException {
         while (!pending.isEmpty()) {
             Path file = pending.removeFirst().normalize();
             if (!loaded.add(file)) {
@@ -1584,10 +1613,14 @@ public record Project(
                 throw new IllegalArgumentException("Profile properties file not found: " + file);
             }
             SequencedProperties properties = SequencedProperties.ofFiles(file);
-            addProfiles(pending, path, properties.getProperty("jenesis.project.properties"));
-            for (String name : properties.stringPropertyNames()) {
-                System.getProperties().putIfAbsent(name, properties.getProperty(name));
-            }
+            addProfiles(pending, base, properties.getProperty("jenesis.project.properties"));
+            apply(properties);
+        }
+    }
+
+    private static void apply(SequencedProperties properties) {
+        for (String name : properties.stringPropertyNames()) {
+            System.getProperties().putIfAbsent(name, properties.getProperty(name));
         }
     }
 
