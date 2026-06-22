@@ -104,3 +104,13 @@ the standard `pin` step never walks, so its Maven-coordinate checksums are not
 recorded and the build cannot run under strict pinning
 (`-Djenesis.dependency.pin=strict`); a project built entirely through the regular
 modular flow, by contrast, pins and verifies strictly as usual.
+
+The `demo.plugin` coordinate is pinned by version only
+(`@jenesis.pin tool/module/demo.plugin 1`), without a checksum: `main` stages it
+by building `plugin/` against an unpinned `requires build.jenesis`, which resolves
+to the latest published release, and `javac` records that resolved version into
+the plugin's `module-info.class`. The staged jar's bytes therefore change whenever
+`build.jenesis` is released, even on the same JVM (the `jar` tool's `Created-By`
+manifest entry is a further, JVM-specific source of drift), so a published checksum
+would not survive the next release. The staged jar reproduces byte-for-byte only
+for a fixed JVM and a fixed resolved `build.jenesis`.
