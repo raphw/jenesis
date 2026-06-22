@@ -14,12 +14,14 @@ A project-local cache (the easy one)
 ------------------------------------
 
 The simplest form needs nothing but a flag; Jenesis keeps a content-addressed
-cache under `.jenesis/build`:
+cache under `.jenesis/cache`, rooted at the project root:
 
-    -Djenesis.cache.local=true
+    -Djenesis.project.cache
 
-This is the main example below. Each entry lives at
-`.jenesis/build/<step-hash>/<inputs-hash>/`, where the step hash identifies the
+The property is a filesystem path; an empty value (as above) resolves to
+`.jenesis/cache` under the project root, and a value relocates it. This is the
+main example below. Each entry lives at
+`.jenesis/cache/<step-hash>/<inputs-hash>/`, where the step hash identifies the
 step (its serialized form) and the inputs hash folds every input file's content
 hash. On a miss the executor runs the step and stores the result; on a hit it
 materializes the cached output (hard-linked, so it is near free) and the step body
@@ -32,10 +34,10 @@ This is the smallest possible project - a `pom.xml` and one dependency-free
 source - so the only thing of interest is *who* produced the output. Run it from
 this directory.
 
-**1. Bootstrap the cache.** A normal build populates `.jenesis/build` while it
+**1. Bootstrap the cache.** A normal build populates `.jenesis/cache` while it
 compiles:
 
-    java -Djenesis.cache.local=true build/jenesis/Project.java
+    java -Djenesis.project.cache build/jenesis/Project.java
 
     [EXECUTED]  .../compile/javac in 0.07 seconds
     [EXECUTED]  .../binary/classes in 0.02 seconds
@@ -47,7 +49,7 @@ deletes `target/` first, so the incremental cache is gone and *every* step is a
 forced miss that would normally re-run from scratch. The build cache lives outside
 `target/`, so it survives - and serves them:
 
-    java -Djenesis.cache.local=true \
+    java -Djenesis.project.cache \
          -Djenesis.executor.rebuild=true \
          build/jenesis/Project.java
 
@@ -61,40 +63,41 @@ from the cache, not from `javac`, which is why each lands in ~0.00s. Add
 `-Djenesis.print.cache` to make it explicit: each step served from the cache then
 prints a `[LOADED]` line and each one written to it a `[STORED]` line. On this toy
 project the saving is tiny; on a real module the compile that took seconds returns
-instantly. Delete `.jenesis/build` to start over.
+instantly. Delete `.jenesis/cache` to start over.
 
 A shared cache (the `uri` one)
 ------------------------------
 
-`.jenesis/build` is private to one checkout. To share results across checkouts,
-machines, or CI, name an explicit location with `-Djenesis.cache.uri=`. It
-typically points at a cache *server* over HTTP, but it can equally be a folder on
-a local or shared (NFS, network drive) file system:
+`.jenesis/cache` is private to one checkout. To share results across checkouts,
+machines, or CI, name an explicit location with `-Djenesis.cache.uri=`. The value
+is a URI: it typically points at a cache *server* over HTTP, but it can equally be
+a `file://` location on a local or shared (NFS, network drive) file system:
 
     -Djenesis.cache.uri=https://cache.example.com      # a cache server
-    -Djenesis.cache.uri=/mnt/team/jenesis-cache        # a shared (or local) folder
+    -Djenesis.cache.uri=file:///mnt/team/jenesis-cache # a shared (or local) folder
 
-A folder resolves a `BuildExecutorFileCache` (the same on-disk format as the local
-cache); an `http(s)://` URL selects `BuildExecutorHttpCache`, which GETs and PUTs
-the same zip entries to the server, naming the cache project with
+A `file://` URI resolves a `BuildExecutorFileCache` (the same on-disk format as the
+local cache); an `http(s)://` URL selects `BuildExecutorHttpCache`, which GETs and
+PUTs the same zip entries to the server, naming the cache project with
 `-Djenesis.cache.project=<project>` and authenticating with
-`-Djenesis.cache.key=<key>` (both sent as headers, never in the URL).
+`-Djenesis.cache.key=<key>` (both sent as headers, never in the URL). A non-URI
+value is rejected - use `file://` for an on-disk location.
 
 The shared cache can be used **two ways**.
 
 **As a replacement** - the shared cache only, no local tier (e.g. an ephemeral CI
 runner whose disk is thrown away anyway):
 
-    java -Djenesis.cache.uri=/mnt/team/jenesis-cache build/jenesis/Project.java
+    java -Djenesis.cache.uri=file:///mnt/team/jenesis-cache build/jenesis/Project.java
 
-**Layered behind the local cache** - set both `-Djenesis.cache.local=true` *and*
+**Layered behind the local cache** - set both `-Djenesis.project.cache` *and*
 `-Djenesis.cache.uri=...`, and Jenesis wires a `BuildExecutorLayeredCache`: every
-read tries `.jenesis/build` first and only falls through to the shared cache on a
-miss; a shared hit is copied into `.jenesis/build` on the way past, so the next
+read tries `.jenesis/cache` first and only falls through to the shared cache on a
+miss; a shared hit is copied into `.jenesis/cache` on the way past, so the next
 read is local; and a store writes through to both. A second build on the same
 checkout never re-downloads what the first already fetched:
 
-    java -Djenesis.cache.local=true \
+    java -Djenesis.project.cache \
          -Djenesis.cache.uri=https://cache.example.com \
          -Djenesis.cache.project=acme -Djenesis.cache.key=alice \
          build/jenesis/Project.java
@@ -120,7 +123,7 @@ for free.
 Tuning with `cache.properties`
 ------------------------------
 
-Drop an optional `cache.properties` at the cache root - `.jenesis/build/cache.properties`
+Drop an optional `cache.properties` at the cache root - `.jenesis/cache/cache.properties`
 for the project-local cache, or `<folder>/cache.properties` for a file-system
 shared one - to tune the writes; every key has a default, so the file may be
 omitted entirely:
@@ -152,7 +155,8 @@ Where this fits
 `BuildExecutorFileCache` (local or a shared folder), `BuildExecutorHttpCache` (a
 server), and `BuildExecutorLayeredCache` (one in front of another) are all
 implementations of the pluggable `BuildExecutorCache` seam - the same
-`fetch`/`store`/`touch` interface, wired by `BuildExecutor.Configuration` from the
-two switches above. A step compiled once is reused everywhere its inputs are
-identical, whether "everywhere" means the next build on your laptop or every job
-on the cluster.
+`fetch`/`store`/`touch` interface. `BuildExecutor.Configuration` resolves the
+shared `jenesis.cache.uri` backend; `Project` roots the project-local
+`jenesis.project.cache` under the project root and layers it in front. A step
+compiled once is reused everywhere its inputs are identical, whether "everywhere"
+means the next build on your laptop or every job on the cluster.

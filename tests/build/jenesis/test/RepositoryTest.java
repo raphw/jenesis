@@ -105,6 +105,67 @@ public class RepositoryTest {
     }
 
     @Test
+    public void cached_references_local_items_in_place_without_caching() throws IOException {
+        Path source = Files.writeString(folder.resolve("local.jar"), "local");
+        Path cache = Files.createDirectory(folder.resolve("cache"));
+        Repository underlying = (_, _) -> Optional.of(new RepositoryItem() {
+            @Override
+            public Optional<Path> file() {
+                return Optional.of(source);
+            }
+
+            @Override
+            public boolean local() {
+                return true;
+            }
+
+            @Override
+            public InputStream toInputStream() throws IOException {
+                return Files.newInputStream(source);
+            }
+        });
+
+        Optional<RepositoryItem> item = underlying.cached(cache).fetch(Runnable::run, "module/foo/1.0");
+
+        assertThat(item).isPresent();
+        assertThat(item.get().file()).contains(source);
+        assertThat(item.get().internal()).isFalse();
+        assertThat(item.get().local()).isFalse();
+        assertThat(cache.toFile().list()).isEmpty();
+    }
+
+    @Test
+    public void cached_local_item_skips_inner_cache_but_outer_cache_snapshots_it() throws IOException {
+        Path source = Files.writeString(folder.resolve("local.jar"), "local");
+        Path inner = Files.createDirectory(folder.resolve("inner"));
+        Path outer = Files.createDirectory(folder.resolve("outer"));
+        Repository underlying = (_, _) -> Optional.of(new RepositoryItem() {
+            @Override
+            public Optional<Path> file() {
+                return Optional.of(source);
+            }
+
+            @Override
+            public boolean local() {
+                return true;
+            }
+
+            @Override
+            public InputStream toInputStream() throws IOException {
+                return Files.newInputStream(source);
+            }
+        });
+
+        Optional<RepositoryItem> item = underlying.cached(inner).cached(outer).fetch(Runnable::run, "module/foo/1.0");
+
+        assertThat(item).isPresent();
+        assertThat(item.get().file()).isPresent();
+        assertThat(item.get().file().get().getParent()).isEqualTo(outer);
+        assertThat(inner.toFile().list()).isEmpty();
+        assertThat(outer.toFile().list()).isNotEmpty();
+    }
+
+    @Test
     public void cached_failed_stream_copy_leaves_no_file_at_the_target() throws IOException {
         Path cache = Files.createDirectory(folder.resolve("cache"));
         RepositoryItem failing = () -> new InputStream() {

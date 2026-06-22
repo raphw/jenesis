@@ -34,7 +34,8 @@ public record Project(
         Path root,
         Path configuration,
         Path target,
-        Path cache,
+        Path artifacts,
+        BuildExecutorCache cache,
         HashDigestFunction hashFunction,
         Layout layout,
         boolean tests,
@@ -77,7 +78,7 @@ public record Project(
                 Map<String, Repository> repositories = new LinkedHashMap<>(project.repositories());
                 repositories.putIfAbsent("maven",
                         new MavenDefaultRepository()
-                                .cached(project.cache() == null ? null : Files.createDirectories(project.cache())));
+                                .cached(project.artifacts() == null ? null : Files.createDirectories(project.artifacts())));
                 Map<String, Resolver> resolvers = new LinkedHashMap<>(project.resolvers());
                 resolvers.putIfAbsent("maven", new MavenPomResolver());
                 SequencedSet<String> mavenDeps = new LinkedHashSet<>();
@@ -139,7 +140,7 @@ public record Project(
                 Map<String, Repository> repositories = new LinkedHashMap<>(project.repositories());
                 repositories.putIfAbsent("module",
                         new JenesisModuleRepository(true)
-                                .cached(project.cache() == null ? null : Files.createDirectories(project.cache()))
+                                .cached(project.artifacts() == null ? null : Files.createDirectories(project.artifacts()))
                                 .prepend(JenesisModuleRepository.ofLocal()));
                 Map<String, Resolver> resolvers = new LinkedHashMap<>(project.resolvers());
                 resolvers.putIfAbsent("module", new ModularJarResolver(false));
@@ -208,10 +209,10 @@ public record Project(
                 Map<String, Repository> repositories = new LinkedHashMap<>(project.repositories());
                 repositories.putIfAbsent("maven",
                         new MavenDefaultRepository()
-                                .cached(project.cache() == null ? null : Files.createDirectories(project.cache())));
+                                .cached(project.artifacts() == null ? null : Files.createDirectories(project.artifacts())));
                 repositories.putIfAbsent("module",
                         new JenesisModuleRepository(false)
-                                .cached(project.cache() == null ? null : Files.createDirectories(project.cache())));
+                                .cached(project.artifacts() == null ? null : Files.createDirectories(project.artifacts())));
                 Map<String, Resolver> resolvers = new LinkedHashMap<>(project.resolvers());
                 resolvers.putIfAbsent("maven", new MavenPomResolver());
                 resolvers.putIfAbsent("module", new MavenModuleResolver("maven",
@@ -401,7 +402,7 @@ public record Project(
                       Read by the default %{name}new Project()%{reset} constructor as the starting
                       defaults, so they apply unless a wired value overrides them
                       (an explicit %{name}.layout(...)%{reset}, %{name}.target(...)%{reset}, and so on wins).
-                      %{name}root%{reset}, %{name}target%{reset}, %{name}cache%{reset}              Override input/output locations
+                      %{name}root%{reset}, %{name}target%{reset}, %{name}artifacts%{reset}          Override input/output locations
                       %{name}layout%{reset}                           auto, maven, modular, or modular_to_maven
                       %{name}sources%{reset}, %{name}documentation%{reset}           Assemble source/javadoc jars
                       %{name}metadata%{reset}                         Path-separated list of extra metadata files
@@ -464,8 +465,8 @@ public record Project(
                     %{header}Staging (-Djenesis.stage.<key>=<value>):%{reset}
                       %{name}tests%{reset}                            Stage test-variant artifacts alongside main artifacts
                     
-                    %{header}Build cache (-Djenesis.cache.uri=<folder|url>):%{reset}
-                      Reuse step outputs across builds. A local %{name}<folder>%{reset} is an on-disk
+                    %{header}Build cache (-Djenesis.cache.uri=<uri>):%{reset}
+                      Reuse step outputs across builds. A %{name}file://%{reset} URI is an on-disk
                       cache, tuned by an optional %{name}cache.properties%{reset} at its root; an
                       %{name}http(s)://%{reset} URL is a remote cache server, configured through
                       %{name}jenesis.cache.<key>%{reset}: %{name}project%{reset} names the project and %{name}key%{reset} the access
@@ -473,9 +474,10 @@ public record Project(
                       (default %{name}PT1S%{reset}) and %{name}insecure%{reset} permits the key over plaintext http
                       off loopback. Reads block the build; writes run on a background
                       thread. Trace them with %{name}-Djenesis.print.cache%{reset}.
-                      %{name}-Djenesis.cache.local=true%{reset} also keeps a project-local cache at
-                      %{name}.jenesis/build%{reset}; with a remote configured it layers in front, and a
-                      local hit still sends the remote a HEAD touch so its LRU stays warm.
+                      %{name}-Djenesis.project.cache%{reset} keeps a project-local cache (a filesystem
+                      path; empty resolves to %{name}.jenesis/cache%{reset} under the project root);
+                      with a remote configured it layers in front, and a local hit still
+                      sends the remote a HEAD touch so its LRU stays warm.
 
                     %{header}Cache invalidation:%{reset}
                       Changes to the sources of the project being built are always
@@ -759,7 +761,7 @@ public record Project(
                     9. Set system properties for one-off overrides
                     ----------------------------------------------
                     Project-level (-Djenesis.project.<key>=<value>):
-                      root, target, cache         Override input/output locations.
+                      root, target, artifacts     Override input/output locations.
                       layout                      auto, maven, modular,
                                                   modular_to_maven.
                       sources, documentation      Assemble sources / javadoc jars.
@@ -808,8 +810,8 @@ public record Project(
                                                   JENESIS_REPOSITORY_URI/LOCAL/TOKEN).
 
                     Build cache:
-                      -Djenesis.cache.uri=<folder|url>    Reuse step outputs across
-                                                  builds: a folder is an on-disk
+                      -Djenesis.cache.uri=<uri>           Reuse step outputs across
+                                                  builds: a file:// URI is an on-disk
                                                   cache (tuned by a cache.properties
                                                   at its root), an http(s) URL a
                                                   remote server. For a server,
@@ -819,11 +821,12 @@ public record Project(
                                                   JENESIS_CACHE_PROJECT/KEY);
                                                   -Djenesis.cache.timeout and
                                                   -Djenesis.cache.insecure tune it.
-                      -Djenesis.cache.local=true          Also cache locally at
-                                                  .jenesis/build, layered in front
-                                                  of the remote; a local hit HEAD-
-                                                  touches the remote to keep its
-                                                  LRU warm.
+                      -Djenesis.project.cache=<path>      Also cache locally on disk,
+                                                  layered in front of the remote
+                                                  (empty resolves to .jenesis/cache
+                                                  under the project root); a local
+                                                  hit HEAD-touches the remote to keep
+                                                  its LRU warm.
 
                     Executor-level:
                       -Djenesis.executor.rebuild=true   Wipe target/ before build.
@@ -1121,11 +1124,21 @@ public record Project(
         if (targetOverride != null) {
             resolvedTarget = Path.of(targetOverride);
         }
-        Path resolvedCache = Path.of(".jenesis", "cache");
-        String cacheOverride = System.getProperty("jenesis.project.cache");
-        if (cacheOverride != null) {
-            resolvedCache = Path.of(cacheOverride);
+        Path resolvedArtifacts = Path.of(".jenesis", "artifacts");
+        String artifactsOverride = System.getProperty("jenesis.project.artifacts");
+        if (artifactsOverride != null) {
+            resolvedArtifacts = Path.of(artifactsOverride);
         }
+        String cacheOverride = System.getProperty("jenesis.project.cache");
+        if (cacheOverride != null && cacheOverride.contains("://")) {
+            throw new IllegalArgumentException(
+                    "jenesis.project.cache is a filesystem path, not a URI (use jenesis.cache.uri for a URI): " + cacheOverride);
+        }
+        BuildExecutorCache resolvedCache = cacheOverride == null
+                ? null
+                : new BuildExecutorFileCache(resolvedRoot.resolve(cacheOverride.isEmpty()
+                        ? Path.of(".jenesis", "cache")
+                        : Path.of(cacheOverride)));
         String layoutOverride = System.getProperty("jenesis.project.layout");
         Layout resolvedLayout = layoutOverride == null ? Layout.AUTO : switch (layoutOverride.toLowerCase(Locale.ROOT)) {
             case "auto" -> Layout.AUTO;
@@ -1145,6 +1158,7 @@ public record Project(
         this(resolvedRoot,
                 resolvedConfiguration,
                 resolvedTarget,
+                resolvedArtifacts,
                 resolvedCache,
                 new HashDigestFunction(System.getProperty("jenesis.project.digest", "SHA-256")),
                 resolvedLayout,
@@ -1165,6 +1179,7 @@ public record Project(
         return new Project(root,
                 configuration,
                 target,
+                artifacts,
                 cache,
                 hashFunction,
                 layout,
@@ -1185,6 +1200,7 @@ public record Project(
         return new Project(root,
                 configuration,
                 target,
+                artifacts,
                 cache,
                 hashFunction,
                 layout,
@@ -1201,10 +1217,32 @@ public record Project(
                 configurator);
     }
 
-    public Project cache(Path cache) {
+    public Project artifacts(Path artifacts) {
         return new Project(root,
                 configuration,
                 target,
+                artifacts,
+                cache,
+                hashFunction,
+                layout,
+                tests,
+                sources,
+                documentation,
+                pinning,
+                metadata,
+                version,
+                defaultTarget,
+                assembler,
+                repositories,
+                resolvers,
+                configurator);
+    }
+
+    public Project cache(BuildExecutorCache cache) {
+        return new Project(root,
+                configuration,
+                target,
+                artifacts,
                 cache,
                 hashFunction,
                 layout,
@@ -1225,6 +1263,7 @@ public record Project(
         return new Project(root,
                 configuration,
                 target,
+                artifacts,
                 cache,
                 hashFunction,
                 layout,
@@ -1245,6 +1284,7 @@ public record Project(
         return new Project(root,
                 configuration,
                 target,
+                artifacts,
                 cache,
                 hashFunction,
                 layout,
@@ -1265,6 +1305,7 @@ public record Project(
         return new Project(root,
                 configuration,
                 target,
+                artifacts,
                 cache,
                 hashFunction,
                 layout,
@@ -1285,6 +1326,7 @@ public record Project(
         return new Project(root,
                 configuration,
                 target,
+                artifacts,
                 cache,
                 hashFunction,
                 layout,
@@ -1305,6 +1347,7 @@ public record Project(
         return new Project(root,
                 configuration,
                 target,
+                artifacts,
                 cache,
                 hashFunction,
                 layout,
@@ -1325,6 +1368,7 @@ public record Project(
         return new Project(root,
                 configuration,
                 target,
+                artifacts,
                 cache,
                 hashFunction,
                 layout,
@@ -1345,6 +1389,7 @@ public record Project(
         return new Project(root,
                 configuration,
                 target,
+                artifacts,
                 cache,
                 hashFunction,
                 layout,
@@ -1365,6 +1410,7 @@ public record Project(
         return new Project(root,
                 configuration,
                 target,
+                artifacts,
                 cache,
                 hashFunction,
                 layout,
@@ -1385,6 +1431,7 @@ public record Project(
         return new Project(root,
                 configuration,
                 target,
+                artifacts,
                 cache,
                 hashFunction,
                 layout,
@@ -1405,6 +1452,7 @@ public record Project(
         return new Project(root,
                 configuration,
                 target,
+                artifacts,
                 cache,
                 hashFunction,
                 layout,
@@ -1425,6 +1473,7 @@ public record Project(
         return new Project(root,
                 configuration,
                 target,
+                artifacts,
                 cache,
                 hashFunction,
                 layout,
@@ -1445,6 +1494,7 @@ public record Project(
         return new Project(root,
                 configuration,
                 target,
+                artifacts,
                 cache,
                 hashFunction,
                 layout,
@@ -1465,6 +1515,7 @@ public record Project(
         return new Project(root,
                 configuration,
                 target,
+                artifacts,
                 cache,
                 hashFunction,
                 layout,
@@ -1486,7 +1537,14 @@ public record Project(
     }
 
     public SequencedMap<String, Path> build(boolean printDependencies, String... selectors) throws IOException {
-        BuildExecutor executor = configurator.get().of(target);
+        BuildExecutor.Configuration configuration = configurator.get();
+        if (cache != null) {
+            BuildExecutorCache configured = configuration.cache();
+            configuration = configuration.cache(configured == null
+                    ? cache
+                    : new BuildExecutorLayeredCache(cache, configured));
+        }
+        BuildExecutor executor = configuration.of(target);
         Function<String, String> resolver = layout.apply(executor, this, assembler, printDependencies);
         return executor.execute(Arrays.stream(selectors.length == 0 ? defaultTarget.toArray(String[]::new) : selectors)
                 .map(selector -> selector.startsWith("+") ? resolver.apply(selector.substring(1)) : selector)
@@ -1497,8 +1555,8 @@ public record Project(
         Path absoluteRoot = root().toAbsolutePath().normalize();
         Set<Path> excluded = new LinkedHashSet<>();
         excluded.add((target().isAbsolute() ? target() : absoluteRoot.resolve(target())).normalize());
-        if (cache() != null) {
-            excluded.add((cache().isAbsolute() ? cache() : absoluteRoot.resolve(cache())).normalize());
+        if (artifacts() != null) {
+            excluded.add((artifacts().isAbsolute() ? artifacts() : absoluteRoot.resolve(artifacts())).normalize());
         }
         new ProjectWatch(absoluteRoot, excluded, 200L).watch(() -> {
             try {
@@ -1570,7 +1628,7 @@ public record Project(
             String image = System.getProperty("jenesis.project.docker.image");
             Path root = this.root().toAbsolutePath().normalize();
             DockerizedJava docker = image == null ? new DockerizedJava(root) : new DockerizedJava(root, image);
-            for (Path path : List.of(this.target(), this.cache())) {
+            for (Path path : List.of(this.target(), this.artifacts())) {
                 Path absolute = (path.isAbsolute() ? path : root.resolve(path)).normalize();
                 if (!absolute.startsWith(root)) {
                     docker = docker.mount(absolute, absolute.toString(), false);

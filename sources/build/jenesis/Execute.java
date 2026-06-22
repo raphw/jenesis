@@ -123,7 +123,7 @@ public record Execute(Project project, String mainClass, String module) {
             String image = System.getProperty("jenesis.execute.docker.image");
             Path root = project.root().toAbsolutePath().normalize();
             DockerizedJava docker = image == null ? new DockerizedJava(root) : new DockerizedJava(root, image);
-            for (Path path : List.of(project.target(), project.cache())) {
+            for (Path path : List.of(project.target(), project.artifacts())) {
                 Path absolute = (path.isAbsolute() ? path : root.resolve(path)).normalize();
                 if (!absolute.startsWith(root)) {
                     docker = docker.mount(absolute, absolute.toString(), false);

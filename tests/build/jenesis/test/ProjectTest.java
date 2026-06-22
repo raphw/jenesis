@@ -5,6 +5,7 @@ import module org.junit.jupiter.api;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorCache;
 import build.jenesis.BuildExecutorCallback;
+import build.jenesis.BuildExecutorFileCache;
 import build.jenesis.BuildStepHashFunction;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.Project;
@@ -28,6 +29,7 @@ public class ProjectTest {
         System.clearProperty("jenesis.test.skip");
         System.clearProperty("jenesis.project.root");
         System.clearProperty("jenesis.project.target");
+        System.clearProperty("jenesis.project.artifacts");
         System.clearProperty("jenesis.project.cache");
         System.clearProperty("jenesis.project.digest");
         System.clearProperty("jenesis.project.properties");
@@ -153,9 +155,38 @@ public class ProjectTest {
     }
 
     @Test
-    public void system_property_overrides_cache() {
+    public void system_property_overrides_artifacts() {
+        System.setProperty("jenesis.project.artifacts", "custom-artifacts");
+        assertThat(new Project().artifacts()).isEqualTo(Path.of("custom-artifacts"));
+    }
+
+    @Test
+    public void local_build_cache_is_disabled_by_default() {
+        assertThat(new Project().cache()).isNull();
+    }
+
+    @Test
+    public void local_build_cache_rejects_a_uri_value() {
+        System.setProperty("jenesis.project.cache", "file:///tmp/cache");
+        assertThatThrownBy(() -> new Project()).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    public void empty_property_enables_local_build_cache_at_default_location() {
+        System.setProperty("jenesis.project.root", root.toString());
+        System.setProperty("jenesis.project.cache", "");
+        BuildExecutorCache cache = new Project().cache();
+        assertThat(cache).isInstanceOf(BuildExecutorFileCache.class);
+        assertThat(((BuildExecutorFileCache) cache).root().endsWith(Path.of(".jenesis", "cache"))).isTrue();
+    }
+
+    @Test
+    public void system_property_overrides_local_build_cache_location() {
+        System.setProperty("jenesis.project.root", root.toString());
         System.setProperty("jenesis.project.cache", "custom-cache");
-        assertThat(new Project().cache()).isEqualTo(Path.of("custom-cache"));
+        BuildExecutorCache cache = new Project().cache();
+        assertThat(cache).isInstanceOf(BuildExecutorFileCache.class);
+        assertThat(((BuildExecutorFileCache) cache).root().endsWith(Path.of("custom-cache"))).isTrue();
     }
 
     @Test

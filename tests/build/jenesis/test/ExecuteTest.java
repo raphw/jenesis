@@ -157,11 +157,11 @@ public class ExecuteTest {
                 </project>
                 """.formatted(Sample.class.getName()));
         Path target = Files.createDirectory(root.resolve("target"));
-        Path cache = Files.createDirectory(root.resolve("cache"));
+        Path artifacts = Files.createDirectory(root.resolve("artifacts"));
         Project project = new Project()
                 .root(root)
                 .target(target)
-                .cache(cache)
+                .artifacts(artifacts)
                 .layout(Project.Layout.MAVEN)
                 .tests(false);
         int code = new Execute(project).execute();

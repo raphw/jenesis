@@ -13,6 +13,10 @@ public interface RepositoryItem {
         return false;
     }
 
+    default boolean local() {
+        return false;
+    }
+
     InputStream toInputStream() throws IOException;
 
     static RepositoryItem ofFile(Path file) {

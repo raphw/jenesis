@@ -14,27 +14,17 @@ public interface BuildExecutor {
 
         public Configuration() {
             String location = System.getProperty("jenesis.cache.uri");
-            boolean localEnabled = Boolean.getBoolean("jenesis.cache.local");
-            BuildExecutorCache remote;
-            if (location == null) {
-                remote = null;
-            } else if (location.startsWith("http://") || location.startsWith("https://")) {
-                remote = new BuildExecutorHttpCache(URI.create(location));
-            } else {
-                remote = new BuildExecutorFileCache(Path.of(location));
-            }
-            BuildExecutorCache local = localEnabled
-                    ? new BuildExecutorFileCache(Path.of(".jenesis", "build"))
-                    : null;
             BuildExecutorCache cache;
-            if (local == null && remote == null) {
-                cache = BuildExecutorCache.nop();
-            } else if (remote == null) {
-                cache = local;
-            } else if (local == null) {
-                cache = remote;
+            if (location == null || location.isEmpty()) {
+                cache = null;
             } else {
-                cache = new BuildExecutorLayeredCache(local, remote);
+                URI uri = URI.create(location);
+                cache = switch (uri.getScheme() == null ? "" : uri.getScheme()) {
+                    case "http", "https" -> new BuildExecutorHttpCache(uri);
+                    case "file" -> new BuildExecutorFileCache(Path.of(uri));
+                    default -> throw new IllegalArgumentException(
+                            "Unsupported cache URI scheme (expected http, https, or file): " + location);
+                };
             }
             this(Duration.parse(System.getProperty("jenesis.executor.timeout", Duration.ZERO.toString())),
                     System.getProperty("jenesis.executor.digest", "MD5"),
@@ -71,7 +61,7 @@ public interface BuildExecutor {
                     Boolean.parseBoolean(System.getProperty("jenesis.print.progress", "true"))
                             ? BuildExecutorCallback.printing(System.out, verbose, Boolean.getBoolean("jenesis.print.cache"), target)
                             : BuildExecutorCallback.nop(),
-                    cache,
+                    cache == null ? BuildExecutorCache.nop() : cache,
                     rebuild);
         }
     }

@@ -393,6 +393,11 @@ public class MavenDefaultRepository implements MavenRepository {
         public Optional<Path> file() {
             return Optional.of(path);
         }
+
+        @Override
+        public boolean local() {
+            return true;
+        }
     }
 
     record LatentRepositoryItem(Path path,

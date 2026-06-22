@@ -308,7 +308,7 @@ the end gives the macOS and Windows spread. These are shared, virtualised machin
 as representative rather than precise to the tenth - what holds is the *shape*: the ordering of the launchers and
 the order-of-magnitude warm-path gap, and it reproduces on every runner. All wall-clock times are the median the
 harness records (the `%e` elapsed field, never a build tool's own self-report); both tools run with warm dependency
-caches (`~/.m2` for Maven, `.jenesis/cache` for Jenesis). The cold compile figure is the median of five runs and
+caches (`~/.m2` for Maven, `.jenesis/artifacts` for Jenesis). The cold compile figure is the median of five runs and
 the other compile-only figures the median of three; the full builds are run once or twice, being test-bound and
 barely variable. Warming the caches isolates CPU cost, but it also hides a charge Maven pays on any cold CI runner
 whose `~/.m2` was not restored: before any build work it downloads its own distribution (via the wrapper) and its
@@ -782,7 +782,7 @@ entries with the same key override the layout default.
 | Layout               | Pipeline                                                                                  | Demo                   |
 | -------------------- | ----------------------------------------------------------------------------------------- | ---------------------- |
 | `Layout.MAVEN`       | **Input: `pom.xml`. Output: classic JAR + `pom.xml`.** `MavenProject` scan + per-project `JavaToolchainModule` + per-module `Pom` step + `MavenRepositoryStaging` + `MavenRepositoryExport` | `demo/demo-01-java-pom`         |
-| `Layout.MODULAR`     | **Input: `module-info.java`. Output: modular JAR (no `pom.xml`).** `ModularProject` over `JenesisModuleRepository` (public overlay, cached under `.jenesis/cache/`) with `JenesisModuleRepository.ofLocal()` prepended + per-project `JavaToolchainModule` + `ModularStaging` + `JenesisModuleRepositoryExport` | `demo/demo-02-java-modular`     |
+| `Layout.MODULAR`     | **Input: `module-info.java`. Output: modular JAR (no `pom.xml`).** `ModularProject` over `JenesisModuleRepository` (public overlay, cached under `.jenesis/artifacts/`) with `JenesisModuleRepository.ofLocal()` prepended + per-project `JavaToolchainModule` + `ModularStaging` + `JenesisModuleRepositoryExport` | `demo/demo-02-java-modular`     |
 | `Layout.MODULAR_TO_MAVEN` | **Input: `module-info.java`. Output: modular JAR + `pom.xml`.** `ModularProject` against a `MavenDefaultRepository` driven by `MavenModuleResolver`, which fetches each declared module's `:pom` artifact from a permissive `JenesisModuleRepository(false)` to translate the module name into its Maven coordinate, then resolves through `MavenPomResolver` as if the project were a single synthetic POM declaring those coordinates as its `<dependencies>`. No `module-info.class` is ever read; `<dependencyManagement>` is taken solely from the `@jenesis.pin` tags (a pin on a non-declared module is fetched the same way and registered as a managed dependency), never hoisted from the declared modules' own POMs. The discovered first-layer POMs seed the resolver cache, so they are not re-fetched from Maven Central. Per-module `Pom` step on top of the assembler; since the jars are genuine modules, both `stage` and `export` are modules with aligned `maven`/`modular` sub-steps - `MavenRepositoryStaging` + `ModularStaging`, then `MavenRepositoryExport` into the local Maven repository + `JenesisModuleRepositoryExport` into the local Jenesis module repository | `demo/demo-02-java-modular`     |
 | `Layout.AUTO` (default) | Detection: a root `pom.xml` → `MAVEN`; else any `module-info.java` under the root → `MODULAR_TO_MAVEN`. Trees rooted at a nested `.jenesis.skip` marker are skipped. Falling through throws. | - |
 
@@ -1121,7 +1121,7 @@ an explicit UID is declared the JDK no longer computes the implicit one, and the
 `ObjectOutputStream` what it would have been.
 
 The executor places a `.jenesis.skip` marker at the build root so source scanners (`MavenProject`,
-`ModularProject`) can skip nested builds, stores all per-step state under `target/`, and uses `.jenesis/cache/`
+`ModularProject`) can skip nested builds, stores all per-step state under `target/`, and uses `.jenesis/artifacts/`
 by convention for cross-build caches such as downloaded module URIs.
 
 ### Best practice: communicate through file/folder conventions, not step names
@@ -1255,7 +1255,8 @@ others are declared next to the step that emits them.
 | `launcher.properties`      | (inlined literal; written by `prepare`) | The **neutral entry-point descriptor** the default `InferredMultiProjectAssembler`'s `prepare` step writes once per module that declares a main class, holding `mainClass`, `mainModule` (only for a module-path launcher), and `name` (the artifact). It exists so every artifact-generation step reads the launcher coordinates from the *same* assembler-owned file: `Bundle` and the `Launcher` step translate it into their `application.properties`, and `NativeImage` into its `--module <module>/<class>` or positional main. It is deliberately separate from the per-command `process/jpackage.properties` / `process/jlink.properties` that `jpackage` / `jlink` consume through the `ProcessBuildStep` auto-prepend - those stay private to their own step, so no artifact step depends on a properties file another artifact step consumes. |
 | `pom.xml`                  | `Pom.POM`                        | A generated Maven Project Object Model, ready to be packaged alongside a built jar so the artifact can be published to and consumed from any Maven-aware repository.                                                                                  |
 | `target/`                  | (passed to `BuildExecutor.of`)   | The root folder under which every step's per-run output and the executor's incremental bookkeeping (output checksums and predecessor checksum snapshots used to decide whether a step needs to re-run) live. Safe to delete to force a clean build.   |
-| `.jenesis/cache/`          | by convention                    | A project-root folder for caches that outlive a single build, hardlink-shared with `target/`. The `MODULAR` layout populates `.jenesis/cache/<encoded-coordinate>.jar` via `Repository.cached(...)` so module jars survive a `target/` wipe; `MAVEN` and `MODULAR_TO_MAVEN` cache into `~/.m2/repository` instead. Relocatable via `Project.cache(Path)` or `-Djenesis.project.cache=<path>`. See the *Repositories and resolvers* and *The `.jenesis/cache/` folder* sections below for the full picture. |
+| `.jenesis/artifacts/`          | by convention                    | A project-root folder for caches that outlive a single build, hardlink-shared with `target/`. The `MODULAR` layout populates `.jenesis/artifacts/<encoded-coordinate>.jar` via `Repository.cached(...)` so module jars survive a `target/` wipe; `MAVEN` and `MODULAR_TO_MAVEN` cache into `~/.m2/repository` instead. Relocatable via `Project.artifacts(Path)` or `-Djenesis.project.artifacts=<path>`. See the *Repositories and resolvers* and *The artifact cache* sections below for the full picture. |
+| `.jenesis/cache/`          | by convention (opt-in)           | The project-local **build cache** (a `BuildExecutorFileCache`), enabled with `-Djenesis.project.cache` (empty value resolves here) or relocated with `-Djenesis.project.cache=<path>`. Holds step outputs keyed by content hash (`<step-hash>/<inputs-hash>/`), so a served step never re-runs, and survives a `target/` wipe. `Project` roots it under the project root and layers it in front of any `jenesis.cache.uri` backend via `BuildExecutorLayeredCache`. Distinct from the artifact cache above. See *demo-38*. |
 | `.jenesis.skip`           | `BuildExecutor.SKIP_MARKER`     | An empty marker file placed at the root of an active build directory. Project-tree walkers honour it as a stop signal so nested builds aren't re-discovered as part of the parent build's project graph.                                              |
 
 Build steps
@@ -1964,7 +1965,7 @@ The following system properties and environment variables tune the build at laun
 | `jenesis.print.checksum`          | system property | When `true`, the default `BuildExecutorCallback.printing(...)` appends each executed step's input/output file checksums under its `[EXECUTED]` line, instead of just the high-level status line. Default `false`. |
 | `jenesis.print.command`          | system property | When `true`, `ProcessBuildStep` prints the full command line of each external tool it launches (a `[EXECUTED] <command>` line). Default `false`. |
 | `jenesis.print.fetch`          | system property | When `true`, repositories print a `[FETCHED]` line for every artifact they download (`Repository.cached`, `Repository.ofUris`, and `MavenDefaultRepository`). Default `false`. |
-| `jenesis.print.cache`          | system property | When `true`, `BuildExecutorCache.printing(...)` wraps the configured shared build cache so each step served from it prints a `[LOADED]` line and each step written to it a `[STORED]` line (the same `[FETCHED]`-style trace as `jenesis.print.fetch`). Effective whenever a cache is configured (`jenesis.cache.uri` and/or `jenesis.cache.local`), across the file, HTTP, and layered backends. Default `false`. |
+| `jenesis.print.cache`          | system property | When `true`, `BuildExecutorCache.printing(...)` wraps the configured shared build cache so each step served from it prints a `[LOADED]` line and each step written to it a `[STORED]` line (the same `[FETCHED]`-style trace as `jenesis.print.fetch`). Effective whenever a cache is configured (`jenesis.cache.uri` and/or `jenesis.project.cache`), across the file, HTTP, and layered backends. Default `false`. |
 | `jenesis.print.docker`          | system property | When `true`, `Project` (build-in-container) and `Execute` (run-in-container) print the Docker image they wrap the JVM in. Default `true` (set `false` to suppress), the same default as `jenesis.print.progress`. |
 | `jenesis.executor.timeout` | system property | ISO-8601 duration (e.g. `PT5M`, `PT30S`) applied to every `BuildStep` by `BuildExecutor.of(Path)`. Each step's returned `CompletionStage` is wrapped with `orTimeout`, so the build fails fast with a `TimeoutException` (surfaced as a `BuildExecutorException`) when a step exceeds the limit. Note that the future is only completed exceptionally; the underlying virtual thread is not interrupted and only winds down when the surrounding `ExecutorService` closes at the end of the build. Default `PT0S` disables the timeout. |
 | `jenesis.executor.rebuild` | system property | When `true`, `BuildExecutor.of(Path)` recursively deletes the target folder before constructing the executor, forcing a full rebuild from a clean tree. Equivalent to `rm -rf target/` ahead of the build. The `of(target, timeout, hash, stepHash, callback, rebuild)` overload accepts the flag directly; the convenience `of(Path)` overload reads this property. Default `false`. |
@@ -1997,7 +1998,7 @@ The following system properties and environment variables tune the build at laun
 | `jenesis.project.root`          | system property | Overrides the project root that `Project` scans for `module-info.java` / `pom.xml` (default `.`). |
 | `jenesis.project.properties`    | system property | A comma-separated list of profile files (`*.properties`, the suffix optional) that `Project.loadJenesisProperties` loads relative to the project root, in addition to the always-loaded base `jenesis.properties`. Each is read into the system properties with `putIfAbsent` (so an explicit `-D`, or an earlier-loaded file, always wins - profiles set defaults), and any loaded file may set `jenesis.project.properties` itself to chain further profiles transitively until all are loaded. A listed file that is missing is an error; only the base `jenesis.properties` is optional. This is the build's profiles mechanism - see *Configuration* above and the `profiles` demo. |
 | `jenesis.project.target`        | system property | Overrides the per-build output folder passed to `BuildExecutor.of(...)` (default `target`). Safe to delete to force a clean build. |
-| `jenesis.project.cache`         | system property | Overrides the cross-build cache folder (default `.jenesis/cache`) under which the `MODULAR` layout stores `<encoded-coordinate>.jar` for each downloaded module jar (see *The `.jenesis/cache/` folder*). Effectively ignored by `MAVEN` and `MODULAR_TO_MAVEN` since they cache through `~/.m2/repository` instead. |
+| `jenesis.project.artifacts`         | system property | Overrides the artifact cache folder (default `.jenesis/artifacts`) under which the `MODULAR` layout stores `<encoded-coordinate>.jar` for each downloaded module jar (see *The artifact cache*). Effectively ignored by `MAVEN` and `MODULAR_TO_MAVEN` since they cache through `~/.m2/repository` instead. |
 | `jenesis.project.watch`         | system property | When `true`, `Project.doMain(...)` does not return after one build: it registers a `java.nio` `WatchService` over the project root (via `ProjectWatch`) and re-runs the requested target on every file change, excluding the output folders (`target/`, the configured cache) and dot-directories so the build's own writes do not re-trigger. Each rebuild reuses the incremental cache, so only changed steps re-execute; module selectors are honored. See *Watching for changes*. Default `false` (single build). |
 | `jenesis.print.dependencies`    | system property | When `true`, `Project.doMain(...)` threads a `printDependencies` flag through the layout into the `Dependencies` step, which renders the resolver's returned `Resolution` through a fresh `DependencyTreeReport` to `System.out` after each resolve - printing rides on the resolve, not as a separate build step, so the tree is never persisted or hashed and a cached (un-rerun) resolve prints nothing. Each node shows the property-file key, the requested version (with the negotiated version inline when it differs), and (Maven) scope; `MODULAR_TO_MAVEN` shows each module's resolved Maven coordinate. See *Printing the dependency tree*. Default `false`. |
 | `jenesis.project.sources`       | system property | When `true` (bare flag accepted), resolves the project-level `source` flag to `true`, so `InferredMultiProjectAssembler` also assembles a per-module sources jar. |
@@ -2011,8 +2012,8 @@ The following system properties and environment variables tune the build at laun
 | `jenesis.module.uri` | system property (env fallback `JENESIS_REPOSITORY_URI`)| Overrides the upstream base URL that `JenesisModuleRepository`'s default constructor (`JenesisModuleRepository(boolean requireNamedModules)`) points at (default `https://repo.jenesis.build/`, the public overlay; see *Jenesis Repository layout for Java modules*). A trailing slash is added automatically if missing; the constructor then appends `module/` (when `requireNamedModules` is `true`) or `artifact/` (when `false`) to form the actual repository root. Useful for pointing at a mirror or a privately hosted publication of the same on-disk shape. The explicit `URI`-arg constructors bypass this variable entirely (and bypass the subpath append - the caller passes the full root). |
 | `jenesis.module.local` | system property (env fallback `JENESIS_REPOSITORY_LOCAL`)| Overrides the local Jenesis module repository directory (default `~/.jenesis`) used by `JenesisModuleRepositoryExport` (writes the staged module tree into it; directory created on demand) and by the static factory `JenesisModuleRepository.ofLocal()` (reads module jars back from it). `JenesisModuleRepository`'s no-arg constructor does **not** consult this variable; the remote overlay is governed by `JENESIS_REPOSITORY_URI` / `JENESIS_REPOSITORY_TOKEN` instead. |
 | `jenesis.module.token` | system property (env fallback `JENESIS_REPOSITORY_TOKEN`)| When set, `JenesisModuleRepository`'s no-arg constructor sends the value verbatim as an `Authorization` header on every HTTP fetch (e.g. `Bearer <token>` or `Basic <base64(user:pass)>`). Ignored for `file://` roots and any non-HTTP scheme. As with `MAVEN_REPOSITORY_TOKEN`, the header is sent only to the configured origin and is dropped when a fetch is redirected to a different scheme, host, or port - so the public overlay's 302 to Maven Central (a different host) is followed without forwarding the token there. The `(URI, String token)` constructor takes an explicit token instead, bypassing this variable. The set of three `JENESIS_REPOSITORY_*` variables mirrors the `MAVEN_REPOSITORY_*` set above. |
-| `jenesis.cache.uri`         | system property | Points the build executor at a shared cache that serves a step's output across builds instead of re-running it: a local `<folder>` resolves a `BuildExecutorFileCache` (tuned by an optional `cache.properties` at its root), an `http(s)://` URL a `BuildExecutorHttpCache` against a cache server. Unset, the cache is a no-op. The HTTP client reads `jenesis.cache.project` and `jenesis.cache.key` (sent as headers; env fallbacks `JENESIS_CACHE_PROJECT` / `JENESIS_CACHE_KEY`), `jenesis.cache.timeout` (connect timeout, default `PT1S`) and `jenesis.cache.insecure` (permit the key over plaintext `http://` off loopback). See *demo-38*. |
-| `jenesis.cache.local`   | system property | When `true`, keeps a project-local `BuildExecutorFileCache` at `.jenesis/build` (tuned by an optional `.jenesis/build/cache.properties`; distinct from the dependency cache at `.jenesis/cache`). With no `jenesis.cache.uri` set it is the sole cache; with one set, `BuildExecutorLayeredCache` puts the local cache **in front of** the remote — reads hit local first and fall through to the remote on a miss, a remote hit populates local, and stores write through to both. A read served from the local cache still sends the remote a best-effort `HEAD` touch (no `GET`), so an entry served locally is not evicted remotely — the layers keep independent but warm LRUs. Default `false`. |
+| `jenesis.cache.uri`         | system property | Points the build executor at a shared cache that serves a step's output across builds instead of re-running it. The value is a URI: a `file://` URI resolves a `BuildExecutorFileCache` (tuned by an optional `cache.properties` at its root), an `http(s)://` URL a `BuildExecutorHttpCache` against a cache server. A non-URI value is rejected; use `file://` for an on-disk shared location. Unset or empty, the cache is a no-op. The HTTP client reads `jenesis.cache.project` and `jenesis.cache.key` (sent as headers; env fallbacks `JENESIS_CACHE_PROJECT` / `JENESIS_CACHE_KEY`), `jenesis.cache.timeout` (connect timeout, default `PT1S`) and `jenesis.cache.insecure` (permit the key over plaintext `http://` off loopback). See *demo-38*. |
+| `jenesis.project.cache`   | system property | A project-local, on-disk build cache (a `BuildExecutorFileCache`) that `Project` roots under the project root, distinct from the artifact cache at `.jenesis/artifacts`. The value is a **filesystem path**, never a URI (a URI value is rejected; use `jenesis.cache.uri` for that); an empty value resolves to `.jenesis/cache` under the project root, so `-Djenesis.project.cache` with no value enables it at the default location. With no `jenesis.cache.uri` set it is the sole cache; with one set, `Project` puts it **in front of** the configured cache via `BuildExecutorLayeredCache` — reads hit local first and fall through to the remote on a miss, a remote hit populates local, and stores write through to both. A read served from the local cache still sends the remote a best-effort `HEAD` touch (no `GET`), so an entry served locally is not evicted remotely — the layers keep independent but warm LRUs. Unset (the default) disables it. |
 | `JAVA_HOME`             | environment variable| Consulted by `ProcessBuildStep`/`ProcessHandler` to locate the `java`/`javac`/`javadoc` binaries when the `java.home` system property is not set (typical when launching from a non-JDK runtime).                                     |
 
 Properties are passed on the JVM command line, e.g.
@@ -2139,7 +2140,7 @@ Static factories on the interface itself:
   `Map<String, Repository>` keyed by prefix from line-based `<prefix>/<key>=<location>` registries found in
   `folders`. Each prefix's URIs become `Repository.ofUris(..., versionResolver).cached(cache)`. The
   a launcher resolving modules from a URL registry uses this to convert the `uris.properties` output of
-  `DownloadModuleUris` into a per-prefix repository map with `.jenesis/cache/` as the cross-build hardlink
+  `DownloadModuleUris` into a per-prefix repository map with `.jenesis/artifacts/` as the cross-build hardlink
   cache. The shipped `Layout.MODULAR` instead points its `module` prefix at the public Jenesis overlay's
   `https://repo.jenesis.build/module/` root directly (see *Jenesis Repository layout for Java modules* and
   the `JenesisModuleRepository` paragraph above).
@@ -2155,7 +2156,7 @@ the parts into a `groupId/artifactId[/type[/classifier]]/version` coordinate str
 (default `https://repo1.maven.org/maven2/`, overridable via the `MAVEN_REPOSITORY_URI` environment variable),
 and hardlinks fetched bytes through the user's **local Maven repository**, defaulting to `~/.m2/repository`
 and overridable via the `MAVEN_REPOSITORY_LOCAL` environment variable (this is **not** the project's
-`.jenesis/cache/` folder). When `MAVEN_REPOSITORY_LOCAL` is set explicitly, the directory must exist or the
+`.jenesis/artifacts/` folder). When `MAVEN_REPOSITORY_LOCAL` is set explicitly, the directory must exist or the
 constructor throws; the default `~/.m2/repository` is permissive in the other direction, silently bypassing
 the local cache layer when absent. For upstreams that require authentication, `MAVEN_REPOSITORY_TOKEN` is
 sent verbatim as the `Authorization` header on every HTTP fetch (set the full value including the scheme,
@@ -2196,7 +2197,7 @@ fetches `<root>/foo/1.0/foo.pom`). When the type is omitted it defaults to `jar`
 returned `RepositoryItem` exposes the underlying `Path` so downstream caches can hardlink instead of copy; for
 HTTP URIs the stream is opened eagerly and an HTTP 404 surfaces as `Optional.empty()` so resolvers can fall
 back cleanly. The `MODULAR` layout wires the `module` prefix as `new JenesisModuleRepository(true)` (the
-public overlay's `module/` root, wrapped with `.cached(.jenesis/cache/)`) with `JenesisModuleRepository.ofLocal()`
+public overlay's `module/` root, wrapped with `.cached(.jenesis/artifacts/)`) with `JenesisModuleRepository.ofLocal()`
 prepended, so a local hit at `~/.jenesis` short-circuits the network fetch and a miss falls back to the
 overlay transparently. The `MODULAR_TO_MAVEN` layout uses `new JenesisModuleRepository(false)` (the public
 overlay's `artifact/` root) as the discovery repository passed to `MavenModuleResolver`, which fetches each
@@ -2221,8 +2222,8 @@ is **not** a cache equivalent of Maven's `~/.m2/repository` - it is a *supplemen
 publish modules locally so a project can deviate from whatever version the overlay would resolve. A module
 exported there via `JenesisModuleRepositoryExport` (or hardlinked in by hand) takes precedence over the
 overlay because the layout prepends it; remove or empty that entry and the overlay's mapping wins again.
-Caching of remote fetches is a separate concern handled per project under `.jenesis/cache/` (see *The
-`.jenesis/cache/` folder* below), so even a fresh `~/.jenesis` does not trigger a re-download on the next
+Caching of remote fetches is a separate concern handled per project under `.jenesis/artifacts/` (see *The
+artifact cache* below), so even a fresh `~/.jenesis` does not trigger a re-download on the next
 build.
 
 `Resolver` is a `Serializable @FunctionalInterface` whose method takes the root coordinates, the
@@ -2344,25 +2345,56 @@ sormuras refresh; a project that needs a missing module/version can layer its ow
 a custom layout. The overlay holds no bytes of its own and performs no authentication of its own; cache
 and transport behaviour are whatever Maven Central serves at the redirect target.
 
-### The `.jenesis/cache/` folder
+### The artifact cache
 
-`.jenesis/cache/` is the project-root home for caches that should outlive a single build but stay local to the
-project tree. It sits between `target/` (incremental per-run state, deletable to force a clean rebuild) and
-`~/.m2/repository` (shared across every project on the user's machine). The path defaults to `.jenesis/cache/`
-at the project root and can be relocated via `Project.cache(Path)` or `-Djenesis.project.cache=<path>`.
+`.jenesis/artifacts/` is the **artifact cache**: the project-root home for dependency artifacts fetched from a
+remote repository, kept so they outlive a single build but stay local to the project tree. It is a different
+thing from the **build cache** (`jenesis.cache.uri` for a shared backend, `jenesis.project.cache` for a project-local one defaulting to `.jenesis/cache/`), which caches
+build-step outputs by content hash; this section is only about the artifact cache. It sits between `target/`
+(incremental per-run state, deletable to force a clean rebuild) and `~/.m2/repository` (shared across every
+project on the user's machine). The path defaults to `.jenesis/artifacts/` at the project root and can be
+relocated via `Project.artifacts(Path)` or `-Djenesis.project.artifacts=<path>`.
 
 What lives there today: hardlinked artifacts fetched through any `JenesisModuleRepository` wrapped with
-`.cached(.jenesis/cache/)`. `Layout.MODULAR` wires its `module` prefix this way to cache the module jars it
+`.cached(.jenesis/artifacts/)`. `Layout.MODULAR` wires its `module` prefix this way to cache the module jars it
 resolves; `Layout.MODULAR_TO_MAVEN` also wraps the permissive `JenesisModuleRepository(false)` it hands to
 `MavenModuleResolver`, so each declared module's `.pom` artifact is hardlinked here on first fetch and
 served locally on subsequent builds. Each entry is named `<BuildExecutorModule.encode(coordinate)>.jar`
 (the suffix is literal, regardless of the artifact's actual type); the encoded coordinate is a
 content-stable function of the coordinate string, so two builds asking for the same coordinate map to the
-same filename and the second build hardlinks from `.jenesis/cache/` instead of going to the network.
+same filename and the second build hardlinks from `.jenesis/artifacts/` instead of going to the network.
 `Layout.MAVEN` does not populate this folder: its canonical `MavenDefaultRepository` already caches into
-`~/.m2/repository`, so for that layout `.jenesis/cache/` is typically empty. `Layout.MODULAR_TO_MAVEN`
-caches into both: discovery POMs land in `.jenesis/cache/`, while the transitive Maven artifacts go to
+`~/.m2/repository`, so for that layout `.jenesis/artifacts/` is typically empty. `Layout.MODULAR_TO_MAVEN`
+caches into both: discovery POMs land in `.jenesis/artifacts/`, while the transitive Maven artifacts go to
 `~/.m2/repository`.
+
+**Local-repository artifacts are referenced in place, never copied here.** An artifact that
+already resides in a local repository - the local Maven repository (`~/.m2/repository`) or the
+local Jenesis module repository (`~/.jenesis`) - is read straight from that location and is *not*
+written into `.jenesis/artifacts/`. `Repository.cached(...)` recognises such items
+(`RepositoryItem.local()` for local Maven files, `RepositoryItem.internal()` for first-party
+Jenesis modules) and returns them without creating a cache entry; only artifacts fetched from a
+*remote* repository are hardlinked here. The split exists because a remote versioned coordinate is
+immutable by contract, whereas a local repository is mutable: you can re-`install` a new build
+under the same version. Since `.jenesis/artifacts/` deliberately outlives `target/`, caching a mutable
+local artifact here would let a stale copy shadow the local repository. (The two flags are
+distinct on purpose: `internal` additionally marks an artifact as first-party and exempt from
+strict checksum pinning, which a third-party jar sitting in `~/.m2` must not be; `local` only means
+"already on local disk," so it skips the cache without granting that trust.)
+
+Together with the per-build `target/.../resolved/` snapshot, this gives a deliberate contract for
+locally-built dependencies:
+
+- **Without a rebuild,** previously-resolved local artifacts stay frozen at the last resolve. The
+  `resolved/` snapshot under `target/` (kept across builds by the `Dependencies` step's `shouldRun`
+  gate and its carry-forward of the prior `resolved/` folder) is reused as-is, so re-`install`-ing
+  the same version of a locally-built dependency does not silently change an in-progress build.
+  Refreshing a locally-built dependency is therefore an explicit choice.
+- **With `-Djenesis.executor.rebuild=true`,** `target/` (and therefore `resolved/`) is wiped and
+  every dependency re-resolves. Because `.jenesis/artifacts/` never holds local artifacts, the
+  locally-built ones are re-read *fresh* from `~/.m2` / `~/.jenesis`, while remote dependencies are
+  still served offline from `.jenesis/artifacts/`. The build reaches the network only for a genuinely
+  new remote coordinate.
 
 Properties of the cache layer:
 
@@ -2371,12 +2403,12 @@ Properties of the cache layer:
 - **Refresh on demand only.** No TTL, no automatic invalidation: entries persist until something deletes
   them. The assumption is that jars at versioned coordinates are immutable by contract; force a refresh by
   deleting the file (or the whole folder) and re-running.
-- **Safe to delete.** Nothing in `target/` references `.jenesis/cache/` directly and no build identity hashes
-  through cache contents, so a wiped `.jenesis/cache/` only costs the next build's downloads. Conversely,
-  deleting `target/` while keeping `.jenesis/cache/` is the fastest path to a clean rebuild that does not
+- **Safe to delete.** Nothing in `target/` references `.jenesis/artifacts/` directly and no build identity hashes
+  through cache contents, so a wiped `.jenesis/artifacts/` only costs the next build's downloads. Conversely,
+  deleting `target/` while keeping `.jenesis/artifacts/` is the fastest path to a clean rebuild that does not
   re-fetch anything.
 - **Hardlinks, not copies.** Both the cache write (`Files.createLink` in `Repository.cached`) and downstream
-  consumption use hardlinks where the filesystem allows, so a populated `.jenesis/cache/` does not multiply
+  consumption use hardlinks where the filesystem allows, so a populated `.jenesis/artifacts/` does not multiply
   disk usage when its contents flow into `target/`.
 
 ### Java support
@@ -2471,7 +2503,7 @@ serve POMs in addition to artifacts, so they get a refined `Repository` interfac
   `fetch(executor, groupId, artifactId, version, type, classifier, checksum)` and an optional
   `fetchMetadata(executor, groupId, artifactId, checksum)` returning the artifact's `maven-metadata.xml`.
   Implementations: `MavenDefaultRepository` (HTTP, with on-disk cache in the user's local Maven repository,
-  default `~/.m2/repository`; the project's `.jenesis/cache/` folder is **not** used here) and any user-supplied
+  default `~/.m2/repository`; the project's `.jenesis/artifacts/` folder is **not** used here) and any user-supplied
   subclass (e.g. an internal Nexus mirror). The `MAVEN_REPOSITORY_URI` environment variable overrides the
   default upstream URL; `MAVEN_REPOSITORY_LOCAL` overrides the local repository directory; and
   `MAVEN_REPOSITORY_TOKEN`, when set, is sent verbatim as an `Authorization` header on every HTTP fetch

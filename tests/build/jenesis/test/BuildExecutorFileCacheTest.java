@@ -6,13 +6,14 @@ import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorCache;
 import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildExecutorFileCache;
-import build.jenesis.BuildExecutorLayeredCache;
+import build.jenesis.BuildExecutorHttpCache;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepHashFunction;
 import build.jenesis.BuildStepResult;
 import build.jenesis.HashDigestFunction;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class BuildExecutorFileCacheTest implements Serializable {
 
@@ -93,24 +94,21 @@ public class BuildExecutorFileCacheTest implements Serializable {
     }
 
     @Test
-    public void configuration_resolves_cache_from_properties() throws IOException {
+    public void configuration_resolves_cache_from_uri() {
         String previousUri = System.getProperty("jenesis.cache.uri");
-        String previousLocal = System.getProperty("jenesis.cache.local");
         try {
             System.clearProperty("jenesis.cache.uri");
-            System.clearProperty("jenesis.cache.local");
-            assertThat(new BuildExecutor.Configuration().cache())
-                    .isNotInstanceOf(BuildExecutorFileCache.class)
-                    .isNotInstanceOf(BuildExecutorLayeredCache.class);
+            assertThat(new BuildExecutor.Configuration().cache()).isNull();
+            System.setProperty("jenesis.cache.uri", "");
+            assertThat(new BuildExecutor.Configuration().cache()).isNull();
+            System.setProperty("jenesis.cache.uri", cacheRoot.toUri().toString());
+            assertThat(new BuildExecutor.Configuration().cache()).isInstanceOf(BuildExecutorFileCache.class);
+            System.setProperty("jenesis.cache.uri", "https://cache.example.test/");
+            assertThat(new BuildExecutor.Configuration().cache()).isInstanceOf(BuildExecutorHttpCache.class);
             System.setProperty("jenesis.cache.uri", cacheRoot.toString());
-            assertThat(new BuildExecutor.Configuration().cache()).isInstanceOf(BuildExecutorFileCache.class);
-            System.setProperty("jenesis.cache.local", "true");
-            assertThat(new BuildExecutor.Configuration().cache()).isInstanceOf(BuildExecutorLayeredCache.class);
-            System.clearProperty("jenesis.cache.uri");
-            assertThat(new BuildExecutor.Configuration().cache()).isInstanceOf(BuildExecutorFileCache.class);
+            assertThatThrownBy(() -> new BuildExecutor.Configuration()).isInstanceOf(IllegalArgumentException.class);
         } finally {
             restore("jenesis.cache.uri", previousUri);
-            restore("jenesis.cache.local", previousLocal);
         }
     }
 

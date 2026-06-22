@@ -47,8 +47,12 @@ public interface Repository {
                             return null;
                         }
                         Path file = item.file().orElse(null);
-                        if (item.internal() && file != null) {
-                            internal.add(key);
+                        if (file != null && (item.internal() || item.local())) {
+                            // A local item is referenced in place but its flag is not propagated, so an
+                            // outer cache still snapshots it; internal propagates to keep its pinning exemption.
+                            if (item.internal()) {
+                                internal.add(key);
+                            }
                             return file;
                         }
                         if (file != null) {

@@ -55,7 +55,7 @@ These controls are what make the comparison fair; they are the conclusions of a 
   (here ~1.4 GHz vs ~3.6 GHz) and inflates every figure ~2.6x; the script warns if the profile is not
   `performance`. Keep the machine on AC and otherwise idle.
 - **Warm caches, and network proven absent.** Both tools run with warm dependency caches (`~/.m2`,
-  `.jenesis/cache`). Each run records the host network byte delta and prints `net<=NKB`; with warm caches the
+  `.jenesis/artifacts`). Each run records the host network byte delta and prints `net<=NKB`; with warm caches the
   compile, incremental and launch builds transfer **0 KB**. The only exception is the full build with tests,
   which makes a ~25 KB `maven-metadata.xml` lookup for the `RELEASE`-versioned external test tools - the same on
   both tools - so the `full` table needs the network and does not assert zero bytes.
