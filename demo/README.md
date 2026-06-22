@@ -91,7 +91,7 @@ Quick index
 | 35 | [`supply-chain-security`](demo-35-supply-chain-security/README.md) | Two modules that must *not* build: an unpinned dependency rejected by strict pinning, and a wrong checksum rejected always | `java build/Demo.java`             |
 | 36 | [`publishing`](demo-36-publishing/README.md)                 | Assemble a Maven Central ready bundle (POM metadata + sources/javadoc jars) and resolve it back | `java build/Demo.java`             |
 | 37 | [`native-image`](demo-37-native-image/README.md)             | Compile a modular app ahead of time into a standalone GraalVM native binary with `-Djenesis.java.native=true` (needs GraalVM `native-image`; local-only) | `java build/jenesis/Project.java`  |
-| 38 | [`build-cache`](demo-38-build-cache/README.md)               | A shared content-addressed build cache (`-Djenesis.executor.cache=<folder>`) that serves step outputs across builds; shown by bootstrapping it then serving a full `-Djenesis.executor.rebuild=true` from it | `java build/jenesis/Project.java`  |
+| 38 | [`build-cache`](demo-38-build-cache/README.md)               | A shared content-addressed build cache (`-Djenesis.cache=<folder>`) that serves step outputs across builds; shown by bootstrapping it then serving a full `-Djenesis.executor.rebuild=true` from it | `java build/jenesis/Project.java`  |
 
 ## 1. A single Maven project - [`java-pom`](demo-01-java-pom/README.md)
 
@@ -717,7 +717,7 @@ the CI runners lack (GraalVM), so it is a local exercise.
 Every build already caches incrementally under `target/`: each step is
 content-hashed on its inputs and outputs, so a warm rebuild only re-runs what
 changed. `build-cache` adds the second tier - a **shared cache** outside
-`target/`, switched on with `-Djenesis.executor.cache=<folder>`, that hands a
+`target/`, switched on with `-Djenesis.cache=<folder>`, that hands a
 step its finished output instead of running it. The folder is content-addressed
 (`<folder>/<step-hash>/<inputs-hash>/`): the step hash identifies the step from
 its serialized form, the inputs hash folds every input file's content hash, and a

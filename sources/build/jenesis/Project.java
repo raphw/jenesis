@@ -416,6 +416,7 @@ public record Project(
                       %{name}checksum%{reset}                         Print each step's input/output file checksums
                       %{name}command%{reset}                          Print each external tool command line as it runs
                       %{name}fetch%{reset}                            Print each artifact downloaded from a repository
+                      %{name}cache%{reset}                            Print each step served from or written to the build cache
                       %{name}docker%{reset}                           Print the Docker image when a build/run is wrapped (default: true)
                       %{name}dependencies%{reset}                     Print each module's dependency tree as it resolves
                     
@@ -439,6 +440,10 @@ public record Project(
                                                       by default only %{name}https://%{reset} and %{name}file://%{reset} are
                                                       accepted and a credential is never forwarded
                                                       across a redirect to another host
+                      The Maven and Jenesis module repositories take a %{name}uri%{reset} (remote),
+                      %{name}local%{reset} (on-disk cache) and %{name}token%{reset} (bearer credential) under
+                      %{name}jenesis.maven.<key>%{reset} and %{name}jenesis.module.<key>%{reset}; each falls back to the
+                      %{name}MAVEN_REPOSITORY_<KEY>%{reset} / %{name}JENESIS_REPOSITORY_<KEY>%{reset} environment variable.
 
                     %{header}Tests (-Djenesis.test.<key>=<value>):%{reset}
                       %{name}skip%{reset}                             Skip executing tests
@@ -457,6 +462,16 @@ public record Project(
                     %{header}Staging (-Djenesis.stage.<key>=<value>):%{reset}
                       %{name}tests%{reset}                            Stage test-variant artifacts alongside main artifacts
                     
+                    %{header}Build cache (-Djenesis.cache=<folder|url>):%{reset}
+                      Reuse step outputs across builds. A local %{name}<folder>%{reset} is an on-disk
+                      cache, tuned by an optional %{name}cache.properties%{reset} at its root; an
+                      %{name}http(s)://%{reset} URL is a remote cache server, configured through
+                      %{name}jenesis.cache.<key>%{reset}: %{name}project%{reset} names the project and %{name}key%{reset} the access
+                      key (both sent as headers), %{name}timeout%{reset} bounds the connect attempt
+                      (default %{name}PT1S%{reset}) and %{name}insecure%{reset} permits the key over plaintext http
+                      off loopback. Reads block the build; writes run on a background
+                      thread. Trace them with %{name}-Djenesis.print.cache%{reset}.
+
                     %{header}Cache invalidation:%{reset}
                       Changes to the sources of the project being built are always
                       detected. When working on the build itself, in-code-only changes
@@ -779,6 +794,26 @@ public record Project(
                                                   accepted, and a credential is
                                                   never forwarded across a
                                                   redirect to another host.
+                      -Djenesis.maven.uri|local|token     Maven repository remote
+                                                  URL, local cache and bearer token
+                                                  (env fallbacks
+                                                  MAVEN_REPOSITORY_URI/LOCAL/TOKEN).
+                      -Djenesis.module.uri|local|token    Jenesis module repository,
+                                                  likewise (env fallbacks
+                                                  JENESIS_REPOSITORY_URI/LOCAL/TOKEN).
+
+                    Build cache:
+                      -Djenesis.cache=<folder|url>        Reuse step outputs across
+                                                  builds: a folder is an on-disk
+                                                  cache (tuned by a cache.properties
+                                                  at its root), an http(s) URL a
+                                                  remote server. For a server,
+                                                  -Djenesis.cache.project and
+                                                  -Djenesis.cache.key authorise it
+                                                  (env fallbacks
+                                                  JENESIS_CACHE_PROJECT/KEY);
+                                                  -Djenesis.cache.timeout and
+                                                  -Djenesis.cache.insecure tune it.
 
                     Executor-level:
                       -Djenesis.executor.rebuild=true   Wipe target/ before build.
@@ -804,6 +839,9 @@ public record Project(
                       -Djenesis.print.fetch=true          Print each artifact
                                                         downloaded from a
                                                         repository.
+                      -Djenesis.print.cache=true          Print each step served
+                                                        from or written to the
+                                                        build cache.
                       -Djenesis.print.docker=false        Suppress the Docker
                                                         image notice when a
                                                         build/run is wrapped in
@@ -1521,15 +1559,15 @@ public record Project(
             docker = docker.mounts(System.getProperty("jenesis.project.docker.mount"), root, true);
             docker = docker.mounts(System.getProperty("jenesis.project.docker.mountWritable"), root, false);
             docker = docker.envs(System.getProperty("jenesis.project.docker.env"));
-            String mavenRepositoryUri = System.getenv("MAVEN_REPOSITORY_URI");
+            String mavenRepositoryUri = System.getProperty("jenesis.maven.uri", System.getenv("MAVEN_REPOSITORY_URI"));
             if (mavenRepositoryUri != null) {
                 docker = docker.env("MAVEN_REPOSITORY_URI", mavenRepositoryUri);
             }
-            String jenesisRepositoryUri = System.getenv("JENESIS_REPOSITORY_URI");
+            String jenesisRepositoryUri = System.getProperty("jenesis.module.uri", System.getenv("JENESIS_REPOSITORY_URI"));
             if (jenesisRepositoryUri != null) {
                 docker = docker.env("JENESIS_REPOSITORY_URI", jenesisRepositoryUri);
             }
-            String mavenRepositoryLocal = System.getenv("MAVEN_REPOSITORY_LOCAL");
+            String mavenRepositoryLocal = System.getProperty("jenesis.maven.local", System.getenv("MAVEN_REPOSITORY_LOCAL"));
             Path mavenLocal = (mavenRepositoryLocal == null
                     ? Path.of(System.getProperty("user.home"), ".m2", "repository")
                     : Path.of(mavenRepositoryLocal)).toAbsolutePath().normalize();
@@ -1539,7 +1577,7 @@ public record Project(
                     docker = docker.env("MAVEN_REPOSITORY_LOCAL", mavenLocal.toString());
                 }
             }
-            String jenesisRepositoryLocal = System.getenv("JENESIS_REPOSITORY_LOCAL");
+            String jenesisRepositoryLocal = System.getProperty("jenesis.module.local", System.getenv("JENESIS_REPOSITORY_LOCAL"));
             Path jenesisLocal = (jenesisRepositoryLocal == null
                     ? Path.of(System.getProperty("user.home"), ".jenesis")
                     : Path.of(jenesisRepositoryLocal)).toAbsolutePath().normalize();

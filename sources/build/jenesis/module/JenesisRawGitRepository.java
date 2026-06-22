@@ -14,7 +14,8 @@ public class JenesisRawGitRepository implements Repository {
     private final String token;
 
     public JenesisRawGitRepository(boolean requireNamedModules) {
-        this(requireNamedModules, URI.create(GITHUB_DATA), mavenRepository(), System.getenv("MAVEN_REPOSITORY_TOKEN"));
+        this(requireNamedModules, URI.create(GITHUB_DATA), mavenRepository(),
+                System.getProperty("jenesis.maven.token", System.getenv("MAVEN_REPOSITORY_TOKEN")));
     }
 
     public JenesisRawGitRepository(boolean requireNamedModules, URI data, URI repository) {
@@ -29,7 +30,7 @@ public class JenesisRawGitRepository implements Repository {
     }
 
     private static URI mavenRepository() {
-        String environment = System.getenv("MAVEN_REPOSITORY_URI");
+        String environment = System.getProperty("jenesis.maven.uri", System.getenv("MAVEN_REPOSITORY_URI"));
         if (environment != null && !environment.endsWith("/")) {
             environment += "/";
         }

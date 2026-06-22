@@ -93,17 +93,17 @@ public class BuildExecutorFileCacheTest implements Serializable {
 
     @Test
     public void configuration_resolves_cache_from_property() throws IOException {
-        String previous = System.getProperty("jenesis.executor.cache");
+        String previous = System.getProperty("jenesis.cache");
         try {
-            System.clearProperty("jenesis.executor.cache");
+            System.clearProperty("jenesis.cache");
             assertThat(new BuildExecutor.Configuration().cache()).isNotInstanceOf(BuildExecutorFileCache.class);
-            System.setProperty("jenesis.executor.cache", cacheRoot.toString());
+            System.setProperty("jenesis.cache", cacheRoot.toString());
             assertThat(new BuildExecutor.Configuration().cache()).isInstanceOf(BuildExecutorFileCache.class);
         } finally {
             if (previous == null) {
-                System.clearProperty("jenesis.executor.cache");
+                System.clearProperty("jenesis.cache");
             } else {
-                System.setProperty("jenesis.executor.cache", previous);
+                System.setProperty("jenesis.cache", previous);
             }
         }
     }

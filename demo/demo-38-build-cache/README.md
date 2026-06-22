@@ -9,7 +9,7 @@ cache** outside `target/` that can be handed step outputs from an earlier build
 
 It is opt-in with one system property pointing at a folder:
 
-    -Djenesis.executor.cache=<folder>
+    -Djenesis.cache=<folder>
 
 When set, `BuildExecutor.Configuration` resolves a `BuildExecutorFileCache` at
 that folder; unset, the cache is a no-op and nothing changes. The folder is
@@ -29,7 +29,7 @@ this directory.
 **1. Bootstrap the cache with a valid entry.** A normal build populates the
 folder while it compiles:
 
-    java -Djenesis.executor.cache=.jenesis/build-cache build/jenesis/Project.java
+    java -Djenesis.cache=.jenesis/build-cache build/jenesis/Project.java
 
     [EXECUTED]  .../compile/javac in 0.07 seconds
     [EXECUTED]  .../binary/classes in 0.02 seconds
@@ -43,7 +43,7 @@ deletes `target/` before the build, so the incremental cache is gone and *every*
 step is a forced miss that would normally re-run from scratch. The shared cache
 lives outside `target/`, so it survives - and serves them:
 
-    java -Djenesis.executor.cache=.jenesis/build-cache \
+    java -Djenesis.cache=.jenesis/build-cache \
          -Djenesis.executor.rebuild=true \
          build/jenesis/Project.java
 
@@ -106,13 +106,17 @@ the on-disk analogue: point several checkouts (or a CI workspace and your laptop
 at a shared folder and a step compiled once is reused everywhere its inputs are
 identical.
 
-Giving `-Djenesis.executor.cache` an `http://` or `https://` URL instead of a
+Giving `-Djenesis.cache` an `http://` or `https://` URL instead of a
 folder selects `BuildExecutorHttpCache`, the networked sibling that GETs and PUTs
 the same zip entries to any compatible HTTP cache server, naming the cache project
-with `-Djenesis.executor.cache.project=<project>` and authenticating with
-`-Djenesis.executor.cache.key=<key>` (both sent as headers, never in the URL):
+with `-Djenesis.cache.project=<project>` and authenticating with
+`-Djenesis.cache.key=<key>` (both sent as headers, never in the URL):
 
-    java -Djenesis.executor.cache=https://cache.example.com \
-         -Djenesis.executor.cache.project=acme \
-         -Djenesis.executor.cache.key=alice \
+    java -Djenesis.cache=https://cache.example.com \
+         -Djenesis.cache.project=acme \
+         -Djenesis.cache.key=alice \
          build/jenesis/Project.java
+
+Add `-Djenesis.print.cache` to log each step the build serves from the cache
+(`[LOADED]`) and each one it writes back (`[STORED]`), the same way
+`-Djenesis.print.fetch` traces dependency downloads. It works for either backend.

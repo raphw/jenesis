@@ -2,19 +2,76 @@ package build.jenesis;
 
 import module java.base;
 
-public record BuildExecutorHttpCache(URI uri,
-                                     String key,
-                                     String project,
-                                     String algorithm,
-                                     Duration connectTimeout,
-                                     boolean read,
-                                     boolean write) implements BuildExecutorCache {
+public final class BuildExecutorHttpCache implements BuildExecutorCache {
 
     public static final String KEY = "Jenesis-Cache-Key";
     public static final String PROJECT = "Jenesis-Cache-Project";
 
-    public BuildExecutorHttpCache(URI uri, String key, String project) {
-        this(uri, key, project, "SHA-256", Duration.ofSeconds(1), true, true);
+    private final URI uri;
+    private final String key;
+    private final String project;
+    private final String algorithm;
+    private final Duration connectTimeout;
+    private final boolean read;
+    private final boolean write;
+
+    public BuildExecutorHttpCache(URI uri) {
+        this(uri,
+                System.getProperty("jenesis.cache.key", System.getenv("JENESIS_CACHE_KEY")),
+                System.getProperty("jenesis.cache.project", System.getenv("JENESIS_CACHE_PROJECT")),
+                "SHA-256",
+                defaultConnectTimeout(),
+                true,
+                true);
+    }
+
+    private BuildExecutorHttpCache(URI uri,
+                                   String key,
+                                   String project,
+                                   String algorithm,
+                                   Duration connectTimeout,
+                                   boolean read,
+                                   boolean write) {
+        this.uri = uri;
+        this.key = key;
+        this.project = project;
+        this.algorithm = algorithm;
+        this.connectTimeout = connectTimeout;
+        this.read = read;
+        this.write = write;
+    }
+
+    private static Duration defaultConnectTimeout() {
+        String timeout = System.getProperty("jenesis.cache.timeout");
+        return timeout == null ? Duration.ofSeconds(1) : Duration.parse(timeout);
+    }
+
+    public BuildExecutorHttpCache key(String key) {
+        return new BuildExecutorHttpCache(uri, key, project, algorithm, connectTimeout, read, write);
+    }
+
+    public BuildExecutorHttpCache project(String project) {
+        return new BuildExecutorHttpCache(uri, key, project, algorithm, connectTimeout, read, write);
+    }
+
+    public BuildExecutorHttpCache algorithm(String algorithm) {
+        return new BuildExecutorHttpCache(uri, key, project, algorithm, connectTimeout, read, write);
+    }
+
+    public BuildExecutorHttpCache connectTimeout(Duration connectTimeout) {
+        return new BuildExecutorHttpCache(uri, key, project, algorithm, connectTimeout, read, write);
+    }
+
+    public BuildExecutorHttpCache read(boolean read) {
+        return new BuildExecutorHttpCache(uri, key, project, algorithm, connectTimeout, read, write);
+    }
+
+    public BuildExecutorHttpCache write(boolean write) {
+        return new BuildExecutorHttpCache(uri, key, project, algorithm, connectTimeout, read, write);
+    }
+
+    public Duration connectTimeout() {
+        return connectTimeout;
     }
 
     @Override
@@ -97,12 +154,12 @@ public record BuildExecutorHttpCache(URI uri,
                 + "/" + HexFormat.of().formatHex(fold(inputs)));
         String scheme = target.getScheme(), host = target.getHost();
         boolean loopback = "localhost".equals(host) || "127.0.0.1".equals(host) || "::1".equals(host);
-        if (!"https".equals(scheme) && !loopback && !Boolean.getBoolean("jenesis.executor.cache.insecure")) {
+        if (!"https".equals(scheme) && !loopback && !Boolean.getBoolean("jenesis.cache.insecure")) {
             throw new IllegalStateException("Refusing to send the cache key over insecure scheme '"
                     + scheme
                     + "': "
                     + target
-                    + " (set -Djenesis.executor.cache.insecure=true to allow plaintext)");
+                    + " (set -Djenesis.cache.insecure=true to allow plaintext)");
         }
         HttpURLConnection connection = (HttpURLConnection) target.toURL().openConnection();
         connection.setRequestMethod(method);
