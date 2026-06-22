@@ -133,7 +133,7 @@ public record BuildExecutorFileCache(Path root,
             message.update(argument.getBytes(StandardCharsets.UTF_8));
             message.update((byte) 0);
             files.forEach((path, hash) -> {
-                message.update(path.toString().replace(File.separatorChar, '/').getBytes(StandardCharsets.UTF_8));
+                message.update(path.toString().replace('\\', '/').getBytes(StandardCharsets.UTF_8));
                 message.update((byte) 0);
                 message.update(hash);
             });
@@ -288,7 +288,7 @@ public record BuildExecutorFileCache(Path root,
             Files.walkFileTree(source, new SimpleFileVisitor<>() {
                 @Override
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) throws IOException {
-                    zip.putNextEntry(new ZipEntry(source.relativize(file).toString().replace(File.separatorChar, '/')));
+                    zip.putNextEntry(new ZipEntry(source.relativize(file).toString().replace('\\', '/')));
                     Files.copy(file, zip);
                     zip.closeEntry();
                     return FileVisitResult.CONTINUE;
