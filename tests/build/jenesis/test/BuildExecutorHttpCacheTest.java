@@ -17,6 +17,7 @@ public class BuildExecutorHttpCacheTest {
     private final Map<String, byte[]> blobs = new ConcurrentHashMap<>();
     private final List<String> keys = new CopyOnWriteArrayList<>();
     private final List<String> projects = new CopyOnWriteArrayList<>();
+    private final List<String> heads = new CopyOnWriteArrayList<>();
 
     @BeforeEach
     public void setUp() throws IOException {
@@ -43,6 +44,10 @@ public class BuildExecutorHttpCacheTest {
                             blobs.put(identifier, in.readAllBytes());
                         }
                         exchange.sendResponseHeaders(201, -1);
+                    }
+                    case "HEAD" -> {
+                        heads.add(identifier);
+                        exchange.sendResponseHeaders(blobs.containsKey(identifier) ? 200 : 404, -1);
                     }
                     default -> exchange.sendResponseHeaders(405, -1);
                 }
@@ -195,6 +200,34 @@ public class BuildExecutorHttpCacheTest {
         responder.join(2_000);
         rejecting.close();
         assertThat(bodySeen).isFalse();
+    }
+
+    @Test
+    public void touch_sends_a_head_request_for_the_entry() throws IOException {
+        BuildExecutorHttpCache cache = new BuildExecutorHttpCache(uri).key("team-alpha").project("demo");
+        byte[] step = {1};
+        SequencedMap<String, Map<Path, byte[]>> in = inputs("source", "file", new byte[]{9});
+        Files.writeString(output.resolve("file"), "result");
+        cache.store(Runnable::run, "step", step, in, output);
+        String identifier = blobs.keySet().iterator().next();
+        cache.touch(Runnable::run, "step", step, in);
+        assertThat(heads).containsExactly(identifier);
+        assertThat(keys).contains("team-alpha");
+        assertThat(projects).contains("demo");
+    }
+
+    @Test
+    public void touch_is_skipped_when_reading_is_disabled() throws IOException {
+        new BuildExecutorHttpCache(uri).key("team-alpha").project("demo").read(false)
+                .touch(Runnable::run, "step", new byte[]{1}, inputs("source", "file", new byte[]{9}));
+        assertThat(heads).isEmpty();
+    }
+
+    @Test
+    public void touches_follows_the_read_flag() {
+        BuildExecutorHttpCache cache = new BuildExecutorHttpCache(uri).key("team-alpha").project("demo");
+        assertThat(cache.touches()).isTrue();
+        assertThat(cache.read(false).touches()).isFalse();
     }
 
     private static SequencedMap<String, Map<Path, byte[]>> inputs(String argument, String file, byte[] hash) {

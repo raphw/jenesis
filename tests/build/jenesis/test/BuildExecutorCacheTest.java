@@ -82,6 +82,39 @@ public class BuildExecutorCacheTest implements Serializable {
     }
 
     @Test
+    public void touches_cache_when_a_step_is_up_to_date() throws IOException {
+        Files.writeString(source.resolve("file"), "foo");
+        BuildStep buildStep = (_, context, arguments) -> {
+            Files.writeString(
+                    context.next().resolve("file"),
+                    Files.readString(arguments.get("source").folder().resolve("file")) + "bar");
+            return CompletableFuture.completedStage(new BuildStepResult(true));
+        };
+        runStep(new RecordingCache(false), buildStep);
+        RecordingCache upToDate = new RecordingCache(false);
+        runStep(upToDate, buildStep);
+        assertThat(upToDate.touches).hasValue(1);
+        assertThat(upToDate.fetches).hasValue(0);
+        assertThat(upToDate.stores).hasValue(0);
+        assertThat(upToDate.touchIdentity).isEqualTo("step");
+        assertThat(upToDate.touchStep).isEqualTo(BuildStepHashFunction.ofSerializationDigest("MD5").hash(buildStep));
+        assertThat(upToDate.touchInputs).containsOnlyKeys("source");
+    }
+
+    private void runStep(RecordingCache cache, BuildStep buildStep) throws IOException {
+        BuildExecutor buildExecutor = BuildExecutor.of(root,
+                Duration.ZERO,
+                hash,
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
+                BuildExecutorCallback.nop(),
+                cache,
+                false);
+        buildExecutor.addSource("source", source);
+        buildExecutor.addStep("step", buildStep, "source");
+        buildExecutor.execute(Runnable::run).toCompletableFuture().join();
+    }
+
+    @Test
     public void read_only_delegates_fetch_and_suppresses_store() throws IOException {
         RecordingCache delegate = new RecordingCache(true);
         BuildExecutorCache readOnly = delegate.readOnly();
@@ -116,10 +149,10 @@ public class BuildExecutorCacheTest implements Serializable {
     private static final class RecordingCache implements BuildExecutorCache {
 
         private final boolean hit;
-        private final AtomicInteger fetches = new AtomicInteger(), stores = new AtomicInteger();
-        private volatile String fetchIdentity, storeIdentity;
-        private volatile byte[] fetchStep, storeStep;
-        private volatile SequencedMap<String, Map<Path, byte[]>> fetchInputs, storeInputs;
+        private final AtomicInteger fetches = new AtomicInteger(), stores = new AtomicInteger(), touches = new AtomicInteger();
+        private volatile String fetchIdentity, storeIdentity, touchIdentity;
+        private volatile byte[] fetchStep, storeStep, touchStep;
+        private volatile SequencedMap<String, Map<Path, byte[]>> fetchInputs, storeInputs, touchInputs;
         private volatile Path storeOutput;
 
         private RecordingCache(boolean hit) {
@@ -129,6 +162,22 @@ public class BuildExecutorCacheTest implements Serializable {
         @Override
         public boolean stores() {
             return true;
+        }
+
+        @Override
+        public boolean touches() {
+            return true;
+        }
+
+        @Override
+        public void touch(Executor executor,
+                          String identity,
+                          byte[] step,
+                          SequencedMap<String, Map<Path, byte[]>> inputs) {
+            touches.incrementAndGet();
+            touchIdentity = identity;
+            touchStep = step;
+            touchInputs = inputs;
         }
 
         @Override

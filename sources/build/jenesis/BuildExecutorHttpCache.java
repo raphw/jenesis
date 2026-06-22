@@ -116,6 +116,31 @@ public final class BuildExecutorHttpCache implements BuildExecutorCache {
         return write;
     }
 
+    @Override
+    public void touch(Executor executor,
+                      String identity,
+                      byte[] step,
+                      SequencedMap<String, Map<Path, byte[]>> inputs) {
+        if (!read) {
+            return;
+        }
+        try {
+            HttpURLConnection connection = connect("HEAD", step, inputs);
+            try {
+                connection.getResponseCode();
+            } finally {
+                connection.disconnect();
+            }
+        } catch (IOException _) {
+            // A touch only refreshes the server's recency for the entry; losing it is harmless.
+        }
+    }
+
+    @Override
+    public boolean touches() {
+        return read;
+    }
+
     private void upload(byte[] step, SequencedMap<String, Map<Path, byte[]>> inputs, Path output) {
         Path temporary = null;
         try {

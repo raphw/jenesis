@@ -22,6 +22,16 @@ public interface BuildExecutorCache {
         return false;
     }
 
+    default void touch(Executor executor,
+                       String identity,
+                       byte[] step,
+                       SequencedMap<String, Map<Path, byte[]>> inputs) throws IOException {
+    }
+
+    default boolean touches() {
+        return false;
+    }
+
     default BuildExecutorCache readOnly() {
         return this::fetch;
     }
