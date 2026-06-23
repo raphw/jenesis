@@ -45,7 +45,7 @@ public record Execute(Project project, String mainClass, String module) {
         }
         String selectedPrefix = module == null
                 ? null
-                : (module.isEmpty() ? "module" : "module-" + module);
+                : (module.isEmpty() ? "module" : "module-" + module.replace('+', '/'));
         if (selectedPrefix != null && !sourceByPrefix.containsKey(selectedPrefix)) {
             throw new IllegalStateException("No module at path: " + (module.isEmpty() ? "<root>" : module));
         }

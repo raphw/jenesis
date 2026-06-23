@@ -125,10 +125,9 @@ public record Project(
             }, BUILD);
             return name -> {
                 int slash = name.indexOf('/');
-                return slash == -1
-                        ? prefix + "/module-" + BuildExecutorModule.encode(name)
-                        : prefix + "/module-" + BuildExecutorModule.encode(name.substring(0, slash))
-                          + "/" + name.substring(slash + 1);
+                String module = (slash == -1 ? name : name.substring(0, slash)).replace('+', '/');
+                return prefix + "/module-" + BuildExecutorModule.encode(module)
+                        + (slash == -1 ? "" : "/" + name.substring(slash + 1));
             };
         };
 
@@ -190,10 +189,9 @@ public record Project(
             }, BUILD);
             return name -> {
                 int slash = name.indexOf('/');
-                return slash == -1
-                        ? prefix + "/module-" + BuildExecutorModule.encode(name)
-                        : prefix + "/module-" + BuildExecutorModule.encode(name.substring(0, slash))
-                          + "/" + name.substring(slash + 1);
+                String module = (slash == -1 ? name : name.substring(0, slash)).replace('+', '/');
+                return prefix + "/module-" + BuildExecutorModule.encode(module)
+                        + (slash == -1 ? "" : "/" + name.substring(slash + 1));
             };
         };
 
@@ -268,10 +266,9 @@ public record Project(
             }, BUILD);
             return name -> {
                 int slash = name.indexOf('/');
-                return slash == -1
-                        ? prefix + "/module-" + BuildExecutorModule.encode(name)
-                        : prefix + "/module-" + BuildExecutorModule.encode(name.substring(0, slash))
-                          + "/" + name.substring(slash + 1);
+                String module = (slash == -1 ? name : name.substring(0, slash)).replace('+', '/');
+                return prefix + "/module-" + BuildExecutorModule.encode(module)
+                        + (slash == -1 ? "" : "/" + name.substring(slash + 1));
             };
         };
 
@@ -387,7 +384,10 @@ public record Project(
                       %{name}+<module>/<step>%{reset} drills further into a specific step inside that
                       module, e.g. %{name}+myModule/compile/dependencies/resolved%{reset}.
                       <module> matches the source folder that holds the module's pom.xml
-                      or module-info.java. Run %{name}build%{reset} once and look at the printed
+                      or module-info.java. A module in a nested folder is written with %{name}+%{reset}
+                      between the segments (a %{name}/%{reset} starts the step tail): the module in
+                      %{name}foo/bar%{reset} is selected as %{name}+foo+bar%{reset}, its compile step as
+                      %{name}+foo+bar/compile%{reset}. Run %{name}build%{reset} once and look at the printed
                       module-* lines to discover available module names.
                     
                     %{header}Wildcards in selectors:%{reset}
@@ -700,10 +700,12 @@ public record Project(
                       +<module>             Module subgraph inside `build` (does
                                             not run stage/export/pin). The
                                             <module> matches the source folder of
-                                            the pom.xml / module-info.java.
+                                            the pom.xml / module-info.java; a
+                                            nested folder uses `+` between segments
+                                            (foo/bar -> +foo+bar).
                       +<module>/<step>      Drill into a specific step inside that
                                             module, e.g.
-                                            +foo/compile/dependencies/resolved.
+                                            +foo+bar/compile/dependencies/resolved.
                       :                     Single-segment wildcard
                                             (`build/:/java` matches every direct
                                             child's `java` step).
