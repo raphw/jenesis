@@ -7,6 +7,17 @@ public record MavenDependencyKey(String groupId, String artifactId, String type,
         validate("artifactId", artifactId);
         validate("type", type);
         validate("classifier", classifier);
+        // Maven treats an empty type/classifier as absent. A POM may resolve one to "" - e.g.
+        // netty-parent declares <classifier>${tcnative.classifier}</classifier>, and that property
+        // is empty unless the os-maven-plugin extension (which Jenesis does not run) populates it.
+        // Without this normalization the key keeps "", coordinate() emits "g/a/jar//v" instead of
+        // "g/a/v", and the fetch builds a "<artifact>-<version>-.jar" URL that does not exist.
+        if (type != null && type.isEmpty()) {
+            type = null;
+        }
+        if (classifier != null && classifier.isEmpty()) {
+            classifier = null;
+        }
     }
 
     static void validate(String role, String component) {
