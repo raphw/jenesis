@@ -95,10 +95,8 @@ public abstract class ProcessBuildStep implements BuildStep {
                         if (acceptableExitCode(exitCode, executor, context, arguments)) {
                             future.complete(new BuildStepResult(true));
                         } else {
-                            String outputString = Files.exists(output)
-                                    ? new String(Files.readAllBytes(output), StandardCharsets.UTF_8) : "";
-                            String errorString = Files.exists(error)
-                                    ? new String(Files.readAllBytes(error), StandardCharsets.UTF_8) : "";
+                            String outputString = Files.exists(output) ? Files.readString(output) : "";
+                            String errorString = Files.exists(error) ? Files.readString(error) : "";
                             throw new IllegalStateException("Unexpected exit code: " + exitCode + "\n"
                                     + "To reproduce, execute:\n " + String.join(" ", handler.commands())
                                     + (outputString.isBlank() ? "" : ("\n\nOutput:\n" + outputString))
