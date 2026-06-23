@@ -973,7 +973,10 @@ public class MavenPomResolver implements MavenResolver {
                     if (!duplicates.add(property)) {
                         throw new IllegalStateException("Circular property definition of: " + property);
                     }
-                    matcher.appendReplacement(sb, property(replacement, properties, duplicates));
+                    // Quote the resolved value: a property may expand to text containing '$' or '\'
+                    // (or a bare '${'), which appendReplacement would otherwise read as a group
+                    // reference. Mirrors the undefined-property branch above.
+                    matcher.appendReplacement(sb, Matcher.quoteReplacement(property(replacement, properties, duplicates)));
                 }
             }
             return matcher.appendTail(sb).toString();
