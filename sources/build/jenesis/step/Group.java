@@ -1,7 +1,6 @@
 package build.jenesis.step;
 
 import module java.base;
-import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
@@ -62,7 +61,7 @@ public class Group implements BuildStep {
                     .distinct()
                     .filter(name -> !name.equals(entry.getKey()))
                     .forEach(name -> properties.setProperty(name, ""));
-            properties.store(folder.resolve(BuildExecutorModule.encode(entry.getKey()) + ".properties"));
+            properties.store(folder.resolve(entry.getKey() + ".properties"));
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
     }

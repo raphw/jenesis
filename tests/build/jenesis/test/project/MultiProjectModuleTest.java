@@ -101,6 +101,46 @@ public class MultiProjectModuleTest {
     }
 
     @Test
+    public void can_resolve_project_with_path_encoded_module_names() {
+        buildExecutor.addModule("project", new MultiProjectModule((buildExecutor, _) -> {
+            SequencedProperties coordinates1 = new SequencedProperties();
+            coordinates1.put("foo/bar", "");
+            coordinates1.store(module1.resolve(BuildStep.IDENTITY));
+            buildExecutor.addSource("g%2F1-module", module1);
+            buildExecutor.addSource("g%2F1-source", Files.writeString(Files.createDirectory(source1
+                    .resolve(BuildStep.SOURCES)).resolve("source"), "foo"));
+            SequencedProperties coordinates2 = new SequencedProperties();
+            coordinates2.put("foo/qux", "");
+            coordinates2.store(module2.resolve(BuildStep.IDENTITY));
+            SequencedProperties dependencies2 = new SequencedProperties();
+            dependencies2.put("main/compile/foo/bar", "");
+            dependencies2.store(module2.resolve(BuildStep.REQUIRES));
+            buildExecutor.addSource("g%2F2-module", module2);
+            buildExecutor.addSource("g%2F2-source", Files.writeString(Files.createDirectory(source2
+                    .resolve(BuildStep.SOURCES)).resolve("source"), "bar"));
+        }, identifier -> Optional.of(identifier.substring(0, identifier.lastIndexOf('-'))), modules -> {
+            assertThat(modules).containsExactly(
+                    Map.entry("g%2F1", Collections.emptyNavigableSet()),
+                    Map.entry("g%2F2", new LinkedHashSet<>(Set.of("g%2F1"))));
+            return (name, _, _) -> switch (name) {
+                case "g%2F1" -> new AssemblyDescriptor((module1, _) -> module1.addStep("step", (_, context, _) -> {
+                    Files.writeString(context.next().resolve("file"), "foo");
+                    return CompletableFuture.completedStage(new BuildStepResult(true));
+                }));
+                case "g%2F2" -> new AssemblyDescriptor((module2, _) -> module2.addStep("step", (_, context, arguments) -> {
+                    Files.writeString(context.next().resolve("file"),
+                            Files.readString(arguments.get("../g%2F1/step").folder().resolve("file")) + "bar");
+                    return CompletableFuture.completedStage(new BuildStepResult(true));
+                }, "../g%2F1/step"));
+                default -> throw new AssertionError();
+            };
+        }));
+        SequencedMap<String, Path> paths = buildExecutor.execute();
+        assertThat(paths).containsKeys("project/g%2F2/step");
+        assertThat(paths.get("project/g%2F2/step").resolve("file")).content().contains("foobar");
+    }
+
+    @Test
     public void can_resolve_project_transitives() {
         buildExecutor.addModule("project", new MultiProjectModule((buildExecutor, _) -> {
             SequencedProperties coordinates1 = new SequencedProperties();

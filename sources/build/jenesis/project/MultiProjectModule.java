@@ -56,12 +56,11 @@ public record MultiProjectModule(BuildExecutorModule identifier,
             for (String identifier : identified.sequencedKeySet()) {
                 if (identifier.startsWith(PREVIOUS + IDENTIFIER + "/")) {
                     resolver.apply(identifier.substring(PREVIOUS.length() + IDENTIFIER.length() + 1)).ifPresent(module -> {
-                        String name = BuildExecutorModule.encode(module);
-                        if (name.isEmpty()) {
+                        if (module.isEmpty()) {
                             throw new IllegalArgumentException("Module name must not be empty");
                         }
-                        modules.put(identifier, name);
-                        identifiers.computeIfAbsent(name, _ -> new LinkedHashSet<>()).add(identifier);
+                        modules.put(identifier, module);
+                        identifiers.computeIfAbsent(module, _ -> new LinkedHashSet<>()).add(identifier);
                     });
                 }
             }
