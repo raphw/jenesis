@@ -13,15 +13,15 @@ public class NativeImage extends JdkProcessBuildStep {
 
     public static final String METADATA = "nativeimage/";
 
-    private final PathPlacement modulePath;
+    private final PathPlacement pathPlacement;
 
-    public NativeImage(PathPlacement modulePath) {
-        this(modulePath, ProcessHandler.OfProcess.ofCommand("native-image"));
+    public NativeImage(PathPlacement pathPlacement) {
+        this(pathPlacement, ProcessHandler.OfProcess.ofCommand("native-image"));
     }
 
-    public NativeImage(PathPlacement modulePath, Function<List<String>, ? extends ProcessHandler> factory) {
+    public NativeImage(PathPlacement pathPlacement, Function<List<String>, ? extends ProcessHandler> factory) {
         super("native-image", factory);
-        this.modulePath = modulePath;
+        this.pathPlacement = pathPlacement;
     }
 
     @Override
@@ -30,7 +30,8 @@ public class NativeImage extends JdkProcessBuildStep {
                                                     SequencedMap<String, BuildStepArgument> arguments,
                                                     SequencedMap<String, SequencedMap<String, String>> properties)
             throws IOException {
-        boolean modular = modulePath.modular();
+        boolean modular = pathPlacement.modular();
+        boolean hasAutomaticModules = false;
         String launcher = null, name = null;
         List<String> path = new ArrayList<>();
         Path config = null;
@@ -66,6 +67,7 @@ public class NativeImage extends JdkProcessBuildStep {
             }
             for (Path file : Dependencies.select(argument.folder(), "runtime")) {
                 path.add(file.toString());
+                hasAutomaticModules |= modular && PathPlacement.automatic(file);
             }
             Path candidate = argument.folder().resolve("native-image");
             if (Files.isDirectory(candidate)) {
@@ -93,6 +95,10 @@ public class NativeImage extends JdkProcessBuildStep {
         if (modular) {
             commands.add("--module-path");
             commands.add(String.join(File.pathSeparator, path));
+            if (hasAutomaticModules) {
+                commands.add("--add-modules");
+                commands.add("ALL-MODULE-PATH");
+            }
             commands.add("--module");
             commands.add(launcher);
         } else {

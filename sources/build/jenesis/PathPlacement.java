@@ -54,6 +54,17 @@ public enum PathPlacement {
         return false;
     }
 
+    /**
+     * Whether the jar (or exploded directory) is an automatic module - one with an
+     * {@code Automatic-Module-Name} but no module descriptor. A module path that carries one needs
+     * {@code --add-modules ALL-MODULE-PATH} at launch, since an automatic module declares no
+     * {@code requires} and so never pulls its own named dependencies into the run-time module graph.
+     */
+    public static boolean automatic(Path file) {
+        ModuleDescriptor descriptor = moduleDescriptor(file);
+        return descriptor != null && descriptor.isAutomatic();
+    }
+
     public PathPlacement forModuleInfo(boolean moduleInfoPresent) {
         return moduleInfoPresent ? this : CLASS_PATH;
     }

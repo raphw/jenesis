@@ -57,14 +57,23 @@ public class Bundle implements BuildStep {
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
         SequencedMap<String, Path> classpath = new LinkedHashMap<>(), modulepath = new LinkedHashMap<>();
+        boolean hasAutomaticModules = false;
         for (Map.Entry<String, Path> entry : jars.entrySet()) {
-            boolean onModulePath = mainModule != null && PathPlacement.INFERRED.test(entry.getValue());
-            (onModulePath ? modulepath : classpath).put(entry.getKey(), entry.getValue());
+            if (mainModule != null) {
+                ModuleDescriptor descriptor = PathPlacement.moduleDescriptor(entry.getValue());
+                (descriptor != null ? modulepath : classpath).put(entry.getKey(), entry.getValue());
+                hasAutomaticModules |= descriptor != null && descriptor.isAutomatic();
+            } else {
+                classpath.put(entry.getKey(), entry.getValue());
+            }
         }
         SequencedProperties application = new SequencedProperties();
         application.setProperty("mainClass", mainClass);
         if (mainModule != null) {
             application.setProperty("mainModule", mainModule);
+        }
+        if (hasAutomaticModules) {
+            application.setProperty("addModules", "ALL-MODULE-PATH");
         }
         Path descriptor = context.supplement().resolve("application.properties");
         application.store(descriptor);

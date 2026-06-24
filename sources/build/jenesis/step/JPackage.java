@@ -4,6 +4,7 @@ import module java.base;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
+import build.jenesis.PathPlacement;
 
 public class JPackage extends JdkProcessBuildStep {
 
@@ -52,6 +53,7 @@ public class JPackage extends JdkProcessBuildStep {
         }
         Path input = Files.createDirectory(context.supplement().resolve("input"));
         SequencedMap<String, Path> staged = new LinkedHashMap<>();
+        boolean hasAutomaticModules = false;
         for (BuildStepArgument argument : arguments.values()) {
             List<Path> jars = new ArrayList<>();
             Path artifactsFolder = argument.folder().resolve(BuildStep.ARTIFACTS);
@@ -74,6 +76,7 @@ public class JPackage extends JdkProcessBuildStep {
                     throw new IllegalStateException("Cannot stage two jars with the same file name '"
                             + name + "' into a single jpackage input: " + previous + " and " + file);
                 }
+                hasAutomaticModules |= modular && PathPlacement.automatic(file);
                 BuildStep.linkOrCopy(input.resolve(name), file);
             }
         }
@@ -85,11 +88,12 @@ public class JPackage extends JdkProcessBuildStep {
             commands.add("--type");
             commands.add(type);
         }
-        // A modular launcher (`--module`) reads its app from a `--module-path`; a classpath
-        // launcher (`--main-jar`) reads it from an `--input` directory. The staged jars serve
-        // as either, so only the flag differs.
         commands.add(modular ? "--module-path" : "--input");
         commands.add(input.toString());
+        if (hasAutomaticModules) {
+            commands.add("--java-options");
+            commands.add("--add-modules=ALL-MODULE-PATH");
+        }
         commands.add("--dest");
         commands.add(Files.createDirectory(context.next().resolve(PACKAGES)).toString());
         return CompletableFuture.completedStage(commands);
