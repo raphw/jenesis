@@ -28,6 +28,13 @@ public enum PathPlacement {
         public boolean test(Path path) {
             return moduleDescriptor(path) != null;
         }
+
+        @Override
+        public boolean place(Path file, List<String> modulePath, List<String> classPath) {
+            ModuleDescriptor descriptor = moduleDescriptor(file);
+            (descriptor != null ? modulePath : classPath).add(file.toString());
+            return descriptor != null && descriptor.isAutomatic();
+        }
     };
 
     private final boolean modular;
@@ -41,6 +48,11 @@ public enum PathPlacement {
     }
 
     public abstract boolean test(Path path) throws IOException;
+
+    public boolean place(Path file, List<String> modulePath, List<String> classPath) throws IOException {
+        (test(file) ? modulePath : classPath).add(file.toString());
+        return false;
+    }
 
     public PathPlacement forModuleInfo(boolean moduleInfoPresent) {
         return moduleInfoPresent ? this : CLASS_PATH;

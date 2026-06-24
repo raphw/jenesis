@@ -45,8 +45,6 @@ public class JenesisModuleRepository implements Repository {
         String identifier = colon < 0 ? coordinate : coordinate.substring(0, colon);
         Optional<RepositoryItem> item = fetch(identifier, type);
         if (item.isEmpty() && type.equals("jmod")) {
-            // A `:jmod` coordinate is the module's link-time form; it falls back to the jar
-            // when no `.jmod` was published, so a consumer can request it unconditionally.
             return fetch(identifier, "jar");
         }
         return item;
@@ -56,7 +54,6 @@ public class JenesisModuleRepository implements Repository {
         int slash = identifier.indexOf('/');
         String moduleName = slash < 0 ? identifier : identifier.substring(0, slash);
         String version = slash < 0 ? null : identifier.substring(slash + 1);
-        // Module names cannot contain a dash, so a dash always introduces a classifier.
         int dash = moduleName.indexOf('-');
         String classifier = dash < 0 ? null : moduleName.substring(dash + 1);
         if (dash >= 0) {

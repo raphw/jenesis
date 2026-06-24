@@ -9,16 +9,16 @@ public abstract class Java extends JdkProcessBuildStep {
 
     private static final String MODULE_PATH = "--module-path", CLASS_PATH = "--class-path";
 
-    protected final PathPlacement modulePath;
+    protected final PathPlacement pathPlacement;
     protected final boolean jarsOnly;
 
     protected Java() {
         this(PathPlacement.CLASS_PATH, true);
     }
 
-    protected Java(PathPlacement modulePath, boolean jarsOnly) {
+    protected Java(PathPlacement pathPlacement, boolean jarsOnly) {
         super("java", ProcessHandler.OfProcess.ofJavaHome("bin/java"));
-        this.modulePath = modulePath;
+        this.pathPlacement = pathPlacement;
         this.jarsOnly = jarsOnly;
     }
 
@@ -27,10 +27,10 @@ public abstract class Java extends JdkProcessBuildStep {
     }
 
     protected Java(Function<List<String>, ? extends ProcessHandler> factory,
-                   PathPlacement modulePath,
+                   PathPlacement pathPlacement,
                    boolean jarsOnly) {
         super("java", factory);
-        this.modulePath = modulePath;
+        this.pathPlacement = pathPlacement;
         this.jarsOnly = jarsOnly;
     }
 
@@ -98,28 +98,27 @@ public abstract class Java extends JdkProcessBuildStep {
                                                  SequencedMap<String, SequencedMap<String, String>> properties)
             throws IOException {
         List<String> classPath = new ArrayList<>(), modulePath = new ArrayList<>();
+        boolean hasAutomaticModules = false;
         for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
             BuildStepArgument argument = entry.getValue();
             if (!jarsOnly) {
                 for (String folder : List.of(Javac.CLASSES, Bind.RESOURCES)) {
                     Path candidate = argument.folder().resolve(folder);
                     if (Files.isDirectory(candidate)) {
-                        (this.modulePath.test(candidate) ? modulePath : classPath).add(candidate.toString());
+                        (pathPlacement.test(candidate) ? modulePath : classPath).add(candidate.toString());
                     }
                 }
             }
             Path artifactsFolder = argument.folder().resolve(ARTIFACTS);
-            if (Files.exists(artifactsFolder)) {
-                Files.walkFileTree(artifactsFolder, new SimpleFileVisitor<>() {
-                    @Override
-                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                        (Java.this.modulePath.test(file) ? modulePath : classPath).add(file.toString());
-                        return FileVisitResult.CONTINUE;
+            if (Files.isDirectory(artifactsFolder)) {
+                try (DirectoryStream<Path> files = Files.newDirectoryStream(artifactsFolder)) {
+                    for (Path file : files) {
+                        hasAutomaticModules |= pathPlacement.place(file, modulePath, classPath);
                     }
-                });
+                }
             }
             for (Path file : Dependencies.select(argument.folder(), "runtime")) {
-                (this.modulePath.test(file) ? modulePath : classPath).add(file.toString());
+                hasAutomaticModules |= pathPlacement.place(file, modulePath, classPath);
             }
             SequencedMap<String, String> folders = properties.get(entry.getKey());
             if (folders != null) {
@@ -148,7 +147,7 @@ public abstract class Java extends JdkProcessBuildStep {
                 prefixes.add(String.join(File.pathSeparator, paths.getValue()));
             }
         }
-        if (this.modulePath == PathPlacement.INFERRED && !modulePath.isEmpty()) {
+        if (hasAutomaticModules) {
             prefixes.add("--add-modules");
             prefixes.add("ALL-MODULE-PATH");
         }

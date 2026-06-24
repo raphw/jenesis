@@ -553,8 +553,8 @@ public class TestModule implements BuildExecutorModule {
             for (Map.Entry<String, String> entry : resolved.properties().entrySet()) {
                 commands.add("-D" + entry.getKey() + "=" + entry.getValue());
             }
-            if (modulePath.modular() && resolved.runnerModule() != null) {
-                if (modulePath == PathPlacement.MODULE_PATH && moduleName != null) {
+            if (pathPlacement.modular() && resolved.runnerModule() != null) {
+                if (pathPlacement == PathPlacement.MODULE_PATH && moduleName != null) {
                     commands.add("--add-modules");
                     commands.add(moduleName);
                 }

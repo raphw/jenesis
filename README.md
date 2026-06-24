@@ -1462,9 +1462,15 @@ module-path - the `Requires` step then writes an empty `requires.properties` and
   to re-run regardless of cache consistency; `reporting` is also part of the serialized state (so toggling it
   invalidates the cache and re-runs to produce or drop the report) but, like `parallel`, is not forced to re-run
   on every invocation; `parallel` is transient - it changes how tests run, not their result, so toggling it
-  neither invalidates the cache nor forces a re-run. `Java` scans each
-  argument's `artifacts/` for jars and dispatches them to `--module-path` or `--class-path` based on its own
-  `modular` flag.
+  neither invalidates the cache nor forces a re-run. `Java` dispatches each
+  argument's `artifacts/` and resolved `runtime` jars to `--module-path` or `--class-path` through its
+  `PathPlacement` - the same `PathPlacement.place` routine `Execute` uses to launch, so a descriptor-bearing or
+  `Automatic-Module-Name` jar lands on the module path and a plain jar on the class path. When that inferred
+  module path carries an automatic module, the launch also adds `--add-modules ALL-MODULE-PATH`: an automatic
+  module declares no `requires`, so a named module it uses only internally (for example a Spring jar's transitive
+  `commons-logging`) is otherwise never resolved into the run-time graph. This is a launch-only concern -
+  `javac` resolves just the `requires` closure the sources actually reference (and in fact forbids the flag when
+  compiling a named module), so compilation never needs it.
 
 ```mermaid
 flowchart LR

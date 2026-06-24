@@ -99,9 +99,12 @@ public record Execute(Project project, String mainClass, String module) {
         }
         List<String> javaArgs = new ArrayList<>();
         if (candidate.module != null) {
+            boolean hasAutomaticModules = false;
             List<String> modulePath = new ArrayList<>(), classPath = new ArrayList<>();
             for (String jar : jars) {
-                (PathPlacement.INFERRED.test(Path.of(jar)) ? modulePath : classPath).add(jar);
+                ModuleDescriptor descriptor = PathPlacement.moduleDescriptor(Path.of(jar));
+                (descriptor != null ? modulePath : classPath).add(jar);
+                hasAutomaticModules |= descriptor != null && descriptor.isAutomatic();
             }
             javaArgs.add("--module-path");
             javaArgs.add(String.join(File.pathSeparator, modulePath));
@@ -109,11 +112,10 @@ public record Execute(Project project, String mainClass, String module) {
                 javaArgs.add("--class-path");
                 javaArgs.add(String.join(File.pathSeparator, classPath));
             }
-            // Resolve every module-path jar, including automatic modules a Spring/cloud closure pulls in
-            // transitively (e.g. commons-logging) that no explicit `requires` roots - matching the image
-            // entrypoint. Without this a fully-module-path app misses its automatic-module dependencies.
-            javaArgs.add("--add-modules");
-            javaArgs.add("ALL-MODULE-PATH");
+            if (hasAutomaticModules) {
+                javaArgs.add("--add-modules");
+                javaArgs.add("ALL-MODULE-PATH");
+            }
             javaArgs.add("-m");
             javaArgs.add(candidate.module + "/" + candidate.mainClass);
         } else {
