@@ -25,7 +25,7 @@ public record Execute(Project project, String mainClass, String module) {
     }
 
     private int doExecute(boolean mainMethod, String... arguments) throws IOException, InterruptedException {
-        String selector = module != null ? "+" + module : Project.BUILD;
+        String selector = module != null ? "+" + module.replace('/', '+') : Project.BUILD;
         SequencedMap<String, Path> outputs = mainMethod ? project.doMain(selector) : project.build(selector);
         SequencedProperties merged = new SequencedProperties();
         SequencedMap<String, Path> sourceByPrefix = new LinkedHashMap<>();
