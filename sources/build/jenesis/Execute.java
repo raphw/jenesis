@@ -108,9 +108,12 @@ public record Execute(Project project, String mainClass, String module) {
             if (!classPath.isEmpty()) {
                 javaArgs.add("--class-path");
                 javaArgs.add(String.join(File.pathSeparator, classPath));
-                javaArgs.add("--add-modules");
-                javaArgs.add("ALL-MODULE-PATH");
             }
+            // Resolve every module-path jar, including automatic modules a Spring/cloud closure pulls in
+            // transitively (e.g. commons-logging) that no explicit `requires` roots - matching the image
+            // entrypoint. Without this a fully-module-path app misses its automatic-module dependencies.
+            javaArgs.add("--add-modules");
+            javaArgs.add("ALL-MODULE-PATH");
             javaArgs.add("-m");
             javaArgs.add(candidate.module + "/" + candidate.mainClass);
         } else {
