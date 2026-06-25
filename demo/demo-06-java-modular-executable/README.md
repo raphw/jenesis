@@ -94,6 +94,34 @@ into `stage/packages/`, the staging analogue of `stage/maven` and `stage/modular
         |-- bin/demo.modular.executable             the launcher
         `-- lib/                                     app jars + bundled runtime
 
+Rooting the module path for a non-self-contained graph
+------------------------------------------------------
+
+This demo's closure is a *self-contained module graph*: every jar is an explicit
+named module (`demo.modular.executable` and `org.slf4j`), so the generated launcher's
+`-m demo.modular.executable/sample.Sample` resolves the whole module path through the
+main module's `requires`, and jpackage adds nothing extra to it.
+
+When the closure is *not* self-contained, jpackage gives the launcher
+`--java-options --add-modules=ALL-MODULE-PATH` so it roots the entire module path.
+Two things break self-containment, and both land on the module path with no edge from
+the main module's `requires`:
+
+- an **automatic module** - a jar with an `Automatic-Module-Name` but no `module-info`
+  (many libraries, much of Spring) - declares no `requires` of its own, so a named
+  module it uses only internally (say a Spring jar's transitive `commons-logging`)
+  is never pulled into the graph; and
+- a **plain jar** - no descriptor at all - which the JDK turns into a filename-derived
+  automatic module on the module path, with the same problem.
+
+Without the flag such a module is left unresolved and the app fails at run time with
+`NoClassDefFoundError`. jpackage stages every jar into the one `input/` directory it
+uses as the module path, so - unlike the `bundle` and `Execute` paths - there is no
+separate class path to weigh: the closure either resolves from `requires` or is rooted
+wholesale. The `Execute` launcher, the `bundle` step (which records the decision as a
+`selfContainedModuleGraph` flag for its consumer) and `native-image` apply the same
+rule, so only a self-contained graph launches without `--add-modules ALL-MODULE-PATH`.
+
 Stage a `.jmod` and a `jlink` runtime image
 -------------------------------------------
 
@@ -148,14 +176,21 @@ class:
     java -Djenesis.java.bundle=true build/jenesis/Project.java
 
     bundle.zip
-    |-- application.properties     mainClass=sample.Sample, mainModule=demo.modular.executable
+    |-- application.properties     mainClass=sample.Sample, mainModule=demo.modular.executable, selfContainedModuleGraph=true
     |-- modulepath/                jars that are modules (here the app jar and slf4j-api)
     `-- classpath/                 any non-modular jars
 
 The zip carries exactly the runtime closure `Execute` would launch, split the same
-way: real and automatic modules under `modulepath/`, the rest under `classpath/`,
-with `application.properties` naming the entry point (`mainModule` only when the
-launcher is modular). Unzipped onto a JRE base, it needs no JDK and no jpackage:
+way: real and automatic modules under `modulepath/`, the rest under `classpath/`.
+`application.properties` is plain `key=value` lines describing the launch: `mainClass`,
+`mainModule` (only when the launcher is modular), and - whenever `modulepath/` is
+non-empty - a `selfContainedModuleGraph` flag. `true` means the module path resolves
+from the main module's `requires`, so the consumer launches it as-is; `false` (an
+automatic module or a `classpath/` jar is present) means the consumer must add
+`--add-modules ALL-MODULE-PATH` to root the whole module path, exactly as the jpackage
+section above describes. Here the closure is `demo.modular.executable` + `org.slf4j`,
+both explicit modules, so the flag is `true` and the image below needs no
+`--add-modules`. Unzipped onto a JRE base, the bundle needs no JDK and no jpackage:
 
     FROM eclipse-temurin:25-jre
     COPY bundle/ /opt/app/

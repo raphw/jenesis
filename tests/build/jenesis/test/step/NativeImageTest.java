@@ -69,6 +69,28 @@ public class NativeImageTest {
 
     @Test
     @DisabledOnOs(OS.WINDOWS)
+    public void splits_module_and_class_path_and_roots_all_for_an_inferred_image() throws IOException {
+        SequencedProperties launcher = new SequencedProperties();
+        launcher.setProperty("name", "sample-app");
+        launcher.setProperty("mainModule", "sample");
+        launcher.setProperty("mainClass", "sample.Sample");
+        store(launcher);
+        // A real modular jar lands on the module path; the plain app.jar lands on the class path. The
+        // inferred placement is therefore not a self-contained module graph, so the whole module path is
+        // rooted with --add-modules ALL-MODULE-PATH.
+        modularJar(bundle.resolve(BuildStep.ARTIFACTS).resolve("sample.jar"), "sample");
+
+        BuildStepResult result = run(PathPlacement.INFERRED);
+        assertThat(result.next()).isTrue();
+        assertThat(command())
+                .contains("--module-path")
+                .contains("-cp")
+                .contains("--add-modules ALL-MODULE-PATH")
+                .endsWith("--module sample/sample.Sample");
+    }
+
+    @Test
+    @DisabledOnOs(OS.WINDOWS)
     public void passes_a_reachability_config_directory() throws IOException {
         SequencedProperties launcher = new SequencedProperties();
         launcher.setProperty("mainModule", "sample");
@@ -95,6 +117,16 @@ public class NativeImageTest {
 
     private void store(SequencedProperties launcher) throws IOException {
         launcher.store(bundle.resolve("launcher.properties"));
+    }
+
+    private void modularJar(Path target, String moduleName) throws IOException {
+        byte[] moduleInfo = ClassFile.of().buildModule(ModuleAttribute.of(ModuleDesc.of(moduleName),
+                builder -> builder.requires(ModuleDesc.of("java.base"), ClassFile.ACC_MANDATED, null)));
+        try (ZipOutputStream out = new ZipOutputStream(Files.newOutputStream(target))) {
+            out.putNextEntry(new ZipEntry("module-info.class"));
+            out.write(moduleInfo);
+            out.closeEntry();
+        }
     }
 
     private BuildStepResult run(PathPlacement modulePath) throws IOException {

@@ -92,9 +92,9 @@ public class JenesisModuleRepositoryTest {
     }
 
     @Test
-    public void fetches_unversioned_artifact_with_explicit_type() throws IOException {
+    public void resolves_an_unversioned_pom_request_to_pom_xml() throws IOException {
         Path moduleDir = Files.createDirectories(root.resolve("build.jenesis"));
-        Files.writeString(moduleDir.resolve("build.jenesis.pom"), "pom-bytes");
+        Files.writeString(moduleDir.resolve("pom.xml"), "pom-bytes");
 
         Optional<RepositoryItem> item = new JenesisModuleRepository(root.toUri())
                 .fetch(Runnable::run, "build.jenesis:pom");
@@ -106,9 +106,9 @@ public class JenesisModuleRepositoryTest {
     }
 
     @Test
-    public void fetches_versioned_artifact_with_explicit_type() throws IOException {
+    public void resolves_a_versioned_pom_request_to_pom_xml() throws IOException {
         Path versionDir = Files.createDirectories(root.resolve("build.jenesis/1.0.0"));
-        Files.writeString(versionDir.resolve("build.jenesis.pom"), "v1-pom-bytes");
+        Files.writeString(versionDir.resolve("pom.xml"), "v1-pom-bytes");
 
         Optional<RepositoryItem> item = new JenesisModuleRepository(root.toUri())
                 .fetch(Runnable::run, "build.jenesis/1.0.0:pom");
@@ -117,6 +117,17 @@ public class JenesisModuleRepositoryTest {
         try (InputStream stream = item.orElseThrow().toInputStream()) {
             assertThat(new String(stream.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("v1-pom-bytes");
         }
+    }
+
+    @Test
+    public void does_not_serve_a_legacy_module_dot_pom_for_a_pom_request() throws IOException {
+        Path moduleDir = Files.createDirectories(root.resolve("build.jenesis"));
+        Files.writeString(moduleDir.resolve("build.jenesis.pom"), "legacy-pom");
+
+        Optional<RepositoryItem> item = new JenesisModuleRepository(root.toUri())
+                .fetch(Runnable::run, "build.jenesis:pom");
+
+        assertThat(item).isEmpty();
     }
 
     @Test
@@ -173,16 +184,16 @@ public class JenesisModuleRepositoryTest {
     }
 
     @Test
-    public void classified_fetch_honours_explicit_type() throws IOException {
+    public void resolves_a_classified_pom_request_to_the_shared_pom_xml() throws IOException {
         Path versionDir = Files.createDirectories(root.resolve("build.jenesis/1.0.0"));
-        Files.writeString(versionDir.resolve("build.jenesis-win.pom"), "classified-pom");
+        Files.writeString(versionDir.resolve("pom.xml"), "shared-pom");
 
         Optional<RepositoryItem> item = new JenesisModuleRepository(root.toUri())
                 .fetch(Runnable::run, "build.jenesis-win/1.0.0:pom");
 
         assertThat(item).isPresent();
         try (InputStream stream = item.orElseThrow().toInputStream()) {
-            assertThat(new String(stream.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("classified-pom");
+            assertThat(new String(stream.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("shared-pom");
         }
     }
 

@@ -57,12 +57,12 @@ public class Bundle implements BuildStep {
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
         SequencedMap<String, Path> classpath = new LinkedHashMap<>(), modulepath = new LinkedHashMap<>();
-        boolean hasAutomaticModules = false;
+        boolean selfContainedModuleGraph = true;
         for (Map.Entry<String, Path> entry : jars.entrySet()) {
             if (mainModule != null) {
                 ModuleDescriptor descriptor = PathPlacement.moduleDescriptor(entry.getValue());
                 (descriptor != null ? modulepath : classpath).put(entry.getKey(), entry.getValue());
-                hasAutomaticModules |= descriptor != null && descriptor.isAutomatic();
+                selfContainedModuleGraph &= descriptor != null && !descriptor.isAutomatic();
             } else {
                 classpath.put(entry.getKey(), entry.getValue());
             }
@@ -72,8 +72,8 @@ public class Bundle implements BuildStep {
         if (mainModule != null) {
             application.setProperty("mainModule", mainModule);
         }
-        if (hasAutomaticModules) {
-            application.setProperty("addModules", "ALL-MODULE-PATH");
+        if (!modulepath.isEmpty()) {
+            application.setProperty("selfContainedModuleGraph", Boolean.toString(selfContainedModuleGraph));
         }
         Path descriptor = context.supplement().resolve("application.properties");
         application.store(descriptor);

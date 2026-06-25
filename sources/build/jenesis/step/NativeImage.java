@@ -31,9 +31,9 @@ public class NativeImage extends JdkProcessBuildStep {
                                                     SequencedMap<String, SequencedMap<String, String>> properties)
             throws IOException {
         boolean modular = pathPlacement.modular();
-        boolean hasAutomaticModules = false;
+        boolean selfContainedModuleGraph = true;
         String launcher = null, name = null;
-        List<String> path = new ArrayList<>();
+        List<String> modulePath = new ArrayList<>(), classPath = new ArrayList<>();
         Path config = null;
         for (BuildStepArgument argument : arguments.values()) {
             Path descriptor = argument.folder().resolve("launcher.properties");
@@ -55,34 +55,40 @@ public class NativeImage extends JdkProcessBuildStep {
             }
             Path artifacts = argument.folder().resolve(BuildStep.ARTIFACTS);
             if (Files.exists(artifacts)) {
+                List<Path> jars = new ArrayList<>();
                 Files.walkFileTree(artifacts, new SimpleFileVisitor<>() {
                     @Override
                     public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
                         if (file.toString().endsWith(".jar")) {
-                            path.add(file.toString());
+                            jars.add(file);
                         }
                         return FileVisitResult.CONTINUE;
                     }
                 });
+                for (Path file : jars) {
+                    selfContainedModuleGraph &= !pathPlacement.place(file, modulePath, classPath);
+                }
             }
             for (Path file : Dependencies.select(argument.folder(), "runtime")) {
-                path.add(file.toString());
-                hasAutomaticModules |= modular && PathPlacement.automatic(file);
+                selfContainedModuleGraph &= !pathPlacement.place(file, modulePath, classPath);
             }
             Path candidate = argument.folder().resolve("native-image");
             if (Files.isDirectory(candidate)) {
                 config = candidate;
             }
         }
-        if (launcher == null || path.isEmpty()) {
+        if (launcher == null || (modulePath.isEmpty() && classPath.isEmpty())) {
             return CompletableFuture.completedStage(null);
         }
-        for (String entry : path) {
-            if (entry.indexOf(File.pathSeparatorChar) != -1) {
-                throw new IllegalArgumentException(
-                        "Path entry contains separator '" + File.pathSeparator + "': " + entry);
+        for (List<String> entries : List.of(modulePath, classPath)) {
+            for (String entry : entries) {
+                if (entry.indexOf(File.pathSeparatorChar) != -1) {
+                    throw new IllegalArgumentException(
+                            "Path entry contains separator '" + File.pathSeparator + "': " + entry);
+                }
             }
         }
+        selfContainedModuleGraph &= classPath.isEmpty();
         List<String> commands = new ArrayList<>();
         commands.add("--no-fallback");
         if (config != null) {
@@ -92,18 +98,22 @@ public class NativeImage extends JdkProcessBuildStep {
         commands.add(Files.createDirectories(context.next().resolve(NATIVE))
                 .resolve(name == null ? "image" : name)
                 .toString());
-        if (modular) {
+        if (!modulePath.isEmpty()) {
             commands.add("--module-path");
-            commands.add(String.join(File.pathSeparator, path));
-            if (hasAutomaticModules) {
-                commands.add("--add-modules");
-                commands.add("ALL-MODULE-PATH");
-            }
+            commands.add(String.join(File.pathSeparator, modulePath));
+        }
+        if (!classPath.isEmpty()) {
+            commands.add("-cp");
+            commands.add(String.join(File.pathSeparator, classPath));
+        }
+        if (!modulePath.isEmpty() && !selfContainedModuleGraph) {
+            commands.add("--add-modules");
+            commands.add("ALL-MODULE-PATH");
+        }
+        if (modular) {
             commands.add("--module");
             commands.add(launcher);
         } else {
-            commands.add("-cp");
-            commands.add(String.join(File.pathSeparator, path));
             commands.add(launcher);
         }
         return CompletableFuture.completedStage(commands);

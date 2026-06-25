@@ -99,12 +99,12 @@ public record Execute(Project project, String mainClass, String module) {
         }
         List<String> javaArgs = new ArrayList<>();
         if (candidate.module != null) {
-            boolean hasAutomaticModules = false;
+            boolean selfContainedModuleGraph = true;
             List<String> modulePath = new ArrayList<>(), classPath = new ArrayList<>();
             for (String jar : jars) {
                 ModuleDescriptor descriptor = PathPlacement.moduleDescriptor(Path.of(jar));
                 (descriptor != null ? modulePath : classPath).add(jar);
-                hasAutomaticModules |= descriptor != null && descriptor.isAutomatic();
+                selfContainedModuleGraph &= descriptor != null && !descriptor.isAutomatic();
             }
             javaArgs.add("--module-path");
             javaArgs.add(String.join(File.pathSeparator, modulePath));
@@ -112,7 +112,7 @@ public record Execute(Project project, String mainClass, String module) {
                 javaArgs.add("--class-path");
                 javaArgs.add(String.join(File.pathSeparator, classPath));
             }
-            if (hasAutomaticModules) {
+            if (!selfContainedModuleGraph) {
                 javaArgs.add("--add-modules");
                 javaArgs.add("ALL-MODULE-PATH");
             }

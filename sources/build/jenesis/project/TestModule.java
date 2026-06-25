@@ -554,7 +554,7 @@ public class TestModule implements BuildExecutorModule {
                 commands.add("-D" + entry.getKey() + "=" + entry.getValue());
             }
             if (pathPlacement.modular() && resolved.runnerModule() != null) {
-                if (pathPlacement == PathPlacement.MODULE_PATH && moduleName != null) {
+                if (moduleName != null) {
                     commands.add("--add-modules");
                     commands.add(moduleName);
                 }

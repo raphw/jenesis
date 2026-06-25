@@ -98,7 +98,7 @@ public abstract class Java extends JdkProcessBuildStep {
                                                  SequencedMap<String, SequencedMap<String, String>> properties)
             throws IOException {
         List<String> classPath = new ArrayList<>(), modulePath = new ArrayList<>();
-        boolean hasAutomaticModules = false;
+        boolean selfContainedModuleGraph = true;
         for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
             BuildStepArgument argument = entry.getValue();
             if (!jarsOnly) {
@@ -113,12 +113,12 @@ public abstract class Java extends JdkProcessBuildStep {
             if (Files.isDirectory(artifactsFolder)) {
                 try (DirectoryStream<Path> files = Files.newDirectoryStream(artifactsFolder)) {
                     for (Path file : files) {
-                        hasAutomaticModules |= pathPlacement.place(file, modulePath, classPath);
+                        selfContainedModuleGraph &= !pathPlacement.place(file, modulePath, classPath);
                     }
                 }
             }
             for (Path file : Dependencies.select(argument.folder(), "runtime")) {
-                hasAutomaticModules |= pathPlacement.place(file, modulePath, classPath);
+                selfContainedModuleGraph &= !pathPlacement.place(file, modulePath, classPath);
             }
             SequencedMap<String, String> folders = properties.get(entry.getKey());
             if (folders != null) {
@@ -137,6 +137,7 @@ public abstract class Java extends JdkProcessBuildStep {
                 }
             }
         }
+        selfContainedModuleGraph &= classPath.isEmpty();
         List<String> prefixes = new ArrayList<>();
         for (Map.Entry<String, List<String>> paths : List.of(
                 Map.entry(MODULE_PATH, modulePath),
@@ -147,7 +148,7 @@ public abstract class Java extends JdkProcessBuildStep {
                 prefixes.add(String.join(File.pathSeparator, paths.getValue()));
             }
         }
-        if (hasAutomaticModules) {
+        if (!selfContainedModuleGraph) {
             prefixes.add("--add-modules");
             prefixes.add("ALL-MODULE-PATH");
         }
