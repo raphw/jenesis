@@ -210,7 +210,8 @@ public record Project(
                                 .cached(project.artifacts() == null ? null : Files.createDirectories(project.artifacts())));
                 repositories.putIfAbsent("module",
                         new JenesisModuleRepository(false)
-                                .cached(project.artifacts() == null ? null : Files.createDirectories(project.artifacts())));
+                                .cached(project.artifacts() == null ? null : Files.createDirectories(project.artifacts()))
+                                .prepend(JenesisModuleRepository.ofLocal()));
                 Map<String, Resolver> resolvers = new LinkedHashMap<>(project.resolvers());
                 resolvers.putIfAbsent("maven", new MavenPomResolver());
                 resolvers.putIfAbsent("module", new MavenModuleResolver("maven",
