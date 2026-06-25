@@ -11,6 +11,7 @@ public class JPackage extends JdkProcessBuildStep {
     public static final String PACKAGES = "packages/";
 
     private final String type;
+    private final String group;
 
     public JPackage(ProcessHandler.Factory factory) {
         this(factory, null);
@@ -19,6 +20,17 @@ public class JPackage extends JdkProcessBuildStep {
     public JPackage(ProcessHandler.Factory factory, String type) {
         super("jpackage", factory.apply("jpackage", "bin/jpackage"));
         this.type = type;
+        this.group = "main";
+    }
+
+    private JPackage(Function<List<String>, ? extends ProcessHandler> factory, String type, String group) {
+        super("jpackage", factory);
+        this.type = type;
+        this.group = group;
+    }
+
+    public JPackage group(String group) {
+        return new JPackage(factory, type, group);
     }
 
     @Override
@@ -68,7 +80,7 @@ public class JPackage extends JdkProcessBuildStep {
                     }
                 });
             }
-            jars.addAll(Dependencies.select(argument.folder(), "runtime"));
+            jars.addAll(Dependencies.select(argument.folder(), group, "runtime"));
             for (Path file : jars) {
                 String name = file.getFileName().toString();
                 Path previous = staged.putIfAbsent(name, file);

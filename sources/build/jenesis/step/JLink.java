@@ -10,8 +10,19 @@ public class JLink extends JdkProcessBuildStep {
 
     public static final String RUNTIME = "runtime/";
 
+    private final String group;
+
     public JLink(ProcessHandler.Factory factory) {
-        super("jlink", factory.apply("jlink", "bin/jlink"));
+        this(factory.apply("jlink", "bin/jlink"), "main");
+    }
+
+    private JLink(Function<List<String>, ? extends ProcessHandler> factory, String group) {
+        super("jlink", factory);
+        this.group = group;
+    }
+
+    public JLink group(String group) {
+        return new JLink(factory, group);
     }
 
     @Override
@@ -49,7 +60,7 @@ public class JLink extends JdkProcessBuildStep {
                     }
                 });
             }
-            for (Path file : Dependencies.select(argument.folder(), "runtime")) {
+            for (Path file : Dependencies.select(argument.folder(), group, "runtime")) {
                 jars.add(file);
             }
         }

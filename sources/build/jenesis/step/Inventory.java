@@ -12,6 +12,20 @@ public class Inventory implements BuildStep {
     public static final String INVENTORY = "inventory.properties";
     public static final String POM = "pom.xml";
 
+    private final String group;
+
+    public Inventory() {
+        this("main");
+    }
+
+    private Inventory(String group) {
+        this.group = group;
+    }
+
+    public Inventory group(String group) {
+        return new Inventory(group);
+    }
+
     @Override
     public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
         return arguments.values().stream().anyMatch(argument -> argument.hasChanged(
@@ -143,7 +157,7 @@ public class Inventory implements BuildStep {
         for (Map.Entry<String, Path> entry : closureJars.entrySet()) {
             String group = entry.getKey().substring(0, entry.getKey().indexOf('/'));
             String scope = closureScopes.get(entry.getKey());
-            if (group.equals("main") && scope != null && List.of(scope.split(",")).contains("runtime")) {
+            if (group.equals(this.group) && scope != null && List.of(scope.split(",")).contains("runtime")) {
                 runtime.add(entry.getValue());
             }
         }

@@ -32,10 +32,10 @@ public class TestModule implements BuildExecutorModule {
     private final PathPlacement modulePath;
     private final String moduleName;
     private final String filter;
-    private final String group;
+    private final String tag;
     private final boolean parallel;
     private final boolean reporting;
-    private final String dependencyGroup;
+    private final String group;
     private final List<ObservabilityEngine> observers;
 
     public TestModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
@@ -65,7 +65,7 @@ public class TestModule implements BuildExecutorModule {
                 PathPlacement.CLASS_PATH,
                 null,
                 System.getProperty("jenesis.test.filter"),
-                System.getProperty("jenesis.test.group"),
+                System.getProperty("jenesis.test.tag"),
                 Boolean.getBoolean("jenesis.test.parallel"),
                 Boolean.getBoolean("jenesis.test.reporting"),
                 "main",
@@ -83,10 +83,10 @@ public class TestModule implements BuildExecutorModule {
                        PathPlacement modulePath,
                        String moduleName,
                        String filter,
-                       String group,
+                       String tag,
                        boolean parallel,
                        boolean reporting,
-                       String dependencyGroup,
+                       String group,
                        List<ObservabilityEngine> observers) {
         this.engine = engine;
         this.isTest = isTest;
@@ -99,10 +99,10 @@ public class TestModule implements BuildExecutorModule {
         this.modulePath = modulePath;
         this.moduleName = moduleName;
         this.filter = filter;
-        this.group = group;
+        this.tag = tag;
         this.parallel = parallel;
         this.reporting = reporting;
-        this.dependencyGroup = dependencyGroup;
+        this.group = group;
         this.observers = observers;
     }
 
@@ -118,10 +118,10 @@ public class TestModule implements BuildExecutorModule {
                 modulePath,
                 moduleName,
                 filter,
-                group,
+                tag,
                 parallel,
                 reporting,
-                dependencyGroup,
+                group,
                 observers);
     }
 
@@ -137,10 +137,10 @@ public class TestModule implements BuildExecutorModule {
                 modulePath,
                 moduleName,
                 filter,
-                group,
+                tag,
                 parallel,
                 reporting,
-                dependencyGroup,
+                group,
                 observers);
     }
 
@@ -156,10 +156,10 @@ public class TestModule implements BuildExecutorModule {
                 modulePath,
                 moduleName,
                 filter,
-                group,
+                tag,
                 parallel,
                 reporting,
-                dependencyGroup,
+                group,
                 observers);
     }
 
@@ -175,10 +175,10 @@ public class TestModule implements BuildExecutorModule {
                 modulePath,
                 moduleName,
                 filter,
-                group,
+                tag,
                 parallel,
                 reporting,
-                dependencyGroup,
+                group,
                 observers);
     }
 
@@ -194,10 +194,10 @@ public class TestModule implements BuildExecutorModule {
                 modulePath,
                 moduleName,
                 filter,
-                group,
+                tag,
                 parallel,
                 reporting,
-                dependencyGroup,
+                group,
                 observers);
     }
 
@@ -213,10 +213,10 @@ public class TestModule implements BuildExecutorModule {
                 modulePath,
                 moduleName,
                 filter,
-                group,
+                tag,
                 parallel,
                 reporting,
-                dependencyGroup,
+                group,
                 observers);
     }
 
@@ -232,10 +232,10 @@ public class TestModule implements BuildExecutorModule {
                 modulePath,
                 moduleName,
                 filter,
-                group,
+                tag,
                 parallel,
                 reporting,
-                dependencyGroup,
+                group,
                 observers);
     }
 
@@ -251,10 +251,10 @@ public class TestModule implements BuildExecutorModule {
                 modulePath,
                 moduleName,
                 filter,
-                group,
+                tag,
                 parallel,
                 reporting,
-                dependencyGroup,
+                group,
                 observers);
     }
 
@@ -270,10 +270,29 @@ public class TestModule implements BuildExecutorModule {
                 modulePath,
                 moduleName,
                 filter,
-                group,
+                tag,
                 parallel,
                 reporting,
-                dependencyGroup,
+                group,
+                observers);
+    }
+
+    public TestModule tag(String tag) {
+        return new TestModule(engine,
+                isTest,
+                factory,
+                repositories,
+                resolvers,
+                jarsOnly,
+                requireEngine,
+                pinning,
+                modulePath,
+                moduleName,
+                filter,
+                tag,
+                parallel,
+                reporting,
+                group,
                 observers);
     }
 
@@ -289,29 +308,10 @@ public class TestModule implements BuildExecutorModule {
                 modulePath,
                 moduleName,
                 filter,
-                group,
+                tag,
                 parallel,
                 reporting,
-                dependencyGroup,
-                observers);
-    }
-
-    public TestModule dependencyGroup(String dependencyGroup) {
-        return new TestModule(engine,
-                isTest,
-                factory,
-                repositories,
-                resolvers,
-                jarsOnly,
-                requireEngine,
-                pinning,
-                modulePath,
-                moduleName,
-                filter,
                 group,
-                parallel,
-                reporting,
-                dependencyGroup,
                 observers);
     }
 
@@ -327,10 +327,10 @@ public class TestModule implements BuildExecutorModule {
                 modulePath,
                 moduleName,
                 filter,
-                group,
+                tag,
                 parallel,
                 reporting,
-                dependencyGroup,
+                group,
                 observers);
     }
 
@@ -346,10 +346,10 @@ public class TestModule implements BuildExecutorModule {
                 modulePath,
                 moduleName,
                 filter,
-                group,
+                tag,
                 parallel,
                 reporting,
-                dependencyGroup,
+                group,
                 observers);
     }
 
@@ -369,10 +369,10 @@ public class TestModule implements BuildExecutorModule {
                 modulePath,
                 moduleName,
                 filter,
-                group,
+                tag,
                 parallel,
                 reporting,
-                dependencyGroup,
+                group,
                 observers);
     }
 
@@ -394,7 +394,7 @@ public class TestModule implements BuildExecutorModule {
             }
         }
         SequencedSet<String> upstream = inherited.sequencedKeySet();
-        buildExecutor.addStep(RESOLVED, new Requires(dependencyGroup, resolved, Set.copyOf(resolvers.keySet()), observers), upstream);
+        buildExecutor.addStep(RESOLVED, new Requires(group, resolved, Set.copyOf(resolvers.keySet()), observers), upstream);
         SequencedSet<String> resolveInputs = new LinkedHashSet<>();
         resolveInputs.add(RESOLVED);
         resolveInputs.addAll(upstream);
@@ -410,10 +410,10 @@ public class TestModule implements BuildExecutorModule {
                         modulePath,
                         moduleName,
                         filter,
-                        group,
+                        tag,
                         parallel,
                         reporting,
-                        dependencyGroup,
+                        group,
                         observers,
                         incrementalProperty == null ? null : incrementalProperty.isEmpty() ? "MD5" : incrementalProperty),
                 Stream.concat(upstream.stream(), Stream.of(DEPENDENCIES)));
@@ -497,10 +497,10 @@ public class TestModule implements BuildExecutorModule {
         private final Predicate<String> isTest;
         private final String moduleName;
         private final String filter;
-        private final String group;
+        private final String tag;
         private final transient boolean parallel;
         private final boolean reporting;
-        private final String dependencyGroup;
+        private final String group;
         private final List<ObservabilityEngine> observers;
         private final transient String incrementalDigest;
 
@@ -511,28 +511,28 @@ public class TestModule implements BuildExecutorModule {
                     PathPlacement modulePath,
                     String moduleName,
                     String filter,
-                    String group,
+                    String tag,
                     boolean parallel,
                     boolean reporting,
-                    String dependencyGroup,
+                    String group,
                     List<ObservabilityEngine> observers,
                     String incrementalDigest) {
-            super(factory == null ? ProcessHandler.OfProcess.ofJavaHome("bin/java") : factory, modulePath, jarsOnly);
+            super(factory == null ? ProcessHandler.OfProcess.ofJavaHome("bin/java") : factory, modulePath, jarsOnly, group);
             this.engine = engine;
             this.isTest = isTest;
             this.moduleName = moduleName;
             this.filter = filter;
-            this.group = group;
+            this.tag = tag;
             this.parallel = parallel;
             this.reporting = reporting;
-            this.dependencyGroup = dependencyGroup;
+            this.group = group;
             this.observers = observers;
             this.incrementalDigest = incrementalDigest;
         }
 
         @Override
         public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
-            return filter != null || group != null || super.shouldRun(arguments);
+            return filter != null || tag != null || super.shouldRun(arguments);
         }
 
         @Override
@@ -545,10 +545,10 @@ public class TestModule implements BuildExecutorModule {
                     : TestEngine.of(() -> arguments.values().stream().map(BuildStepArgument::folder).iterator())
                     .orElseThrow(() -> new IllegalArgumentException("No test engine found"));
             List<TestSpec> specs = TestSpec.parse(filter);
-            SequencedSet<String> groups = groups(group);
+            SequencedSet<String> groups = groups(tag);
             List<String> commands = new ArrayList<>();
             for (ObservabilityEngine observer : observers) {
-                commands.addAll(observer.commands(agentJars(arguments, observer, dependencyGroup), context.next()));
+                commands.addAll(observer.commands(agentJars(arguments, observer, group), context.next()));
             }
             for (Map.Entry<String, String> entry : resolved.properties().entrySet()) {
                 commands.add("-D" + entry.getKey() + "=" + entry.getValue());
@@ -605,12 +605,12 @@ public class TestModule implements BuildExecutorModule {
             if (matchedClasses.isEmpty() && matchedMethods.isEmpty() && groups.isEmpty()) {
                 throw new IllegalStateException("No tests matched the requested selection"
                         + (filter != null ? ", filter: " + filter : "")
-                        + (group != null ? ", group: " + group : "")
-                        + ". Adjust jenesis.test.filter / jenesis.test.group or the isTest predicate,"
+                        + (tag != null ? ", tag: " + tag : "")
+                        + ". Adjust jenesis.test.filter / jenesis.test.tag or the isTest predicate,"
                         + " or set jenesis.test.skip to skip testing.");
             }
             SequencedSet<String> selection = matchedClasses;
-            if (incrementalDigest != null && filter == null && group == null && !matchedClasses.isEmpty()) {
+            if (incrementalDigest != null && filter == null && tag == null && !matchedClasses.isEmpty()) {
                 SequencedSet<String> narrowed = selected(arguments, context, matchedClasses);
                 if (narrowed != null && !narrowed.isEmpty()) {
                     selection = narrowed;
@@ -646,7 +646,7 @@ public class TestModule implements BuildExecutorModule {
                         }
                     });
                 }
-                for (Path jar : Dependencies.select(argument.folder(), "runtime")) {
+                for (Path jar : Dependencies.select(argument.folder(), group, "runtime")) {
                     if (!Files.isRegularFile(jar)) {
                         continue;
                     }
@@ -731,12 +731,12 @@ public class TestModule implements BuildExecutorModule {
             return resolved;
         }
 
-        private static SequencedSet<String> groups(String group) {
-            if (group == null || group.isBlank()) {
+        private static SequencedSet<String> groups(String tag) {
+            if (tag == null || tag.isBlank()) {
                 return Collections.emptyNavigableSet();
             }
             SequencedSet<String> groups = new LinkedHashSet<>();
-            for (String entry : group.split(",")) {
+            for (String entry : tag.split(",")) {
                 String trimmed = entry.trim();
                 if (!trimmed.isEmpty()) {
                     groups.add(trimmed);

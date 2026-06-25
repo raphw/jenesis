@@ -133,12 +133,12 @@ The test step's summary then reports `1 tests successful` instead of the default
 `2`. The `-D` flag must come **before** the source file - anything after it is
 read as a selector.
 
-Tests can also be selected by group with `-Djenesis.test.group`, which maps to
+Tests can also be selected by tag with `-Djenesis.test.tag`, which maps to
 the test framework's own grouping mechanism - JUnit Platform tags, JUnit 4
 categories, or TestNG groups. `GreeterTest#prefix_is_a_greeting` is annotated
 `@Tag("slow")`, so this again runs only that one test, this time by tag:
 
-    java -Djenesis.test.group=slow build/jenesis/Project.java
+    java -Djenesis.test.tag=slow build/jenesis/Project.java
 
 Passing `-Djenesis.test.parallel` runs the matched tests in parallel, letting
 the test framework execute them concurrently where its configuration allows.

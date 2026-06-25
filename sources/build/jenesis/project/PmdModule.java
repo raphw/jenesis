@@ -27,7 +27,7 @@ public class PmdModule implements BuildExecutorModule {
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
     private final Pinning pinning;
-    private final String group;
+    private final String tool;
     private final String configFile;
     private final boolean strict;
 
@@ -38,13 +38,13 @@ public class PmdModule implements BuildExecutorModule {
     private PmdModule(Map<String, Repository> repositories,
                       Map<String, Resolver> resolvers,
                       Pinning pinning,
-                      String group,
+                      String tool,
                       String configFile,
                       boolean strict) {
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.pinning = pinning;
-        this.group = group;
+        this.tool = tool;
         this.configFile = configFile;
         this.strict = strict;
     }
@@ -55,24 +55,24 @@ public class PmdModule implements BuildExecutorModule {
     }
 
     public PmdModule pinning(Pinning pinning) {
-        return new PmdModule(repositories, resolvers, pinning, group, configFile, strict);
+        return new PmdModule(repositories, resolvers, pinning, tool, configFile, strict);
     }
 
-    public PmdModule group(String group) {
-        return new PmdModule(repositories, resolvers, pinning, group, configFile, strict);
+    public PmdModule tool(String tool) {
+        return new PmdModule(repositories, resolvers, pinning, tool, configFile, strict);
     }
 
     public PmdModule configFile(String configFile) {
-        return new PmdModule(repositories, resolvers, pinning, group, configFile, strict);
+        return new PmdModule(repositories, resolvers, pinning, tool, configFile, strict);
     }
 
     public PmdModule strict(boolean strict) {
-        return new PmdModule(repositories, resolvers, pinning, group, configFile, strict);
+        return new PmdModule(repositories, resolvers, pinning, tool, configFile, strict);
     }
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
-        buildExecutor.addStep(REQUIRED, new Requires(group), inherited.sequencedKeySet());
+        buildExecutor.addStep(REQUIRED, new Requires(tool), inherited.sequencedKeySet());
         SequencedSet<String> resolveInputs = new LinkedHashSet<>();
         resolveInputs.add(REQUIRED);
         resolveInputs.addAll(inherited.sequencedKeySet());
@@ -82,10 +82,10 @@ public class PmdModule implements BuildExecutorModule {
         SequencedSet<String> checkInputs = new LinkedHashSet<>();
         checkInputs.add(DEPENDENCIES);
         checkInputs.addAll(inherited.sequencedKeySet());
-        buildExecutor.addStep(CHECK, new Check(group, configFile, strict), checkInputs);
+        buildExecutor.addStep(CHECK, new Check(tool, configFile, strict), checkInputs);
     }
 
-    private record Requires(String group) implements BuildStep {
+    private record Requires(String tool) implements BuildStep {
 
         @Override
         public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
@@ -98,7 +98,7 @@ public class PmdModule implements BuildExecutorModule {
                                                       SequencedMap<String, BuildStepArgument> arguments)
                 throws IOException {
             SequencedProperties requires = new SequencedProperties();
-            requires.setProperty(group + "/runtime/maven/" + MAVEN_GROUP + "/" + MAVEN_ARTIFACT + "/RELEASE", "");
+            requires.setProperty(tool + "/runtime/maven/" + MAVEN_GROUP + "/" + MAVEN_ARTIFACT + "/RELEASE", "");
             requires.store(context.next().resolve(BuildStep.REQUIRES));
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
@@ -106,13 +106,13 @@ public class PmdModule implements BuildExecutorModule {
 
     private static class Check extends JdkProcessBuildStep {
 
-        private final String group;
+        private final String tool;
         private final String configFile;
         private final boolean strict;
 
-        private Check(String group, String configFile, boolean strict) {
+        private Check(String tool, String configFile, boolean strict) {
             super("pmd", ProcessHandler.OfProcess.ofJavaHome("bin/java"));
-            this.group = group;
+            this.tool = tool;
             this.configFile = configFile;
             this.strict = strict;
         }
@@ -135,7 +135,7 @@ public class PmdModule implements BuildExecutorModule {
             boolean hasJava = false;
             Path config = null;
             for (BuildStepArgument argument : arguments.values()) {
-                for (Path jar : Dependencies.select(argument.folder(), group, "runtime")) {
+                for (Path jar : Dependencies.select(argument.folder(), tool, "runtime")) {
                     jars.add(jar.toString());
                 }
                 Path candidate = argument.folder().resolve(configFile);

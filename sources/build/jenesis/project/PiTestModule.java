@@ -23,19 +23,22 @@ public class PiTestModule implements BuildExecutorModule {
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
     private final Pinning pinning;
+    private final String tool;
     private final String group;
 
     public PiTestModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, null, "pitest");
+        this(repositories, resolvers, null, "pitest", "main");
     }
 
     private PiTestModule(Map<String, Repository> repositories,
                          Map<String, Resolver> resolvers,
                          Pinning pinning,
+                         String tool,
                          String group) {
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.pinning = pinning;
+        this.tool = tool;
         this.group = group;
     }
 
@@ -45,16 +48,20 @@ public class PiTestModule implements BuildExecutorModule {
     }
 
     public PiTestModule pinning(Pinning pinning) {
-        return new PiTestModule(repositories, resolvers, pinning, group);
+        return new PiTestModule(repositories, resolvers, pinning, tool, group);
+    }
+
+    public PiTestModule tool(String tool) {
+        return new PiTestModule(repositories, resolvers, pinning, tool, group);
     }
 
     public PiTestModule group(String group) {
-        return new PiTestModule(repositories, resolvers, pinning, group);
+        return new PiTestModule(repositories, resolvers, pinning, tool, group);
     }
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
-        buildExecutor.addStep(REQUIRED, new Requires(group), inherited.sequencedKeySet());
+        buildExecutor.addStep(REQUIRED, new Requires(tool), inherited.sequencedKeySet());
         SequencedSet<String> resolveInputs = new LinkedHashSet<>();
         resolveInputs.add(REQUIRED);
         resolveInputs.addAll(inherited.sequencedKeySet());
@@ -64,10 +71,10 @@ public class PiTestModule implements BuildExecutorModule {
         SequencedSet<String> mutateInputs = new LinkedHashSet<>();
         mutateInputs.add(DEPENDENCIES);
         mutateInputs.addAll(inherited.sequencedKeySet());
-        buildExecutor.addStep(MUTATE, new Mutate(group), mutateInputs);
+        buildExecutor.addStep(MUTATE, new Mutate(tool, group), mutateInputs);
     }
 
-    private record Requires(String group) implements BuildStep {
+    private record Requires(String tool) implements BuildStep {
 
         @Override
         public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
@@ -81,10 +88,10 @@ public class PiTestModule implements BuildExecutorModule {
                 throws IOException {
             String launcher = junitPlatformVersion(arguments);
             SequencedProperties requires = new SequencedProperties();
-            requires.setProperty(group + "/runtime/maven/org.pitest/pitest-command-line/RELEASE", "");
-            requires.setProperty(group + "/runtime/maven/org.pitest/pitest-junit5-plugin/RELEASE", "");
+            requires.setProperty(tool + "/runtime/maven/org.pitest/pitest-command-line/RELEASE", "");
+            requires.setProperty(tool + "/runtime/maven/org.pitest/pitest-junit5-plugin/RELEASE", "");
             if (launcher != null) {
-                requires.setProperty(group + "/classpath/maven/org.junit.platform/junit-platform-launcher/" + launcher, "");
+                requires.setProperty(tool + "/classpath/maven/org.junit.platform/junit-platform-launcher/" + launcher, "");
             }
             requires.store(context.next().resolve(BuildStep.REQUIRES));
             return CompletableFuture.completedStage(new BuildStepResult(true));
@@ -112,10 +119,12 @@ public class PiTestModule implements BuildExecutorModule {
 
     private static class Mutate extends JdkProcessBuildStep {
 
+        private final String tool;
         private final String group;
 
-        private Mutate(String group) {
+        private Mutate(String tool, String group) {
             super("pitest", ProcessHandler.OfProcess.ofJavaHome("bin/java"));
+            this.tool = tool;
             this.group = group;
         }
 
@@ -131,13 +140,13 @@ public class PiTestModule implements BuildExecutorModule {
             Set<String> expanded = new HashSet<>();
             Path code = Files.createDirectories(context.supplement().resolve("code")).toAbsolutePath();
             for (BuildStepArgument argument : arguments.values()) {
-                for (Path jar : Dependencies.select(argument.folder(), group, "runtime")) {
+                for (Path jar : Dependencies.select(argument.folder(), tool, "runtime")) {
                     tools.add(jar.toString());
                 }
-                for (Path jar : Dependencies.select(argument.folder(), group, "classpath")) {
+                for (Path jar : Dependencies.select(argument.folder(), tool, "classpath")) {
                     external.add(jar.toString());
                 }
-                for (Path jar : Dependencies.select(argument.folder(), "runtime")) {
+                for (Path jar : Dependencies.select(argument.folder(), group, "runtime")) {
                     String fileName = jar.getFileName().toString();
                     if (fileName.contains("%2F")) {
                         external.add(jar.toString());

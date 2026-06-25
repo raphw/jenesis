@@ -11,12 +11,12 @@ public abstract class FormatBuildStep extends JdkProcessBuildStep {
 
     private static final String FORMATTED = "formatted.properties";
 
-    private final String group;
+    private final String tool;
     private final boolean verify;
 
-    protected FormatBuildStep(String group, boolean verify) {
-        super(group, ProcessHandler.OfProcess.ofJavaHome("bin/java"));
-        this.group = group;
+    protected FormatBuildStep(String tool, boolean verify) {
+        super(tool, ProcessHandler.OfProcess.ofJavaHome("bin/java"));
+        this.tool = tool;
         this.verify = verify;
     }
 
@@ -52,7 +52,7 @@ public abstract class FormatBuildStep extends JdkProcessBuildStep {
         Path config = null;
         Map<Path, byte[]> current = new LinkedHashMap<>();
         for (BuildStepArgument argument : arguments.values()) {
-            for (Path jar : Dependencies.select(argument.folder(), group, "runtime")) {
+            for (Path jar : Dependencies.select(argument.folder(), tool, "runtime")) {
                 jars.add(jar.toString());
             }
             Path candidate = config(argument.folder());
@@ -78,7 +78,7 @@ public abstract class FormatBuildStep extends JdkProcessBuildStep {
             return CompletableFuture.completedStage(null);
         }
         if (jars.isEmpty()) {
-            throw new IllegalStateException("No " + group + " jars resolved upstream of the " + group + " step");
+            throw new IllegalStateException("No " + tool + " jars resolved upstream of the " + tool + " step");
         }
         files.sort(null);
         return CompletableFuture.completedStage(command(jars, config, files, verify));

@@ -33,47 +33,54 @@ public class GroovyCompilerModule implements BuildExecutorModule {
     private final Map<String, Resolver> resolvers;
     private final Pinning pinning;
     private final boolean includeResources;
+    private final String tool;
     private final String group;
     private final transient Function<List<String>, ? extends ProcessHandler> factory;
 
     public GroovyCompilerModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, null, true, "groovyc", null);
+        this(repositories, resolvers, null, true, "groovyc", "main", null);
     }
 
     private GroovyCompilerModule(Map<String, Repository> repositories,
                                  Map<String, Resolver> resolvers,
                                  Pinning pinning,
                                  boolean includeResources,
+                                 String tool,
                                  String group,
                                  Function<List<String>, ? extends ProcessHandler> factory) {
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.pinning = pinning;
         this.includeResources = includeResources;
+        this.tool = tool;
         this.group = group;
         this.factory = factory;
     }
 
     public GroovyCompilerModule factory(Function<List<String>, ? extends ProcessHandler> factory) {
-        return new GroovyCompilerModule(repositories, resolvers, pinning, includeResources, group, factory);
+        return new GroovyCompilerModule(repositories, resolvers, pinning, includeResources, tool, group, factory);
     }
 
     public GroovyCompilerModule pinning(Pinning pinning) {
-        return new GroovyCompilerModule(repositories, resolvers, pinning, includeResources, group, factory);
+        return new GroovyCompilerModule(repositories, resolvers, pinning, includeResources, tool, group, factory);
     }
 
     public GroovyCompilerModule includeResources(boolean includeResources) {
-        return new GroovyCompilerModule(repositories, resolvers, pinning, includeResources, group, factory);
+        return new GroovyCompilerModule(repositories, resolvers, pinning, includeResources, tool, group, factory);
+    }
+
+    public GroovyCompilerModule tool(String tool) {
+        return new GroovyCompilerModule(repositories, resolvers, pinning, includeResources, tool, group, factory);
     }
 
     public GroovyCompilerModule group(String group) {
-        return new GroovyCompilerModule(repositories, resolvers, pinning, includeResources, group, factory);
+        return new GroovyCompilerModule(repositories, resolvers, pinning, includeResources, tool, group, factory);
     }
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
         SequencedSet<String> upstream = inherited.sequencedKeySet();
-        buildExecutor.addStep(REQUIRED, new Requires(Set.copyOf(resolvers.keySet()), group), upstream);
+        buildExecutor.addStep(REQUIRED, new Requires(Set.copyOf(resolvers.keySet()), tool), upstream);
         SequencedSet<String> resolveInputs = new LinkedHashSet<>();
         resolveInputs.add(REQUIRED);
         resolveInputs.addAll(upstream);
@@ -84,7 +91,7 @@ public class GroovyCompilerModule implements BuildExecutorModule {
         compileInputs.add(DEPENDENCIES);
         compileInputs.addAll(upstream);
         buildExecutor.addStep(COMPILED,
-                factory == null ? new Compile(includeResources, group) : new Compile(includeResources, group, factory),
+                factory == null ? new Compile(includeResources, tool, group) : new Compile(includeResources, tool, group, factory),
                 compileInputs);
         buildExecutor.addStep(CLASSES, new Versions(), Stream.concat(
                 Stream.of(COMPILED),
@@ -102,7 +109,7 @@ public class GroovyCompilerModule implements BuildExecutorModule {
         return Optional.empty();
     }
 
-    private record Requires(Set<String> prefixes, String group) implements BuildStep {
+    private record Requires(Set<String> prefixes, String tool) implements BuildStep {
 
         @Override
         public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
@@ -132,7 +139,7 @@ public class GroovyCompilerModule implements BuildExecutorModule {
                 default -> throw new IllegalStateException("Unreachable");
             };
             SequencedProperties requires = new SequencedProperties();
-            requires.setProperty(group + "/runtime/" + coordinate, "");
+            requires.setProperty(tool + "/runtime/" + coordinate, "");
             requires.store(context.next().resolve(BuildStep.REQUIRES));
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
@@ -141,15 +148,17 @@ public class GroovyCompilerModule implements BuildExecutorModule {
     private static class Compile extends JdkProcessBuildStep {
 
         private final boolean includeResources;
+        private final String tool;
         private final String group;
 
-        private Compile(boolean includeResources, String group) {
-            this(includeResources, group, ProcessHandler.OfProcess.ofJavaHome("bin/java"));
+        private Compile(boolean includeResources, String tool, String group) {
+            this(includeResources, tool, group, ProcessHandler.OfProcess.ofJavaHome("bin/java"));
         }
 
-        private Compile(boolean includeResources, String group, Function<List<String>, ? extends ProcessHandler> factory) {
+        private Compile(boolean includeResources, String tool, String group, Function<List<String>, ? extends ProcessHandler> factory) {
             super("groovyc", factory);
             this.includeResources = includeResources;
+            this.tool = tool;
             this.group = group;
         }
 
@@ -173,10 +182,10 @@ public class GroovyCompilerModule implements BuildExecutorModule {
                 if (Files.exists(classes)) {
                     classpath.add(classes.toString());
                 }
-                for (Path jar : Dependencies.select(argument.folder(), group, "runtime")) {
+                for (Path jar : Dependencies.select(argument.folder(), tool, "runtime")) {
                     jars.add(jar.toString());
                 }
-                for (Path jar : Dependencies.select(argument.folder(), "compile")) {
+                for (Path jar : Dependencies.select(argument.folder(), group, "compile")) {
                     classpath.add(jar.toString());
                 }
                 Path sources = argument.folder().resolve(Bind.SOURCES);

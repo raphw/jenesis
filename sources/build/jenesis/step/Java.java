@@ -11,6 +11,7 @@ public abstract class Java extends JdkProcessBuildStep {
 
     protected final PathPlacement pathPlacement;
     protected final boolean jarsOnly;
+    protected final String group;
 
     protected Java() {
         this(PathPlacement.CLASS_PATH, true);
@@ -20,6 +21,7 @@ public abstract class Java extends JdkProcessBuildStep {
         super("java", ProcessHandler.OfProcess.ofJavaHome("bin/java"));
         this.pathPlacement = pathPlacement;
         this.jarsOnly = jarsOnly;
+        this.group = "main";
     }
 
     protected Java(Function<List<String>, ? extends ProcessHandler> factory) {
@@ -29,9 +31,17 @@ public abstract class Java extends JdkProcessBuildStep {
     protected Java(Function<List<String>, ? extends ProcessHandler> factory,
                    PathPlacement pathPlacement,
                    boolean jarsOnly) {
+        this(factory, pathPlacement, jarsOnly, "main");
+    }
+
+    protected Java(Function<List<String>, ? extends ProcessHandler> factory,
+                   PathPlacement pathPlacement,
+                   boolean jarsOnly,
+                   String group) {
         super("java", factory);
         this.pathPlacement = pathPlacement;
         this.jarsOnly = jarsOnly;
+        this.group = group;
     }
 
     public static Java of(String... commands) {
@@ -86,6 +96,19 @@ public abstract class Java extends JdkProcessBuildStep {
         };
     }
 
+    public Java group(String group) {
+        Java self = this;
+        return new Java(factory, pathPlacement, jarsOnly, group) {
+            @Override
+            protected CompletionStage<List<String>> commands(Executor executor,
+                                                             BuildStepContext context,
+                                                             SequencedMap<String, BuildStepArgument> arguments)
+                    throws IOException {
+                return self.commands(executor, context, arguments);
+            }
+        };
+    }
+
     protected abstract CompletionStage<List<String>> commands(Executor executor,
                                                               BuildStepContext context,
                                                               SequencedMap<String, BuildStepArgument> arguments)
@@ -117,7 +140,7 @@ public abstract class Java extends JdkProcessBuildStep {
                     }
                 }
             }
-            for (Path file : Dependencies.select(argument.folder(), "runtime")) {
+            for (Path file : Dependencies.select(argument.folder(), group, "runtime")) {
                 selfContainedModuleGraph &= !pathPlacement.place(file, modulePath, classPath);
             }
             SequencedMap<String, String> folders = properties.get(entry.getKey());

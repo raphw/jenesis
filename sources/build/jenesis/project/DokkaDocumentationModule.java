@@ -31,48 +31,55 @@ public class DokkaDocumentationModule implements BuildExecutorModule {
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
     private final Pinning pinning;
+    private final String tool;
     private final String group;
     private final String within;
     private final transient Function<List<String>, ? extends ProcessHandler> factory;
 
     public DokkaDocumentationModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, null, "dokka", null, null);
+        this(repositories, resolvers, null, "dokka", "main", null, null);
     }
 
     private DokkaDocumentationModule(Map<String, Repository> repositories,
                                      Map<String, Resolver> resolvers,
                                      Pinning pinning,
+                                     String tool,
                                      String group,
                                      String within,
                                      Function<List<String>, ? extends ProcessHandler> factory) {
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.pinning = pinning;
+        this.tool = tool;
         this.group = group;
         this.within = within;
         this.factory = factory;
     }
 
     public DokkaDocumentationModule factory(Function<List<String>, ? extends ProcessHandler> factory) {
-        return new DokkaDocumentationModule(repositories, resolvers, pinning, group, within, factory);
+        return new DokkaDocumentationModule(repositories, resolvers, pinning, tool, group, within, factory);
     }
 
     public DokkaDocumentationModule pinning(Pinning pinning) {
-        return new DokkaDocumentationModule(repositories, resolvers, pinning, group, within, factory);
+        return new DokkaDocumentationModule(repositories, resolvers, pinning, tool, group, within, factory);
+    }
+
+    public DokkaDocumentationModule tool(String tool) {
+        return new DokkaDocumentationModule(repositories, resolvers, pinning, tool, group, within, factory);
     }
 
     public DokkaDocumentationModule group(String group) {
-        return new DokkaDocumentationModule(repositories, resolvers, pinning, group, within, factory);
+        return new DokkaDocumentationModule(repositories, resolvers, pinning, tool, group, within, factory);
     }
 
     public DokkaDocumentationModule within(String within) {
-        return new DokkaDocumentationModule(repositories, resolvers, pinning, group, within, factory);
+        return new DokkaDocumentationModule(repositories, resolvers, pinning, tool, group, within, factory);
     }
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
         SequencedSet<String> upstream = inherited.sequencedKeySet();
-        buildExecutor.addStep(REQUIRED, new Requires(resolvers.containsKey("maven"), group), upstream);
+        buildExecutor.addStep(REQUIRED, new Requires(resolvers.containsKey("maven"), tool), upstream);
         SequencedSet<String> resolveInputs = new LinkedHashSet<>();
         resolveInputs.add(REQUIRED);
         resolveInputs.addAll(upstream);
@@ -83,7 +90,7 @@ public class DokkaDocumentationModule implements BuildExecutorModule {
         documentInputs.add(DEPENDENCIES);
         documentInputs.addAll(upstream);
         buildExecutor.addStep(DOCUMENTED,
-                factory == null ? new Document(within, group) : new Document(within, group, factory),
+                factory == null ? new Document(within, tool, group) : new Document(within, tool, group, factory),
                 documentInputs);
     }
 
@@ -98,7 +105,7 @@ public class DokkaDocumentationModule implements BuildExecutorModule {
         return Optional.empty();
     }
 
-    private record Requires(boolean maven, String group) implements BuildStep {
+    private record Requires(boolean maven, String tool) implements BuildStep {
 
         @Override
         public CompletionStage<BuildStepResult> apply(Executor executor,
@@ -108,7 +115,7 @@ public class DokkaDocumentationModule implements BuildExecutorModule {
             SequencedProperties requires = new SequencedProperties();
             if (maven) {
                 for (String artifact : CLI_ARTIFACTS) {
-                    requires.setProperty(group + "/runtime/maven/" + MAVEN_GROUP + "/" + artifact + "/RELEASE", "");
+                    requires.setProperty(tool + "/runtime/maven/" + MAVEN_GROUP + "/" + artifact + "/RELEASE", "");
                 }
             }
             requires.store(context.next().resolve(BuildStep.REQUIRES));
@@ -119,16 +126,18 @@ public class DokkaDocumentationModule implements BuildExecutorModule {
     private static class Document extends JdkProcessBuildStep {
 
         private final String within;
-        private final String groupTrail;
+        private final String tool;
+        private final String group;
 
-        private Document(String within, String groupTrail) {
-            this(within, groupTrail, ProcessHandler.OfProcess.ofJavaHome("bin/java"));
+        private Document(String within, String tool, String group) {
+            this(within, tool, group, ProcessHandler.OfProcess.ofJavaHome("bin/java"));
         }
 
-        private Document(String within, String groupTrail, Function<List<String>, ? extends ProcessHandler> factory) {
+        private Document(String within, String tool, String group, Function<List<String>, ? extends ProcessHandler> factory) {
             super("dokka", factory);
             this.within = within;
-            this.groupTrail = groupTrail;
+            this.tool = tool;
+            this.group = group;
         }
 
         @Override
@@ -161,10 +170,10 @@ public class DokkaDocumentationModule implements BuildExecutorModule {
                 if (Files.exists(classes)) {
                     classpath.add(classes.toString());
                 }
-                for (Path jar : Dependencies.select(argument.folder(), groupTrail, "runtime")) {
+                for (Path jar : Dependencies.select(argument.folder(), tool, "runtime")) {
                     jars.add(jar.toString());
                 }
-                for (Path jar : Dependencies.select(argument.folder(), "compile")) {
+                for (Path jar : Dependencies.select(argument.folder(), group, "compile")) {
                     classpath.add(jar.toString());
                 }
                 Path source = argument.folder().resolve(Bind.SOURCES);

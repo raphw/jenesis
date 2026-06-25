@@ -35,13 +35,13 @@ public class CheckstyleModuleTest {
     }
 
     @Test
-    public void group_emits_an_independent_resolution_trail() throws IOException {
+    public void tool_emits_an_independent_resolution_trail() throws IOException {
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
         executor.addModule(
                 "checkstyle",
                 new CheckstyleModule(Map.of("maven", files()), Map.of("maven", Resolver.identity()))
-                        .group("custom"),
+                        .tool("custom"),
                 "project");
         executor.execute("checkstyle/dependencies");
 

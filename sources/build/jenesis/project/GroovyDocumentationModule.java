@@ -33,18 +33,20 @@ public class GroovyDocumentationModule implements BuildExecutorModule {
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
     private final Pinning pinning;
+    private final String tool;
     private final String group;
     private final String within;
     private final boolean includeJava;
     private final transient Function<List<String>, ? extends ProcessHandler> factory;
 
     public GroovyDocumentationModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, null, "groovydoc", null, false, null);
+        this(repositories, resolvers, null, "groovydoc", "main", null, false, null);
     }
 
     private GroovyDocumentationModule(Map<String, Repository> repositories,
                                       Map<String, Resolver> resolvers,
                                       Pinning pinning,
+                                      String tool,
                                       String group,
                                       String within,
                                       boolean includeJava,
@@ -52,6 +54,7 @@ public class GroovyDocumentationModule implements BuildExecutorModule {
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.pinning = pinning;
+        this.tool = tool;
         this.group = group;
         this.within = within;
         this.includeJava = includeJava;
@@ -59,29 +62,33 @@ public class GroovyDocumentationModule implements BuildExecutorModule {
     }
 
     public GroovyDocumentationModule factory(Function<List<String>, ? extends ProcessHandler> factory) {
-        return new GroovyDocumentationModule(repositories, resolvers, pinning, group, within, includeJava, factory);
+        return new GroovyDocumentationModule(repositories, resolvers, pinning, tool, group, within, includeJava, factory);
     }
 
     public GroovyDocumentationModule pinning(Pinning pinning) {
-        return new GroovyDocumentationModule(repositories, resolvers, pinning, group, within, includeJava, factory);
+        return new GroovyDocumentationModule(repositories, resolvers, pinning, tool, group, within, includeJava, factory);
+    }
+
+    public GroovyDocumentationModule tool(String tool) {
+        return new GroovyDocumentationModule(repositories, resolvers, pinning, tool, group, within, includeJava, factory);
     }
 
     public GroovyDocumentationModule group(String group) {
-        return new GroovyDocumentationModule(repositories, resolvers, pinning, group, within, includeJava, factory);
+        return new GroovyDocumentationModule(repositories, resolvers, pinning, tool, group, within, includeJava, factory);
     }
 
     public GroovyDocumentationModule within(String within) {
-        return new GroovyDocumentationModule(repositories, resolvers, pinning, group, within, includeJava, factory);
+        return new GroovyDocumentationModule(repositories, resolvers, pinning, tool, group, within, includeJava, factory);
     }
 
     public GroovyDocumentationModule includeJava(boolean includeJava) {
-        return new GroovyDocumentationModule(repositories, resolvers, pinning, group, within, includeJava, factory);
+        return new GroovyDocumentationModule(repositories, resolvers, pinning, tool, group, within, includeJava, factory);
     }
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
         SequencedSet<String> upstream = inherited.sequencedKeySet();
-        buildExecutor.addStep(REQUIRED, new Requires(Set.copyOf(resolvers.keySet()), group), upstream);
+        buildExecutor.addStep(REQUIRED, new Requires(Set.copyOf(resolvers.keySet()), tool), upstream);
         SequencedSet<String> resolveInputs = new LinkedHashSet<>();
         resolveInputs.add(REQUIRED);
         resolveInputs.addAll(upstream);
@@ -92,7 +99,7 @@ public class GroovyDocumentationModule implements BuildExecutorModule {
         documentInputs.add(DEPENDENCIES);
         documentInputs.addAll(upstream);
         buildExecutor.addStep(DOCUMENTED,
-                factory == null ? new Document(within, includeJava, group) : new Document(within, includeJava, group, factory),
+                factory == null ? new Document(within, includeJava, tool, group) : new Document(within, includeJava, tool, group, factory),
                 documentInputs);
     }
 
@@ -107,7 +114,7 @@ public class GroovyDocumentationModule implements BuildExecutorModule {
         return Optional.empty();
     }
 
-    private record Requires(Set<String> prefixes, String group) implements BuildStep {
+    private record Requires(Set<String> prefixes, String tool) implements BuildStep {
 
         @Override
         public CompletionStage<BuildStepResult> apply(Executor executor,
@@ -132,7 +139,7 @@ public class GroovyDocumentationModule implements BuildExecutorModule {
                 default -> throw new IllegalStateException("Unreachable");
             };
             SequencedProperties requires = new SequencedProperties();
-            requires.setProperty(group + "/runtime/" + coordinate, "");
+            requires.setProperty(tool + "/runtime/" + coordinate, "");
             requires.store(context.next().resolve(BuildStep.REQUIRES));
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
@@ -142,16 +149,18 @@ public class GroovyDocumentationModule implements BuildExecutorModule {
 
         private final String within;
         private final boolean includeJava;
+        private final String tool;
         private final String group;
 
-        private Document(String within, boolean includeJava, String group) {
-            this(within, includeJava, group, ProcessHandler.OfProcess.ofJavaHome("bin/java"));
+        private Document(String within, boolean includeJava, String tool, String group) {
+            this(within, includeJava, tool, group, ProcessHandler.OfProcess.ofJavaHome("bin/java"));
         }
 
-        private Document(String within, boolean includeJava, String group, Function<List<String>, ? extends ProcessHandler> factory) {
+        private Document(String within, boolean includeJava, String tool, String group, Function<List<String>, ? extends ProcessHandler> factory) {
             super("groovydoc", factory);
             this.within = within;
             this.includeJava = includeJava;
+            this.tool = tool;
             this.group = group;
         }
 
@@ -187,10 +196,10 @@ public class GroovyDocumentationModule implements BuildExecutorModule {
                 if (Files.exists(classes)) {
                     classpath.add(classes.toString());
                 }
-                for (Path jar : Dependencies.select(argument.folder(), group, "runtime")) {
+                for (Path jar : Dependencies.select(argument.folder(), tool, "runtime")) {
                     jars.add(jar.toString());
                 }
-                for (Path jar : Dependencies.select(argument.folder(), "compile")) {
+                for (Path jar : Dependencies.select(argument.folder(), group, "compile")) {
                     jars.add(jar.toString());
                 }
                 Path javacProperties = argument.folder().resolve(ProcessBuildStep.PROCESS + "javac.properties");

@@ -32,48 +32,55 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
     private final Pinning pinning;
+    private final String tool;
     private final String group;
     private final String within;
     private final transient Function<List<String>, ? extends ProcessHandler> factory;
 
     public ScalaDocumentationModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, null, "scaladoc", null, null);
+        this(repositories, resolvers, null, "scaladoc", "main", null, null);
     }
 
     private ScalaDocumentationModule(Map<String, Repository> repositories,
                                      Map<String, Resolver> resolvers,
                                      Pinning pinning,
+                                     String tool,
                                      String group,
                                      String within,
                                      Function<List<String>, ? extends ProcessHandler> factory) {
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.pinning = pinning;
+        this.tool = tool;
         this.group = group;
         this.within = within;
         this.factory = factory;
     }
 
     public ScalaDocumentationModule factory(Function<List<String>, ? extends ProcessHandler> factory) {
-        return new ScalaDocumentationModule(repositories, resolvers, pinning, group, within, factory);
+        return new ScalaDocumentationModule(repositories, resolvers, pinning, tool, group, within, factory);
     }
 
     public ScalaDocumentationModule pinning(Pinning pinning) {
-        return new ScalaDocumentationModule(repositories, resolvers, pinning, group, within, factory);
+        return new ScalaDocumentationModule(repositories, resolvers, pinning, tool, group, within, factory);
+    }
+
+    public ScalaDocumentationModule tool(String tool) {
+        return new ScalaDocumentationModule(repositories, resolvers, pinning, tool, group, within, factory);
     }
 
     public ScalaDocumentationModule group(String group) {
-        return new ScalaDocumentationModule(repositories, resolvers, pinning, group, within, factory);
+        return new ScalaDocumentationModule(repositories, resolvers, pinning, tool, group, within, factory);
     }
 
     public ScalaDocumentationModule within(String within) {
-        return new ScalaDocumentationModule(repositories, resolvers, pinning, group, within, factory);
+        return new ScalaDocumentationModule(repositories, resolvers, pinning, tool, group, within, factory);
     }
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
         SequencedSet<String> upstream = inherited.sequencedKeySet();
-        buildExecutor.addStep(REQUIRED, new Requires(Set.copyOf(resolvers.keySet()), group), upstream);
+        buildExecutor.addStep(REQUIRED, new Requires(Set.copyOf(resolvers.keySet()), tool), upstream);
         SequencedSet<String> resolveInputs = new LinkedHashSet<>();
         resolveInputs.add(REQUIRED);
         resolveInputs.addAll(upstream);
@@ -84,7 +91,7 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
         documentInputs.add(DEPENDENCIES);
         documentInputs.addAll(upstream);
         buildExecutor.addStep(DOCUMENTED,
-                factory == null ? new Document(within, group) : new Document(within, group, factory),
+                factory == null ? new Document(within, tool, group) : new Document(within, tool, group, factory),
                 documentInputs);
     }
 
@@ -99,7 +106,7 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
         return Optional.empty();
     }
 
-    private record Requires(Set<String> prefixes, String group) implements BuildStep {
+    private record Requires(Set<String> prefixes, String tool) implements BuildStep {
 
         @Override
         public CompletionStage<BuildStepResult> apply(Executor executor,
@@ -124,9 +131,9 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
                 default -> throw new IllegalStateException("Unreachable");
             };
             SequencedProperties requires = new SequencedProperties();
-            requires.setProperty(group + "/runtime/" + coordinate, "");
+            requires.setProperty(tool + "/runtime/" + coordinate, "");
             if (selectedPrefix.equals("maven")) {
-                requires.setProperty(group + "/runtime/" + selectedPrefix + "/com.fasterxml.jackson.core/jackson-annotations/2.21", "");
+                requires.setProperty(tool + "/runtime/" + selectedPrefix + "/com.fasterxml.jackson.core/jackson-annotations/2.21", "");
             }
             requires.store(context.next().resolve(BuildStep.REQUIRES));
             return CompletableFuture.completedStage(new BuildStepResult(true));
@@ -136,15 +143,17 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
     private static class Document extends JdkProcessBuildStep {
 
         private final String within;
+        private final String tool;
         private final String group;
 
-        private Document(String within, String group) {
-            this(within, group, ProcessHandler.OfProcess.ofJavaHome("bin/java"));
+        private Document(String within, String tool, String group) {
+            this(within, tool, group, ProcessHandler.OfProcess.ofJavaHome("bin/java"));
         }
 
-        private Document(String within, String group, Function<List<String>, ? extends ProcessHandler> factory) {
+        private Document(String within, String tool, String group, Function<List<String>, ? extends ProcessHandler> factory) {
             super("scaladoc", factory);
             this.within = within;
+            this.tool = tool;
             this.group = group;
         }
 
@@ -178,10 +187,10 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
                 if (Files.exists(classes)) {
                     classRoots.add(classes.toString());
                 }
-                for (Path jar : Dependencies.select(argument.folder(), group, "runtime")) {
+                for (Path jar : Dependencies.select(argument.folder(), tool, "runtime")) {
                     jars.add(jar.toString());
                 }
-                for (Path jar : Dependencies.select(argument.folder(), "compile")) {
+                for (Path jar : Dependencies.select(argument.folder(), group, "compile")) {
                     classpath.add(jar.toString());
                 }
                 Path sources = argument.folder().resolve(Bind.SOURCES);

@@ -26,23 +26,26 @@ public class SpotBugsModule implements BuildExecutorModule {
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
     private final Pinning pinning;
+    private final String tool;
     private final String group;
     private final String configFile;
     private final boolean strict;
 
     public SpotBugsModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, null, "spotbugs", "spotbugs-exclude.xml", false);
+        this(repositories, resolvers, null, "spotbugs", "main", "spotbugs-exclude.xml", false);
     }
 
     private SpotBugsModule(Map<String, Repository> repositories,
                            Map<String, Resolver> resolvers,
                            Pinning pinning,
+                           String tool,
                            String group,
                            String configFile,
                            boolean strict) {
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.pinning = pinning;
+        this.tool = tool;
         this.group = group;
         this.configFile = configFile;
         this.strict = strict;
@@ -54,24 +57,28 @@ public class SpotBugsModule implements BuildExecutorModule {
     }
 
     public SpotBugsModule pinning(Pinning pinning) {
-        return new SpotBugsModule(repositories, resolvers, pinning, group, configFile, strict);
+        return new SpotBugsModule(repositories, resolvers, pinning, tool, group, configFile, strict);
+    }
+
+    public SpotBugsModule tool(String tool) {
+        return new SpotBugsModule(repositories, resolvers, pinning, tool, group, configFile, strict);
     }
 
     public SpotBugsModule group(String group) {
-        return new SpotBugsModule(repositories, resolvers, pinning, group, configFile, strict);
+        return new SpotBugsModule(repositories, resolvers, pinning, tool, group, configFile, strict);
     }
 
     public SpotBugsModule configFile(String configFile) {
-        return new SpotBugsModule(repositories, resolvers, pinning, group, configFile, strict);
+        return new SpotBugsModule(repositories, resolvers, pinning, tool, group, configFile, strict);
     }
 
     public SpotBugsModule strict(boolean strict) {
-        return new SpotBugsModule(repositories, resolvers, pinning, group, configFile, strict);
+        return new SpotBugsModule(repositories, resolvers, pinning, tool, group, configFile, strict);
     }
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
-        buildExecutor.addStep(REQUIRED, new Requires(group), inherited.sequencedKeySet());
+        buildExecutor.addStep(REQUIRED, new Requires(tool), inherited.sequencedKeySet());
         SequencedSet<String> resolveInputs = new LinkedHashSet<>();
         resolveInputs.add(REQUIRED);
         resolveInputs.addAll(inherited.sequencedKeySet());
@@ -81,10 +88,10 @@ public class SpotBugsModule implements BuildExecutorModule {
         SequencedSet<String> checkInputs = new LinkedHashSet<>();
         checkInputs.add(DEPENDENCIES);
         checkInputs.addAll(inherited.sequencedKeySet());
-        buildExecutor.addStep(CHECK, new Check(group, configFile, strict), checkInputs);
+        buildExecutor.addStep(CHECK, new Check(tool, group, configFile, strict), checkInputs);
     }
 
-    private record Requires(String group) implements BuildStep {
+    private record Requires(String tool) implements BuildStep {
 
         @Override
         public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
@@ -97,7 +104,7 @@ public class SpotBugsModule implements BuildExecutorModule {
                                                       SequencedMap<String, BuildStepArgument> arguments)
                 throws IOException {
             SequencedProperties requires = new SequencedProperties();
-            requires.setProperty(group + "/runtime/maven/" + MAVEN_GROUP + "/" + MAVEN_ARTIFACT + "/RELEASE", "");
+            requires.setProperty(tool + "/runtime/maven/" + MAVEN_GROUP + "/" + MAVEN_ARTIFACT + "/RELEASE", "");
             requires.store(context.next().resolve(BuildStep.REQUIRES));
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
@@ -105,12 +112,14 @@ public class SpotBugsModule implements BuildExecutorModule {
 
     private static class Check extends JdkProcessBuildStep {
 
+        private final String tool;
         private final String group;
         private final String configFile;
         private final boolean strict;
 
-        private Check(String group, String configFile, boolean strict) {
+        private Check(String tool, String group, String configFile, boolean strict) {
             super("spotbugs", ProcessHandler.OfProcess.ofJavaHome("bin/java"));
+            this.tool = tool;
             this.group = group;
             this.configFile = configFile;
             this.strict = strict;
@@ -133,10 +142,10 @@ public class SpotBugsModule implements BuildExecutorModule {
             List<String> jars = new ArrayList<>(), classes = new ArrayList<>(), auxiliary = new ArrayList<>();
             Path config = null;
             for (BuildStepArgument argument : arguments.values()) {
-                for (Path jar : Dependencies.select(argument.folder(), group, "runtime")) {
+                for (Path jar : Dependencies.select(argument.folder(), tool, "runtime")) {
                     jars.add(jar.toString());
                 }
-                for (Path jar : Dependencies.select(argument.folder(), "compile")) {
+                for (Path jar : Dependencies.select(argument.folder(), group, "compile")) {
                     auxiliary.add(jar.toString());
                 }
                 Path candidate = argument.folder().resolve(configFile);

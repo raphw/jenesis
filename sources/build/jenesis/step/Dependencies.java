@@ -292,10 +292,6 @@ public class Dependencies implements BuildStep {
         return value == null ? "" : value;
     }
 
-    public static List<Path> select(Path folder, String scope) throws IOException {
-        return select(folder, "main", scope);
-    }
-
     public static List<Path> select(Path folder, String group, String scope) throws IOException {
         Path file = folder.resolve(BuildStep.DEPENDENCIES);
         if (!Files.exists(file)) {

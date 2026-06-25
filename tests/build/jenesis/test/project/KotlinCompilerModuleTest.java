@@ -332,13 +332,13 @@ public class KotlinCompilerModuleTest {
     }
 
     @Test
-    public void group_emits_an_independent_resolution_trail() throws IOException {
+    public void tool_emits_an_independent_resolution_trail() throws IOException {
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
         executor.addModule(
                 "kotlin",
                 new KotlinCompilerModule(Map.of("maven", files()), Map.of("maven", Resolver.identity()))
-                        .group("custom"),
+                        .tool("custom"),
                 "project");
         executor.execute("kotlin/dependencies");
 

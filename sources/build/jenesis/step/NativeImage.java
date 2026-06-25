@@ -14,14 +14,26 @@ public class NativeImage extends JdkProcessBuildStep {
     public static final String METADATA = "nativeimage/";
 
     private final PathPlacement pathPlacement;
+    private final String group;
 
     public NativeImage(PathPlacement pathPlacement) {
         this(pathPlacement, ProcessHandler.OfProcess.ofCommand("native-image"));
     }
 
     public NativeImage(PathPlacement pathPlacement, Function<List<String>, ? extends ProcessHandler> factory) {
+        this(pathPlacement, factory, "main");
+    }
+
+    private NativeImage(PathPlacement pathPlacement,
+                        Function<List<String>, ? extends ProcessHandler> factory,
+                        String group) {
         super("native-image", factory);
         this.pathPlacement = pathPlacement;
+        this.group = group;
+    }
+
+    public NativeImage group(String group) {
+        return new NativeImage(pathPlacement, factory, group);
     }
 
     @Override
@@ -69,7 +81,7 @@ public class NativeImage extends JdkProcessBuildStep {
                     selfContainedModuleGraph &= !pathPlacement.place(file, modulePath, classPath);
                 }
             }
-            for (Path file : Dependencies.select(argument.folder(), "runtime")) {
+            for (Path file : Dependencies.select(argument.folder(), group, "runtime")) {
                 selfContainedModuleGraph &= !pathPlacement.place(file, modulePath, classPath);
             }
             Path candidate = argument.folder().resolve("native-image");

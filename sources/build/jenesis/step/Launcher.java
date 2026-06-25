@@ -15,10 +15,20 @@ public class Launcher implements BuildStep {
     private static final String MAIN_CLASS = "build.jenesis.launcher.Launcher";
     private static final String LAUNCHER_PREFIX = "build/jenesis/launcher/";
 
+    private final String tool;
     private final String group;
 
-    public Launcher(String group) {
+    public Launcher(String tool) {
+        this(tool, "main");
+    }
+
+    private Launcher(String tool, String group) {
+        this.tool = tool;
         this.group = group;
+    }
+
+    public Launcher group(String group) {
+        return new Launcher(tool, group);
     }
 
     @Override
@@ -43,7 +53,7 @@ public class Launcher implements BuildStep {
                     name = application.getProperty("name");
                 }
             }
-            for (Path file : Dependencies.select(argument.folder(), group, "runtime")) {
+            for (Path file : Dependencies.select(argument.folder(), tool, "runtime")) {
                 shaded = file;
             }
             Path folder = argument.folder().resolve(BuildStep.ARTIFACTS);
@@ -59,7 +69,7 @@ public class Launcher implements BuildStep {
                     }
                 });
             }
-            for (Path file : Dependencies.select(argument.folder(), "runtime")) {
+            for (Path file : Dependencies.select(argument.folder(), group, "runtime")) {
                 jars.putIfAbsent(file.getFileName().toString(), file);
             }
         }

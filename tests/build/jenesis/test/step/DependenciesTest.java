@@ -29,15 +29,15 @@ public class DependenciesTest {
         index.setProperty("main/runtime/maven/c", "libs/c.jar");
         index.setProperty("main/compile/maven/b", "libs/b.jar");
         index.store(folder.resolve(BuildStep.DEPENDENCIES));
-        assertThat(Dependencies.select(folder, "compile"))
+        assertThat(Dependencies.select(folder, "main", "compile"))
                 .containsExactly(folder.resolve("libs/a.jar"), folder.resolve("libs/b.jar"));
-        assertThat(Dependencies.select(folder, "runtime"))
+        assertThat(Dependencies.select(folder, "main", "runtime"))
                 .containsExactly(folder.resolve("libs/c.jar"));
     }
 
     @Test
     public void returns_empty_when_index_is_absent() throws IOException {
-        assertThat(Dependencies.select(folder, "compile")).isEmpty();
+        assertThat(Dependencies.select(folder, "main", "compile")).isEmpty();
     }
 
     @Test
@@ -47,7 +47,7 @@ public class DependenciesTest {
         index.setProperty("main/compile/maven/present", "libs/present.jar");
         index.setProperty("main/compile/maven/absent", "libs/absent.jar");
         index.store(folder.resolve(BuildStep.DEPENDENCIES));
-        assertThat(Dependencies.select(folder, "compile"))
+        assertThat(Dependencies.select(folder, "main", "compile"))
                 .containsExactly(folder.resolve("libs/present.jar"));
     }
 

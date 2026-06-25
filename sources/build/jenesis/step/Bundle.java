@@ -12,6 +12,20 @@ public class Bundle implements BuildStep {
 
     public static final String BUNDLE = "bundle/";
 
+    private final String group;
+
+    public Bundle() {
+        this("main");
+    }
+
+    private Bundle(String group) {
+        this.group = group;
+    }
+
+    public Bundle group(String group) {
+        return new Bundle(group);
+    }
+
     @Override
     public CompletionStage<BuildStepResult> apply(Executor executor,
                                                   BuildStepContext context,
@@ -49,7 +63,7 @@ public class Bundle implements BuildStep {
                     }
                 });
             }
-            for (Path file : Dependencies.select(argument.folder(), "runtime")) {
+            for (Path file : Dependencies.select(argument.folder(), group, "runtime")) {
                 jars.putIfAbsent(file.getFileName().toString(), file);
             }
         }

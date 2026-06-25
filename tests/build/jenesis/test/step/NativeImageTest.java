@@ -91,6 +91,35 @@ public class NativeImageTest {
 
     @Test
     @DisabledOnOs(OS.WINDOWS)
+    public void resolves_runtime_dependencies_from_a_configured_group() throws IOException {
+        SequencedProperties launcher = new SequencedProperties();
+        launcher.setProperty("mainClass", "sample.Sample");
+        store(launcher);
+        Path deps = Files.createDirectory(bundle.resolve("deps"));
+        Files.writeString(deps.resolve("extra-lib.jar"), "jar");
+        Files.writeString(deps.resolve("main-lib.jar"), "jar");
+        SequencedProperties dependencies = new SequencedProperties();
+        dependencies.setProperty("extra/runtime/maven/extra-lib", "deps/extra-lib.jar");
+        dependencies.setProperty("main/runtime/maven/main-lib", "deps/main-lib.jar");
+        dependencies.store(bundle.resolve(BuildStep.DEPENDENCIES));
+
+        BuildStepResult result = new NativeImage(PathPlacement.CLASS_PATH, ProcessHandler.OfProcess.of(List.of(shim.toString())))
+                .group("extra")
+                .apply(Runnable::run,
+                        new BuildStepContext(previous, next, supplement),
+                        new LinkedHashMap<>(Map.of("artifacts", new BuildStepArgument(
+                                bundle,
+                                Map.of(Path.of("artifacts/app.jar"), Checksum.of(ChecksumStatus.ADDED),
+                                        Path.of("launcher.properties"), Checksum.of(ChecksumStatus.ADDED))))))
+                .toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        assertThat(command())
+                .contains("extra-lib.jar")
+                .doesNotContain("main-lib.jar");
+    }
+
+    @Test
+    @DisabledOnOs(OS.WINDOWS)
     public void passes_a_reachability_config_directory() throws IOException {
         SequencedProperties launcher = new SequencedProperties();
         launcher.setProperty("mainModule", "sample");
