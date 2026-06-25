@@ -66,19 +66,11 @@ public class NativeImage extends JdkProcessBuildStep {
                 }
             }
             Path artifacts = argument.folder().resolve(BuildStep.ARTIFACTS);
-            if (Files.exists(artifacts)) {
-                List<Path> jars = new ArrayList<>();
-                Files.walkFileTree(artifacts, new SimpleFileVisitor<>() {
-                    @Override
-                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                        if (file.toString().endsWith(".jar")) {
-                            jars.add(file);
-                        }
-                        return FileVisitResult.CONTINUE;
+            if (Files.isDirectory(artifacts)) {
+                try (DirectoryStream<Path> files = Files.newDirectoryStream(artifacts)) {
+                    for (Path file : files) {
+                        selfContainedModuleGraph &= !pathPlacement.place(file, modulePath, classPath);
                     }
-                });
-                for (Path file : jars) {
-                    selfContainedModuleGraph &= !pathPlacement.place(file, modulePath, classPath);
                 }
             }
             for (Path file : Dependencies.select(argument.folder(), group, "runtime")) {

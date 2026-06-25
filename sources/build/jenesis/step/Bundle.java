@@ -50,18 +50,13 @@ public class Bundle implements BuildStep {
         }
         SequencedMap<String, Path> jars = new TreeMap<>();
         for (BuildStepArgument argument : arguments.values()) {
-            Path folder = argument.folder().resolve(BuildStep.ARTIFACTS);
-            if (Files.exists(folder)) {
-                Files.walkFileTree(folder, new SimpleFileVisitor<>() {
-                    @Override
-                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                        String name = file.getFileName().toString();
-                        if (name.endsWith(".jar")) {
-                            jars.putIfAbsent(name, file);
-                        }
-                        return FileVisitResult.CONTINUE;
+            Path artifacts = argument.folder().resolve(BuildStep.ARTIFACTS);
+            if (Files.isDirectory(artifacts)) {
+                try (DirectoryStream<Path> files = Files.newDirectoryStream(artifacts)) {
+                    for (Path file : files) {
+                        jars.putIfAbsent(file.getFileName().toString(), file);
                     }
-                });
+                }
             }
             for (Path file : Dependencies.select(argument.folder(), group, "runtime")) {
                 jars.putIfAbsent(file.getFileName().toString(), file);

@@ -63,14 +63,12 @@ public class Javadoc extends JdkProcessBuildStep {
                 path.add(classes.toString());
             }
             Path artifacts = argument.folder().resolve(BuildStep.ARTIFACTS);
-            if (Files.exists(artifacts)) {
-                Files.walkFileTree(artifacts, new SimpleFileVisitor<>() {
-                    @Override
-                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+            if (Files.isDirectory(artifacts)) {
+                try (DirectoryStream<Path> stream = Files.newDirectoryStream(artifacts)) {
+                    for (Path file : stream) {
                         path.add(file.toString());
-                        return FileVisitResult.CONTINUE;
                     }
-                });
+                }
             }
             for (Path jar : Dependencies.all(argument.folder())) {
                 path.add(jar.toString());

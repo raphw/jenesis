@@ -132,9 +132,9 @@ public abstract class Java extends JdkProcessBuildStep {
                     }
                 }
             }
-            Path artifactsFolder = argument.folder().resolve(ARTIFACTS);
-            if (Files.isDirectory(artifactsFolder)) {
-                try (DirectoryStream<Path> files = Files.newDirectoryStream(artifactsFolder)) {
+            Path artifacts = argument.folder().resolve(ARTIFACTS);
+            if (Files.isDirectory(artifacts)) {
+                try (DirectoryStream<Path> files = Files.newDirectoryStream(artifacts)) {
                     for (Path file : files) {
                         selfContainedModuleGraph &= !pathPlacement.place(file, modulePath, classPath);
                     }

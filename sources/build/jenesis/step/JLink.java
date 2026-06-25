@@ -49,16 +49,12 @@ public class JLink extends JdkProcessBuildStep {
                 });
             }
             Path artifacts = argument.folder().resolve(BuildStep.ARTIFACTS);
-            if (Files.exists(artifacts)) {
-                Files.walkFileTree(artifacts, new SimpleFileVisitor<>() {
-                    @Override
-                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                        if (file.toString().endsWith(".jar")) {
-                            jars.add(file);
-                        }
-                        return FileVisitResult.CONTINUE;
+            if (Files.isDirectory(artifacts)) {
+                try (DirectoryStream<Path> files = Files.newDirectoryStream(artifacts)) {
+                    for (Path file : files) {
+                        jars.add(file);
                     }
-                });
+                }
             }
             for (Path file : Dependencies.select(argument.folder(), group, "runtime")) {
                 jars.add(file);

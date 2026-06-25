@@ -68,17 +68,13 @@ public class JPackage extends JdkProcessBuildStep {
         boolean selfContainedModuleGraph = true;
         for (BuildStepArgument argument : arguments.values()) {
             List<Path> jars = new ArrayList<>();
-            Path artifactsFolder = argument.folder().resolve(BuildStep.ARTIFACTS);
-            if (Files.exists(artifactsFolder)) {
-                Files.walkFileTree(artifactsFolder, new SimpleFileVisitor<>() {
-                    @Override
-                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                        if (file.toString().endsWith(".jar")) {
-                            jars.add(file);
-                        }
-                        return FileVisitResult.CONTINUE;
+            Path artifacts = argument.folder().resolve(BuildStep.ARTIFACTS);
+            if (Files.isDirectory(artifacts)) {
+                try (DirectoryStream<Path> files = Files.newDirectoryStream(artifacts)) {
+                    for (Path file : files) {
+                        jars.add(file);
                     }
-                });
+                }
             }
             jars.addAll(Dependencies.select(argument.folder(), group, "runtime"));
             for (Path file : jars) {
