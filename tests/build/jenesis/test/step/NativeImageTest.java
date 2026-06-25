@@ -120,6 +120,23 @@ public class NativeImageTest {
 
     @Test
     @DisabledOnOs(OS.WINDOWS)
+    public void reads_the_artifacts_folder_shallowly() throws IOException {
+        SequencedProperties launcher = new SequencedProperties();
+        launcher.setProperty("mainClass", "sample.Sample");
+        store(launcher);
+        Path nested = Files.createDirectories(bundle.resolve(BuildStep.ARTIFACTS).resolve("sub"));
+        Files.writeString(nested.resolve("nested.jar"), "jar");
+
+        BuildStepResult result = run(PathPlacement.CLASS_PATH);
+        assertThat(result.next()).isTrue();
+        assertThat(command())
+                .as("the artifacts folder is read as direct children, not walked into subfolders")
+                .contains("app.jar")
+                .doesNotContain("nested.jar");
+    }
+
+    @Test
+    @DisabledOnOs(OS.WINDOWS)
     public void passes_a_reachability_config_directory() throws IOException {
         SequencedProperties launcher = new SequencedProperties();
         launcher.setProperty("mainModule", "sample");

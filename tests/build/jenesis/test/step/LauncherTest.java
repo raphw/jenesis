@@ -104,6 +104,38 @@ public class LauncherTest {
         assertThat(descriptor.getProperty("classpath")).isNull();
     }
 
+    @Test
+    public void honours_a_class_path_placement_for_a_modular_main() throws IOException {
+        writeLauncherJar(Files.createDirectory(input.resolve("resolved")).resolve("launcher.jar"));
+        compileModularJar(Files.createDirectory(input.resolve(BuildStep.ARTIFACTS)).resolve("sample.jar"));
+        SequencedProperties index = new SequencedProperties();
+        index.setProperty("launcher/runtime/maven/build.jenesis/build.jenesis.launcher", "resolved/launcher.jar");
+        index.store(input.resolve(BuildStep.DEPENDENCIES));
+        SequencedProperties application = new SequencedProperties();
+        application.setProperty("mainClass", "sample.Sample");
+        application.setProperty("mainModule", "sample");
+        application.setProperty("name", "sample");
+        application.store(input.resolve("launcher.properties"));
+
+        BuildStepResult result = new Launcher("launcher", PathPlacement.CLASS_PATH).apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("input", new BuildStepArgument(
+                        input,
+                        Map.of(Path.of("resolved/launcher.jar"), Checksum.of(ChecksumStatus.ADDED),
+                                Path.of("artifacts/sample.jar"), Checksum.of(ChecksumStatus.ADDED),
+                                Path.of("launcher.properties"), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
+
+        assertThat(result.next()).isTrue();
+        Path jar = next.resolve(Launcher.LAUNCHER).resolve("sample.jar");
+        SequencedSet<String> entries = entries(jar);
+        assertThat(entries)
+                .as("a CLASS_PATH placement keeps even a modular jar on the class path, not the module path")
+                .contains("classpath/sample.jar/sample/Sample.class", "classpath/sample.jar/module-info.class");
+        assertThat(entries).noneMatch(name -> name.startsWith("modulepath/"));
+        assertThat(application(jar).getProperty("classpath")).isEqualTo("sample.jar");
+    }
+
     private static void writeLauncherJar(Path path) throws IOException {
         try (JarOutputStream jar = new JarOutputStream(Files.newOutputStream(path))) {
             entry(jar, "module-info.class");
