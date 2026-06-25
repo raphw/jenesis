@@ -48,16 +48,16 @@ public abstract class Java extends JdkProcessBuildStep {
         return of(List.of(commands));
     }
 
-    public static Java of(PathPlacement modulePath, boolean jarsOnly, String... commands) {
-        return of(modulePath, jarsOnly, List.of(commands));
+    public static Java of(PathPlacement pathPlacement, boolean jarsOnly, String... commands) {
+        return of(pathPlacement, jarsOnly, List.of(commands));
     }
 
     public static Java of(List<String> commands) {
         return of(PathPlacement.CLASS_PATH, true, commands);
     }
 
-    public static Java of(PathPlacement modulePath, boolean jarsOnly, List<String> commands) {
-        return new Java(modulePath, jarsOnly) {
+    public static Java of(PathPlacement pathPlacement, boolean jarsOnly, List<String> commands) {
+        return new Java(pathPlacement, jarsOnly) {
             @Override
             protected CompletionStage<List<String>> commands(Executor executor,
                                                              BuildStepContext context,
@@ -72,10 +72,10 @@ public abstract class Java extends JdkProcessBuildStep {
     }
 
     public static Java of(Function<List<String>, ProcessHandler.OfProcess> factory,
-                          PathPlacement modulePath,
+                          PathPlacement pathPlacement,
                           boolean jarsOnly,
                           String... commands) {
-        return of(factory, modulePath, jarsOnly, List.of(commands));
+        return of(factory, pathPlacement, jarsOnly, List.of(commands));
     }
 
     public static Java of(Function<List<String>, ProcessHandler.OfProcess> factory, List<String> commands) {
@@ -83,10 +83,10 @@ public abstract class Java extends JdkProcessBuildStep {
     }
 
     public static Java of(Function<List<String>, ProcessHandler.OfProcess> factory,
-                          PathPlacement modulePath,
+                          PathPlacement pathPlacement,
                           boolean jarsOnly,
                           List<String> commands) {
-        return new Java(factory, modulePath, jarsOnly) {
+        return new Java(factory, pathPlacement, jarsOnly) {
             @Override
             protected CompletionStage<List<String>> commands(Executor executor,
                                                              BuildStepContext context,

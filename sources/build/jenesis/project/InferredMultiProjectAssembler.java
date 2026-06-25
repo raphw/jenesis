@@ -111,7 +111,7 @@ public record InferredMultiProjectAssembler(String packaging,
         ProcessHandler.Factory factory = ProcessHandler.Factory.of();
         AssemblyDescriptor assembly = new AssemblyDescriptor((sub, outerInherited) -> {
             sub.addStep("prepare",
-                    new Prepare(descriptor.modulePath()),
+                    new Prepare(descriptor.pathPlacement()),
                     outerInherited.sequencedKeySet().stream());
             sub.addModule("check",
                     check.apply(new InferredSourceCodeQualityModule(descriptor.configuration(), repositories, resolvers)
@@ -128,7 +128,7 @@ public record InferredMultiProjectAssembler(String packaging,
             sub.addModule("binary", new JavaToolchainModule()
                             .compiler(new InferredCompilerChainModule(repositories, resolvers)
                                     .pinning(descriptor.pinning())
-                                    .modulePath(descriptor.modulePath()))
+                                    .pathPlacement(descriptor.pathPlacement()))
                             .validator(validate.apply(new InferredByteCodeQualityModule(descriptor.configuration(), repositories, resolvers)
                                     .pinning(descriptor.pinning())))
                             .archiver(new Jar(factory, Jar.Sort.CLASSES).asModule("jar")),
@@ -158,7 +158,7 @@ public record InferredMultiProjectAssembler(String packaging,
                                 engines -> test.apply(new TestModule(repositories, resolvers)
                                         .observe(engines)
                                         .pinning(descriptor.pinning())
-                                        .modulePath(descriptor.modulePath())
+                                        .pathPlacement(descriptor.pathPlacement())
                                         .moduleName(properties.getProperty("module")))
                                 )), Stream.concat(Stream.of("prepare", "binary"), inputs(descriptor)));
                     }
@@ -205,12 +205,14 @@ public record InferredMultiProjectAssembler(String packaging,
                 }
                 if (launcher) {
                     sub.addModule("launcher",
-                            new LauncherModule(repositories, resolvers).pinning(descriptor.pinning()),
+                            new LauncherModule(repositories, resolvers)
+                                    .pinning(descriptor.pinning())
+                                    .pathPlacement(descriptor.pathPlacement()),
                             inherited.sequencedKeySet().stream());
                 }
                 if (nativeImage) {
                     sub.addStep("reachability", new NativeImageMetadata(), inherited.sequencedKeySet().stream());
-                    sub.addStep("native-image", new NativeImage(descriptor.modulePath()),
+                    sub.addStep("native-image", new NativeImage(descriptor.pathPlacement()),
                             Stream.concat(inherited.sequencedKeySet().stream(), Stream.of("reachability")));
                     images.add("native-image");
                 }
@@ -228,7 +230,7 @@ public record InferredMultiProjectAssembler(String packaging,
                 descriptor.artifacts()).flatMap(SequencedSet::stream);
     }
 
-    private record Prepare(PathPlacement modulePath) implements BuildStep {
+    private record Prepare(PathPlacement pathPlacement) implements BuildStep {
 
         @Override
         public CompletionStage<BuildStepResult> apply(Executor executor,
@@ -283,7 +285,7 @@ public record InferredMultiProjectAssembler(String packaging,
                 if (artifact != null) {
                     jpackage.setProperty("--name", artifact);
                 }
-                if (modulePath.modular() && moduleName != null) {
+                if (pathPlacement.modular() && moduleName != null) {
                     jpackage.setProperty("--module", moduleName + "/" + main);
                 } else {
                     jpackage.setProperty("--main-jar", Jar.Sort.CLASSES.getFile());
@@ -298,7 +300,7 @@ public record InferredMultiProjectAssembler(String packaging,
                 jpackage.store(processFolder.resolve("jpackage.properties"));
                 SequencedProperties launcher = new SequencedProperties();
                 launcher.setProperty("mainClass", main);
-                if (modulePath.modular() && moduleName != null) {
+                if (pathPlacement.modular() && moduleName != null) {
                     launcher.setProperty("mainModule", moduleName);
                 }
                 if (artifact != null) {

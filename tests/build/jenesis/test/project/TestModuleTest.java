@@ -113,7 +113,7 @@ public class TestModuleTest {
                                 Map.of(),
                                 _ -> {})),
                         Map.of("maven", new MavenPomResolver()))
-                        .isTest(candidate -> candidate.endsWith("TestSample")).jarsOnly(false).modulePath(PathPlacement.CLASS_PATH),
+                        .isTest(candidate -> candidate.endsWith("TestSample")).jarsOnly(false).pathPlacement(PathPlacement.CLASS_PATH),
                 "dependencies", "classes");
         executor.execute();
 
@@ -164,7 +164,7 @@ public class TestModuleTest {
                                 _ -> {})),
                         Map.of("maven", new MavenPomResolver()))
                         .engine(new JUnit4())
-                        .isTest(candidate -> candidate.endsWith("JUnit4TestSample")).jarsOnly(false).modulePath(PathPlacement.CLASS_PATH),
+                        .isTest(candidate -> candidate.endsWith("JUnit4TestSample")).jarsOnly(false).pathPlacement(PathPlacement.CLASS_PATH),
                 "dependencies", "classes");
         executor.execute();
 
@@ -223,7 +223,7 @@ public class TestModuleTest {
                                 _ -> {})),
                         Map.of("maven", new MavenPomResolver()))
                         .engine(new TestNG())
-                        .isTest(candidate -> candidate.endsWith("TestNGTestSample")).jarsOnly(false).modulePath(PathPlacement.CLASS_PATH),
+                        .isTest(candidate -> candidate.endsWith("TestNGTestSample")).jarsOnly(false).pathPlacement(PathPlacement.CLASS_PATH),
                 "dependencies", "classes");
         executor.execute();
 

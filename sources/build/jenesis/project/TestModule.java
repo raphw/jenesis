@@ -29,7 +29,7 @@ public class TestModule implements BuildExecutorModule {
     private final boolean jarsOnly;
     private final boolean requireEngine;
     private final Pinning pinning;
-    private final PathPlacement modulePath;
+    private final PathPlacement pathPlacement;
     private final String moduleName;
     private final String filter;
     private final String tag;
@@ -80,7 +80,7 @@ public class TestModule implements BuildExecutorModule {
                        boolean jarsOnly,
                        boolean requireEngine,
                        Pinning pinning,
-                       PathPlacement modulePath,
+                       PathPlacement pathPlacement,
                        String moduleName,
                        String filter,
                        String tag,
@@ -96,7 +96,7 @@ public class TestModule implements BuildExecutorModule {
         this.jarsOnly = jarsOnly;
         this.requireEngine = requireEngine;
         this.pinning = pinning;
-        this.modulePath = modulePath;
+        this.pathPlacement = pathPlacement;
         this.moduleName = moduleName;
         this.filter = filter;
         this.tag = tag;
@@ -115,7 +115,7 @@ public class TestModule implements BuildExecutorModule {
                 jarsOnly,
                 requireEngine,
                 pinning,
-                modulePath,
+                pathPlacement,
                 moduleName,
                 filter,
                 tag,
@@ -134,7 +134,7 @@ public class TestModule implements BuildExecutorModule {
                 jarsOnly,
                 requireEngine,
                 pinning,
-                modulePath,
+                pathPlacement,
                 moduleName,
                 filter,
                 tag,
@@ -153,7 +153,7 @@ public class TestModule implements BuildExecutorModule {
                 jarsOnly,
                 requireEngine,
                 pinning,
-                modulePath,
+                pathPlacement,
                 moduleName,
                 filter,
                 tag,
@@ -172,7 +172,7 @@ public class TestModule implements BuildExecutorModule {
                 jarsOnly,
                 requireEngine,
                 pinning,
-                modulePath,
+                pathPlacement,
                 moduleName,
                 filter,
                 tag,
@@ -191,7 +191,7 @@ public class TestModule implements BuildExecutorModule {
                 jarsOnly,
                 requireEngine,
                 pinning,
-                modulePath,
+                pathPlacement,
                 moduleName,
                 filter,
                 tag,
@@ -210,7 +210,7 @@ public class TestModule implements BuildExecutorModule {
                 jarsOnly,
                 requireEngine,
                 pinning,
-                modulePath,
+                pathPlacement,
                 moduleName,
                 filter,
                 tag,
@@ -229,7 +229,7 @@ public class TestModule implements BuildExecutorModule {
                 jarsOnly,
                 requireEngine,
                 pinning,
-                modulePath,
+                pathPlacement,
                 moduleName,
                 filter,
                 tag,
@@ -239,7 +239,7 @@ public class TestModule implements BuildExecutorModule {
                 observers);
     }
 
-    public TestModule modulePath(PathPlacement modulePath) {
+    public TestModule pathPlacement(PathPlacement pathPlacement) {
         return new TestModule(engine,
                 isTest,
                 factory,
@@ -248,7 +248,7 @@ public class TestModule implements BuildExecutorModule {
                 jarsOnly,
                 requireEngine,
                 pinning,
-                modulePath,
+                pathPlacement,
                 moduleName,
                 filter,
                 tag,
@@ -267,7 +267,7 @@ public class TestModule implements BuildExecutorModule {
                 jarsOnly,
                 requireEngine,
                 pinning,
-                modulePath,
+                pathPlacement,
                 moduleName,
                 filter,
                 tag,
@@ -286,7 +286,7 @@ public class TestModule implements BuildExecutorModule {
                 jarsOnly,
                 requireEngine,
                 pinning,
-                modulePath,
+                pathPlacement,
                 moduleName,
                 filter,
                 tag,
@@ -305,7 +305,7 @@ public class TestModule implements BuildExecutorModule {
                 jarsOnly,
                 requireEngine,
                 pinning,
-                modulePath,
+                pathPlacement,
                 moduleName,
                 filter,
                 tag,
@@ -324,7 +324,7 @@ public class TestModule implements BuildExecutorModule {
                 jarsOnly,
                 requireEngine,
                 pinning,
-                modulePath,
+                pathPlacement,
                 moduleName,
                 filter,
                 tag,
@@ -343,7 +343,7 @@ public class TestModule implements BuildExecutorModule {
                 jarsOnly,
                 requireEngine,
                 pinning,
-                modulePath,
+                pathPlacement,
                 moduleName,
                 filter,
                 tag,
@@ -366,7 +366,7 @@ public class TestModule implements BuildExecutorModule {
                 jarsOnly,
                 requireEngine,
                 pinning,
-                modulePath,
+                pathPlacement,
                 moduleName,
                 filter,
                 tag,
@@ -407,7 +407,7 @@ public class TestModule implements BuildExecutorModule {
                         resolved,
                         isTest,
                         jarsOnly,
-                        modulePath,
+                        pathPlacement,
                         moduleName,
                         filter,
                         tag,
@@ -508,7 +508,7 @@ public class TestModule implements BuildExecutorModule {
                     TestEngine engine,
                     Predicate<String> isTest,
                     boolean jarsOnly,
-                    PathPlacement modulePath,
+                    PathPlacement pathPlacement,
                     String moduleName,
                     String filter,
                     String tag,
@@ -517,7 +517,7 @@ public class TestModule implements BuildExecutorModule {
                     String group,
                     List<ObservabilityEngine> observers,
                     String incrementalDigest) {
-            super(factory == null ? ProcessHandler.OfProcess.ofJavaHome("bin/java") : factory, modulePath, jarsOnly, group);
+            super(factory == null ? ProcessHandler.OfProcess.ofJavaHome("bin/java") : factory, pathPlacement, jarsOnly, group);
             this.engine = engine;
             this.isTest = isTest;
             this.moduleName = moduleName;

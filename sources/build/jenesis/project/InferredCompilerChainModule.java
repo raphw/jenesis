@@ -25,7 +25,7 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
     private final Pinning pinning;
-    private final PathPlacement modulePath;
+    private final PathPlacement pathPlacement;
 
     public InferredCompilerChainModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
         this(repositories, resolvers, null, PathPlacement.INFERRED);
@@ -34,19 +34,19 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
     private InferredCompilerChainModule(Map<String, Repository> repositories,
                                         Map<String, Resolver> resolvers,
                                         Pinning pinning,
-                                        PathPlacement modulePath) {
+                                        PathPlacement pathPlacement) {
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.pinning = pinning;
-        this.modulePath = modulePath;
+        this.pathPlacement = pathPlacement;
     }
 
     public InferredCompilerChainModule pinning(Pinning pinning) {
-        return new InferredCompilerChainModule(repositories, resolvers, pinning, modulePath);
+        return new InferredCompilerChainModule(repositories, resolvers, pinning, pathPlacement);
     }
 
-    public InferredCompilerChainModule modulePath(PathPlacement modulePath) {
-        return new InferredCompilerChainModule(repositories, resolvers, pinning, modulePath);
+    public InferredCompilerChainModule pathPlacement(PathPlacement pathPlacement) {
+        return new InferredCompilerChainModule(repositories, resolvers, pinning, pathPlacement);
     }
 
     @Override
@@ -55,7 +55,7 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
         SequencedSet<String> compileInputs = new LinkedHashSet<>(inherited.sequencedKeySet());
         compileInputs.add(SCAN);
         buildExecutor.addModule(COMPILE,
-                new Compile(repositories, resolvers, pinning, modulePath),
+                new Compile(repositories, resolvers, pinning, pathPlacement),
                 compileInputs);
     }
 
@@ -115,7 +115,7 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
     private record Compile(Map<String, Repository> repositories,
                            Map<String, Resolver> resolvers,
                            Pinning pinning,
-                           PathPlacement modulePath) implements BuildExecutorModule {
+                           PathPlacement pathPlacement) implements BuildExecutorModule {
 
         @Override
         public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) throws IOException {
@@ -158,7 +158,7 @@ public class InferredCompilerChainModule implements BuildExecutorModule {
                 buildExecutor.addStep(JAVAC,
                         new Javac(ProcessHandler.Factory.of())
                                 .includeResources(!hasKotlin && !hasScala && !hasGroovy)
-                                .modulePath(modulePath),
+                                .pathPlacement(pathPlacement),
                         dependencies);
                 SequencedSet<String> updated = new LinkedHashSet<>(dependencies);
                 updated.add(JAVAC);

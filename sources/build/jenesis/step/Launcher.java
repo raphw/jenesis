@@ -17,18 +17,20 @@ public class Launcher implements BuildStep {
 
     private final String tool;
     private final String group;
+    private final PathPlacement pathPlacement;
 
-    public Launcher(String tool) {
-        this(tool, "main");
+    public Launcher(String tool, PathPlacement pathPlacement) {
+        this(tool, "main", pathPlacement);
     }
 
-    private Launcher(String tool, String group) {
+    private Launcher(String tool, String group, PathPlacement pathPlacement) {
         this.tool = tool;
         this.group = group;
+        this.pathPlacement = pathPlacement;
     }
 
     public Launcher group(String group) {
-        return new Launcher(tool, group);
+        return new Launcher(tool, group, pathPlacement);
     }
 
     @Override
@@ -78,7 +80,7 @@ public class Launcher implements BuildStep {
         }
         SequencedMap<String, Path> classpath = new LinkedHashMap<>(), modulepath = new LinkedHashMap<>();
         for (Map.Entry<String, Path> entry : jars.entrySet()) {
-            boolean onModulePath = mainModule != null && PathPlacement.INFERRED.test(entry.getValue());
+            boolean onModulePath = mainModule != null && pathPlacement.test(entry.getValue());
             (onModulePath ? modulepath : classpath).put(entry.getKey(), entry.getValue());
         }
         SequencedProperties application = new SequencedProperties();

@@ -1,5 +1,6 @@
 package build.jenesis.test.step;
 
+import build.jenesis.PathPlacement;
 import module java.base;
 import module org.junit.jupiter.api;
 import build.jenesis.BuildStep;
@@ -41,7 +42,7 @@ public class LauncherTest {
         application.setProperty("name", "app");
         application.store(input.resolve("launcher.properties"));
 
-        BuildStepResult result = new Launcher("launcher").apply(
+        BuildStepResult result = new Launcher("launcher", PathPlacement.INFERRED).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("input", new BuildStepArgument(
@@ -84,7 +85,7 @@ public class LauncherTest {
         application.setProperty("name", "sample");
         application.store(input.resolve("launcher.properties"));
 
-        BuildStepResult result = new Launcher("launcher").apply(
+        BuildStepResult result = new Launcher("launcher", PathPlacement.INFERRED).apply(
                 Runnable::run,
                 new BuildStepContext(previous, next, supplement),
                 new LinkedHashMap<>(Map.of("input", new BuildStepArgument(

@@ -16,7 +16,7 @@ public class Javac extends JdkProcessBuildStep {
     private static final Pattern VERSIONED = Pattern.compile("META-INF/versions/(\\d+)/.+");
 
     private final boolean includeResources;
-    private final PathPlacement placement;
+    private final PathPlacement pathPlacement;
     private final String group;
 
     public Javac(ProcessHandler.Factory factory) {
@@ -25,11 +25,11 @@ public class Javac extends JdkProcessBuildStep {
 
     private Javac(Function<List<String>, ? extends ProcessHandler> factory,
                   boolean includeResources,
-                  PathPlacement placement,
+                  PathPlacement pathPlacement,
                   String group) {
         super("javac", factory);
         this.includeResources = includeResources;
-        this.placement = placement;
+        this.pathPlacement = pathPlacement;
         this.group = group;
     }
 
@@ -44,15 +44,15 @@ public class Javac extends JdkProcessBuildStep {
     }
 
     public Javac includeResources(boolean includeResources) {
-        return new Javac(factory, includeResources, placement, group);
+        return new Javac(factory, includeResources, pathPlacement, group);
     }
 
-    public Javac modulePath(PathPlacement placement) {
-        return new Javac(factory, includeResources, placement, group);
+    public Javac pathPlacement(PathPlacement pathPlacement) {
+        return new Javac(factory, includeResources, pathPlacement, group);
     }
 
     public Javac group(String group) {
-        return new Javac(factory, includeResources, placement, group);
+        return new Javac(factory, includeResources, pathPlacement, group);
     }
 
     @Override
@@ -177,7 +177,7 @@ public class Javac extends JdkProcessBuildStep {
                 .findFirst()
                 .orElse(null);
         boolean module = moduleInfo != null;
-        PathPlacement placement = this.placement.forModuleInfo(module);
+        PathPlacement pathPlacement = this.pathPlacement.forModuleInfo(module);
         String patchModule = null;
         if (module && !siblingClasses.isEmpty()) {
             patchModule = new ModuleInfoParser().identify(Path.of(moduleInfo)).coordinate();
@@ -199,7 +199,7 @@ public class Javac extends JdkProcessBuildStep {
             }
             List<String> modulePath = new ArrayList<>(), classPath = new ArrayList<>();
             for (String entry : path) {
-                (placement.test(Path.of(entry)) ? modulePath : classPath).add(entry);
+                (pathPlacement.test(Path.of(entry)) ? modulePath : classPath).add(entry);
             }
             StringBuilder args = new StringBuilder();
             if (!modulePath.isEmpty()) {
@@ -220,7 +220,7 @@ public class Javac extends JdkProcessBuildStep {
                         .append("\"\n");
             }
             if (!processorPath.isEmpty()) {
-                args.append(placement.modular() ? "--processor-module-path\n\"" : "--processor-path\n\"")
+                args.append(pathPlacement.modular() ? "--processor-module-path\n\"" : "--processor-path\n\"")
                         .append(String.join(File.pathSeparator, processorPath).replace("\\", "\\\\").replace("\"", "\\\""))
                         .append("\"\n");
             }
@@ -350,7 +350,7 @@ public class Javac extends JdkProcessBuildStep {
                 modulePath.add(mainTarget.toString());
             }
             for (String entry : dependencyPath) {
-                (placement.test(Path.of(entry)) ? modulePath : classPath).add(entry);
+                (pathPlacement.test(Path.of(entry)) ? modulePath : classPath).add(entry);
             }
             patchModule.addAll(versionedRoots);
         } else {
