@@ -66,9 +66,7 @@ public class JenesisModuleRepository implements Repository {
         if (version != null) {
             requireSafeSegment("version", version);
         }
-        String fileName = type.equals("pom")
-                ? "pom.xml"
-                : (classifier == null ? moduleName : moduleName + "-" + classifier) + "." + type;
+        String fileName = (classifier == null ? moduleName : moduleName + "-" + classifier) + "." + type;
         String relative = version == null
                 ? moduleName + "/" + fileName
                 : moduleName + "/" + version + "/" + fileName;

@@ -59,7 +59,7 @@ public class ModularStaging implements BuildStep {
             link(sources, target.resolve(moduleName + "-sources.jar"));
             link(javadoc, target.resolve(moduleName + "-javadoc.jar"));
             link(jmod, target.resolve(moduleName + ".jmod"));
-            link(pom, target.resolve("pom.xml"));
+            link(pom, target.resolve(moduleName + ".pom"));
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
     }
