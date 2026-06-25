@@ -361,42 +361,67 @@ public class MavenDefaultRepositoryTest {
     }
 
     @Test
-    public void fails_closed_when_validation_requested_but_sidecar_missing() throws IOException {
+    public void resolves_a_downloaded_artifact_when_no_sidecar_is_published() throws IOException {
         Files.writeString(Files
                 .createDirectories(repository.resolve("group/artifact/1"))
                 .resolve("artifact-1.jar"), "foo");
         MavenRepository repository = new MavenDefaultRepository(this.repository.toUri(),
                 local,
                 Map.of("MD5", this.repository.toUri()), _ -> {});
-        assertThatThrownBy(() -> repository.fetch(Runnable::run,
+        Path dependency = result.resolve("dependency.jar");
+        try (InputStream inputStream = repository.fetch(Runnable::run,
                 "group",
                 "artifact",
                 "1",
                 "jar",
                 null,
-                null))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("No checksum sidecar available");
-        assertThat(local.resolve("group/artifact/1/artifact-1.jar")).doesNotExist();
+                null).orElseThrow().toInputStream()) {
+            Files.copy(inputStream, dependency);
+        }
+        assertThat(dependency).content().isEqualTo("foo");
+        assertThat(local.resolve("group/artifact/1/artifact-1.jar")).exists();
     }
 
     @Test
-    public void fails_closed_when_cached_artifact_has_no_sidecar() throws IOException {
+    public void resolves_a_cached_artifact_without_a_sidecar() throws IOException {
         Files.writeString(Files
                 .createDirectories(local.resolve("group/artifact/1"))
                 .resolve("artifact-1.jar"), "foo");
         MavenRepository repository = new MavenDefaultRepository(this.repository.toUri(),
                 local,
                 Map.of("MD5", this.repository.toUri()), _ -> {});
+        Path dependency = result.resolve("dependency.jar");
+        try (InputStream inputStream = repository.fetch(Runnable::run,
+                "group",
+                "artifact",
+                "1",
+                "jar",
+                null,
+                null).orElseThrow().toInputStream()) {
+            Files.copy(inputStream, dependency);
+        }
+        assertThat(dependency).content().isEqualTo("foo");
+    }
+
+    @Test
+    public void rejects_a_downloaded_artifact_when_the_sidecar_mismatches() throws IOException {
+        Files.writeString(Files
+                .createDirectories(repository.resolve("group/artifact/1"))
+                .resolve("artifact-1.jar"), "foo");
+        Files.writeString(repository.resolve("group/artifact/1/artifact-1.jar.sha1"),
+                HexFormat.of().formatHex(new byte[20]));
+        MavenRepository repository = new MavenDefaultRepository(this.repository.toUri(),
+                local,
+                Map.of("SHA1", this.repository.toUri()), _ -> {});
         assertThatThrownBy(() -> repository.fetch(Runnable::run,
                 "group",
                 "artifact",
                 "1",
                 "jar",
                 null,
-                null))
+                null).orElseThrow().toInputStream())
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("No checksum sidecar available");
+                .hasMessageContaining("Failed checksum validation");
     }
 
     @Test

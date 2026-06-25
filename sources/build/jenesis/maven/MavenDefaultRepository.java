@@ -156,7 +156,6 @@ public class MavenDefaultRepository implements MavenRepository {
             if (Files.exists(cached)) {
                 boolean valid = true;
                 if (validate) {
-                    boolean verified = false;
                     Map<LazyRepositoryItem, byte[]> results = new HashMap<>();
                     for (Map.Entry<String, URI> entry : validations.entrySet()) {
                         LazyRepositoryItem item = fetch(
@@ -193,14 +192,10 @@ public class MavenDefaultRepository implements MavenRepository {
                                 valid = Arrays.equals(
                                         HexFormat.of().parseHex(text.substring(0, end)),
                                         digest.digest());
-                                verified = true;
                             }
                         } else {
                             results.put(item, null);
                         }
-                    }
-                    if (!validations.isEmpty() && !verified) {
-                        throw new IllegalStateException("No checksum sidecar available to validate " + path);
                     }
                     if (valid) {
                         for (Map.Entry<LazyRepositoryItem, byte[]> entry : results.entrySet()) {
@@ -306,7 +301,6 @@ public class MavenDefaultRepository implements MavenRepository {
                 }
             }
             String invalid = null;
-            boolean verified = false;
             Map<LazyRepositoryItem, byte[]> results = new HashMap<>();
             for (Map.Entry<LazyRepositoryItem, MessageDigest> entry : digests.entrySet()) {
                 Optional<InputStream> candidate = entry.getKey().toLazyInputStream();
@@ -327,7 +321,6 @@ public class MavenDefaultRepository implements MavenRepository {
                         invalid = entry.getValue().getAlgorithm();
                         break;
                     }
-                    verified = true;
                 }
             }
             if (invalid != null) {
@@ -335,12 +328,6 @@ public class MavenDefaultRepository implements MavenRepository {
                     item.deleteIfPresent();
                 }
                 throw new IllegalStateException("Failed checksum validation for " + invalid);
-            }
-            if (!verified) {
-                for (LazyRepositoryItem item : digests.keySet()) {
-                    item.deleteIfPresent();
-                }
-                throw new IllegalStateException("No checksum sidecar available to validate " + uri);
             }
             for (Map.Entry<LazyRepositoryItem, byte[]> entry : results.entrySet()) {
                 entry.getKey().storeIfNotPresent(entry.getValue());
