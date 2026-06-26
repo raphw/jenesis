@@ -432,13 +432,27 @@ public class MavenPomResolver implements MavenResolver {
             }
         } while ((current = queue.poll()) != null);
         SequencedMap<Path, MavenLocalPom> results = new LinkedHashMap<>();
-        modules.forEach(module -> {
+        for (Path module : modules) {
             UnresolvedPom pom = paths.get(module);
             SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
             SequencedMap<MavenDependencyKey, MavenDependencyValue> managedDependencies = new LinkedHashMap<>();
-            pom.managedDependencies().forEach((key, value) -> managedDependencies.put(
-                    key.resolve(pom.properties()),
-                    value.resolveManaged(pom.properties())));
+            for (Map.Entry<DependencyKey, DependencyValue> entry : pom.managedDependencies().entrySet()) {
+                MavenDependencyKey key = entry.getKey().resolve(pom.properties());
+                MavenDependencyValue value = entry.getValue().resolveManaged(pom.properties());
+                if (value.scope() == MavenDependencyScope.IMPORT) {
+                    flattenImport(executor,
+                            MavenRepository.of(repository),
+                            key.groupId(),
+                            key.artifactId(),
+                            value.version(),
+                            value.checksum(),
+                            managedDependencies,
+                            new HashSet<>(),
+                            unresolved);
+                } else {
+                    managedDependencies.put(key, value);
+                }
+            }
             pom.dependencies().forEach((key, value) -> {
                 MavenDependencyKey resolvedKey = key.resolve(pom.properties());
                 dependencies.put(resolvedKey, merge(value.resolve(pom.properties()),
@@ -461,7 +475,7 @@ public class MavenPomResolver implements MavenResolver {
                     managedDependencies,
                     pom.qualifiedDependencies(),
                     pom.properties().get("mainClass")));
-        });
+        }
         return results;
     }
 
