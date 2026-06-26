@@ -462,7 +462,7 @@ public class MavenPomResolver implements MavenResolver {
                     property(pom.artifactId(), pom.properties()),
                     property(pom.version(), pom.properties()),
                     property(pom.packaging(), pom.properties()),
-                    pom.properties().get("maven.compiler.release"),
+                    property(pom.properties().get("maven.compiler.release"), pom.properties()),
                     property(pom.sourceDirectory(), pom.properties()),
                     pom.resourceDirectories() == null ? null : pom.resourceDirectories().stream()
                             .map(resource -> property(resource, pom.properties()))
@@ -474,7 +474,7 @@ public class MavenPomResolver implements MavenResolver {
                     dependencies,
                     managedDependencies,
                     pom.qualifiedDependencies(),
-                    pom.properties().get("mainClass")));
+                    property(pom.properties().get("mainClass"), pom.properties())));
         }
         return results;
     }

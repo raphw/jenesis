@@ -3394,6 +3394,29 @@ public class MavenPomResolverTest {
     }
 
     @Test
+    public void local_pom_interpolates_compiler_release_and_main_class() throws IOException {
+        Files.writeString(project.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>project</groupId>
+                    <artifactId>artifact</artifactId>
+                    <version>1</version>
+                    <properties>
+                        <java.version>26</java.version>
+                        <maven.compiler.release>${java.version}</maven.compiler.release>
+                        <app.main>com.example.Main</app.main>
+                        <mainClass>${app.main}</mainClass>
+                    </properties>
+                </project>
+                """);
+        SequencedMap<Path, MavenLocalPom> poms = mavenPomResolver.local(Runnable::run, mavenRepository, project);
+        MavenLocalPom pom = poms.get(Path.of(""));
+        assertThat(pom.release()).isEqualTo("26");
+        assertThat(pom.mainClass()).isEqualTo("com.example.Main");
+    }
+
+    @Test
     public void local_pom_direct_dependency_checksum_is_ignored() throws IOException {
         Files.writeString(project.resolve("pom.xml"), """
                 <?xml version="1.0" encoding="UTF-8"?>
