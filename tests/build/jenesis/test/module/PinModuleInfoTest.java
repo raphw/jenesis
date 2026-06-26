@@ -425,6 +425,45 @@ public class PinModuleInfoTest {
     }
 
     @Test
+    public void preserves_manual_pins_absent_from_the_closure() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                /**
+                 * @jenesis.pin org.junit.jupiter.api 6.1.0
+                 * @jenesis.pin org.opentest4j 1.3.0
+                 * @jenesis.pin bar 0.9
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        writeResolved(Map.of("module/bar", "1.0 SHA-256/cafebabe"));
+        String result = run(file);
+        assertInsideJavadoc(result, "@jenesis.pin org.junit.jupiter.api 6.1.0");
+        assertInsideJavadoc(result, "@jenesis.pin org.opentest4j 1.3.0");
+        assertThat(result).contains("@jenesis.pin bar 1.0 SHA-256/cafebabe");
+        assertThat(result).doesNotContain("@jenesis.pin bar 0.9");
+    }
+
+    @Test
+    public void preserved_manual_pin_survives_a_second_run() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                /**
+                 * @jenesis.pin org.junit.jupiter.api 6.1.0
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        writeResolved(Map.of("module/bar", "1.0 SHA-256/cafebabe"));
+        String afterFirst = run(file);
+        String afterSecond = run(file);
+        assertThat(afterSecond).isEqualTo(afterFirst);
+        assertThat(afterSecond).contains("@jenesis.pin org.junit.jupiter.api 6.1.0");
+    }
+
+    @Test
     public void second_run_with_same_input_is_a_noop() throws IOException {
         Path file = root.resolve("module-info.java");
         Files.writeString(file, """

@@ -257,6 +257,14 @@ public class PinModuleInfo implements BuildStep {
                         + (winner.guard() == null ? "" : " [" + winner.guard() + "]"));
             }
         }
+        Set<String> regenerated = new HashSet<>();
+        for (String key : entries.keySet()) {
+            regenerated.add(expand(key));
+        }
+        // An unguarded line whose coordinate is not in the resolved closure is a manual override
+        // (for example a transitively required module name) and is preserved as-is; only lines the
+        // closure regenerates are rewritten, so a repin never discards a hand-set version.
+        SequencedMap<String, String> merged = new TreeMap<>();
         int insertAt = -1;
         Iterator<String> it = lines.iterator();
         int index = 0;
@@ -266,6 +274,9 @@ public class PinModuleInfo implements BuildStep {
             if (matcher.matches() && !guarded.containsKey(expand(matcher.group(1)))) {
                 if (insertAt < 0) {
                     insertAt = index;
+                }
+                if (!regenerated.contains(expand(matcher.group(1)))) {
+                    merged.putIfAbsent(matcher.group(1), matcher.group(2) == null ? "" : matcher.group(2).trim());
                 }
                 it.remove();
             } else {
@@ -283,11 +294,14 @@ public class PinModuleInfo implements BuildStep {
                 insertAt = Math.max(1, lines.size() - 1);
             }
         }
-        List<String> tags = new ArrayList<>();
         for (Map.Entry<String, String> entry : entries.entrySet()) {
             if (guarded.containsKey(expand(entry.getKey()))) {
                 continue;
             }
+            merged.put(entry.getKey(), entry.getValue());
+        }
+        List<String> tags = new ArrayList<>();
+        for (Map.Entry<String, String> entry : merged.entrySet()) {
             tags.add(" * @jenesis.pin " + entry.getKey() + " " + entry.getValue());
         }
         lines.addAll(insertAt, tags);
