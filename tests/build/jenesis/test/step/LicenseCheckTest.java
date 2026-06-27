@@ -91,4 +91,36 @@ public class LicenseCheckTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("no license");
     }
+
+    @Test
+    public void reads_the_allow_list_from_the_system_property() throws Exception {
+        resolve("org.example/lib/1.2.3", "Eclipse Public License 2.0");
+        String previous = System.getProperty("jenesis.compliance.license");
+        System.setProperty("jenesis.compliance.license", "Apache, MIT");
+        try {
+            assertThatThrownBy(() -> run(new LicenseCheck())).isInstanceOf(IllegalStateException.class);
+        } finally {
+            restore("jenesis.compliance.license", previous);
+        }
+    }
+
+    @Test
+    public void is_off_by_default_without_the_property() throws Exception {
+        resolve("org.example/lib/1.2.3", "Eclipse Public License 2.0");
+        String previous = System.getProperty("jenesis.compliance.license");
+        System.clearProperty("jenesis.compliance.license");
+        try {
+            assertThat(run(new LicenseCheck()).next()).isTrue();
+        } finally {
+            restore("jenesis.compliance.license", previous);
+        }
+    }
+
+    private static void restore(String key, String value) {
+        if (value == null) {
+            System.clearProperty(key);
+        } else {
+            System.setProperty(key, value);
+        }
+    }
 }
