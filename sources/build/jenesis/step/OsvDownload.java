@@ -13,7 +13,11 @@ public class OsvDownload implements BuildStep {
     private final URI endpoint;
 
     public OsvDownload() {
-        this(URI.create("https://api.osv.dev"));
+        this(endpointFrom(System.getProperty("jenesis.osv.endpoint")));
+    }
+
+    private static URI endpointFrom(String value) {
+        return value == null || value.isBlank() ? URI.create("https://api.osv.dev") : URI.create(value);
     }
 
     private OsvDownload(URI endpoint) {

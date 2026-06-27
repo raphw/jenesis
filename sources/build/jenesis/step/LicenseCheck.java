@@ -17,19 +17,16 @@ public class LicenseCheck implements BuildStep {
     private final SequencedSet<String> allowed;
     private final SequencedSet<String> denied;
     private final Unknown unknown;
-    private final Map<String, String> overrides;
+    private final Path overrides;
 
     public LicenseCheck() {
-        this(listFrom(System.getProperty("jenesis.compliance.license")),
+        this(listFrom(System.getProperty("jenesis.license.allowed")),
                 null,
-                unknownFrom(System.getProperty("jenesis.compliance.license.unknown")),
-                overridesFrom(System.getProperties()));
+                unknownFrom(System.getProperty("jenesis.license.unknown")),
+                pathFrom(System.getProperty("jenesis.license.override")));
     }
 
-    private LicenseCheck(SequencedSet<String> allowed,
-                         SequencedSet<String> denied,
-                         Unknown unknown,
-                         Map<String, String> overrides) {
+    private LicenseCheck(SequencedSet<String> allowed, SequencedSet<String> denied, Unknown unknown, Path overrides) {
         this.allowed = allowed;
         this.denied = denied;
         this.unknown = unknown;
@@ -48,8 +45,8 @@ public class LicenseCheck implements BuildStep {
         return new LicenseCheck(allowed, denied, unknown, overrides);
     }
 
-    public LicenseCheck overrides(Map<String, String> overrides) {
-        return new LicenseCheck(allowed, denied, unknown, Map.copyOf(overrides));
+    public LicenseCheck overrides(Path overrides) {
+        return new LicenseCheck(allowed, denied, unknown, overrides);
     }
 
     private static SequencedSet<String> listFrom(String value) {
@@ -77,15 +74,8 @@ public class LicenseCheck implements BuildStep {
         };
     }
 
-    private static Map<String, String> overridesFrom(Properties properties) {
-        Map<String, String> overrides = new HashMap<>();
-        for (String name : properties.stringPropertyNames()) {
-            if (name.startsWith("jenesis.compliance.license.override.")) {
-                overrides.put(name.substring("jenesis.compliance.license.override.".length()),
-                        properties.getProperty(name));
-            }
-        }
-        return overrides;
+    private static Path pathFrom(String value) {
+        return value == null || value.isBlank() ? null : Path.of(value);
     }
 
     @Override
@@ -93,6 +83,14 @@ public class LicenseCheck implements BuildStep {
                                                   BuildStepContext context,
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
+        Map<String, String> overrideMap;
+        if (overrides == null) {
+            overrideMap = Map.of();
+        } else if (!Files.isRegularFile(overrides)) {
+            throw new IllegalStateException("License override file not found: " + overrides);
+        } else {
+            overrideMap = load(overrides);
+        }
         SequencedMap<String, List<String[]>> licensesByCoordinate = new TreeMap<>();
         SequencedMap<String, Path> jarByCoordinate = new LinkedHashMap<>();
         for (BuildStepArgument argument : arguments.values()) {
@@ -128,7 +126,7 @@ public class LicenseCheck implements BuildStep {
         StringBuilder builder = new StringBuilder();
         for (Map.Entry<String, List<String[]>> entry : licensesByCoordinate.entrySet()) {
             String coordinate = entry.getKey();
-            List<String[]> licenses = resolve(coordinate, entry.getValue(), jarByCoordinate.get(coordinate));
+            List<String[]> licenses = resolve(coordinate, entry.getValue(), jarByCoordinate.get(coordinate), overrideMap);
             String verdict;
             if (licenses.isEmpty()) {
                 verdict = switch (unknown) {
@@ -155,8 +153,8 @@ public class LicenseCheck implements BuildStep {
         return CompletableFuture.completedStage(new BuildStepResult(true));
     }
 
-    private List<String[]> resolve(String coordinate, List<String[]> declared, Path jar) {
-        String override = override(coordinate);
+    private static List<String[]> resolve(String coordinate, List<String[]> declared, Path jar, Map<String, String> overrides) {
+        String override = override(coordinate, overrides);
         if (override != null) {
             return Collections.singletonList(new String[]{override, null});
         }
@@ -167,18 +165,16 @@ public class LicenseCheck implements BuildStep {
         return embedded == null ? declared : Collections.singletonList(new String[]{embedded, null});
     }
 
-    private String override(String coordinate) {
-        if (overrides.containsKey(coordinate)) {
-            return overrides.get(coordinate);
+    // Overrides are keyed by the internal dependency coordinate, with the maven/ repository
+    // prefix, either fully (maven/<groupId>/<artifactId>/<version>) or version-agnostically.
+    private static String override(String coordinate, Map<String, String> overrides) {
+        String full = "maven/" + coordinate;
+        if (overrides.containsKey(full)) {
+            return overrides.get(full);
         }
         try {
             MavenDependencyKey.Versioned parsed = MavenDependencyKey.tryParse(coordinate);
-            String identifier = parsed.key().groupId() + "/" + parsed.key().artifactId();
-            if (overrides.containsKey(identifier)) {
-                return overrides.get(identifier);
-            }
-            String versioned = identifier + "/" + parsed.version();
-            return overrides.get(versioned);
+            return overrides.get("maven/" + parsed.key().groupId() + "/" + parsed.key().artifactId());
         } catch (RuntimeException _) {
             return null;
         }
@@ -308,6 +304,15 @@ public class LicenseCheck implements BuildStep {
             }
         }
         return String.join("; ", rendered);
+    }
+
+    private static Map<String, String> load(Path file) throws IOException {
+        SequencedProperties properties = SequencedProperties.ofFiles(file);
+        Map<String, String> overrides = new HashMap<>();
+        for (String key : properties.stringPropertyNames()) {
+            overrides.put(key, properties.getProperty(key));
+        }
+        return overrides;
     }
 
     private static List<String[]> licenses(SequencedProperties licenses, String licenseKey) {
