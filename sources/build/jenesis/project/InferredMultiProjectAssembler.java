@@ -125,6 +125,8 @@ public record InferredMultiProjectAssembler(String packaging,
                 sub.addStep("sbom", new Sbom().format(sbom),
                         Stream.concat(descriptor.manifests().stream(), descriptor.artifacts().stream()));
             }
+            sub.addModule("compliance", new ComplianceModule(),
+                    Stream.concat(descriptor.manifests().stream(), descriptor.artifacts().stream()));
             sub.addModule("binary", new JavaToolchainModule()
                             .compiler(new InferredCompilerChainModule(repositories, resolvers)
                                     .pinning(descriptor.pinning())
