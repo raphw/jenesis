@@ -14,7 +14,21 @@ public class LicenseCheck implements BuildStep {
     private final boolean failOnMissing;
 
     public LicenseCheck() {
-        this(null, null, false);
+        this(allowedFrom(System.getProperty("jenesis.compliance.license")), null, false);
+    }
+
+    private static SequencedSet<String> allowedFrom(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        SequencedSet<String> allowed = new LinkedHashSet<>();
+        for (String entry : value.split(",")) {
+            String trimmed = entry.trim();
+            if (!trimmed.isEmpty()) {
+                allowed.add(trimmed);
+            }
+        }
+        return allowed.isEmpty() ? null : allowed;
     }
 
     private LicenseCheck(SequencedSet<String> allowed, SequencedSet<String> denied, boolean failOnMissing) {
