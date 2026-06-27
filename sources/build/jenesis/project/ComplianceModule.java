@@ -38,11 +38,11 @@ public class ComplianceModule implements BuildExecutorModule {
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
         buildExecutor.addStep("license", licenses, inherited.sequencedKeySet().stream());
-        if (System.getProperty("jenesis.compliance.vulnerability") != null && osv != null) {
+        if (System.getProperty("jenesis.vulnerability.severity") != null && osv != null) {
             buildExecutor.addStep("osv", osv, inherited.sequencedKeySet().stream());
             buildExecutor.addStep("vulnerability", vulnerabilities,
                     Stream.concat(inherited.sequencedKeySet().stream(), Stream.of("osv")));
-        } else if (System.getProperty("jenesis.compliance.vulnerability") != null) {
+        } else if (System.getProperty("jenesis.vulnerability.severity") != null) {
             buildExecutor.addStep("vulnerability", vulnerabilities, inherited.sequencedKeySet().stream());
         }
     }

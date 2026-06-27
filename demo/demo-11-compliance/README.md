@@ -24,9 +24,9 @@ From this directory:
 
 The license check runs over the project's `main` compile/runtime dependencies. The
 one dependency, `commons-lang3`, declares Apache-2.0, so it passes and a report is
-written. The shipped `jenesis.properties` also sets `jenesis.compliance.license=Apache`
+written. The shipped `jenesis.properties` also sets `jenesis.license.allowed=Apache`
 to demonstrate an allow list; point it at a license the dependency does not carry
-(`-Djenesis.compliance.license=MIT`) and the build fails.
+(`-Djenesis.license.allowed=MIT`) and the build fails.
 
 License check
 -------------
@@ -36,21 +36,27 @@ in-build snapshots and build-tool closures are excluded. Each dependency's decla
 license (name and URL, with parent-POM inheritance, falling back to the jar's
 `Bundle-License` manifest header) is normalized to a canonical SPDX id and category.
 
-- **Missing licenses** are gated by `jenesis.compliance.license.unknown` =
+- **Missing licenses** are gated by `jenesis.license.unknown` =
   `ignore` | `warn` | `fail`, **default `fail`** - "no declared license" is legally
   all-rights-reserved, so the strict default refuses it. Set `ignore` to relax.
-- **An allow list** (`jenesis.compliance.license`, optional) fails any dependency
+- **An allow list** (`jenesis.license.allowed`, optional) fails any dependency
   whose license is not on it. Entries match the SPDX id, the category, or the raw
   name/URL, so `Apache-2.0`, `Apache`, or `permissive` all match an Apache license.
   A dependency with several licenses passes if *any one* is allowed (Maven lists
   licenses disjunctively).
 
-      -Djenesis.compliance.license=Apache-2.0,MIT,BSD-3-Clause
-      -Djenesis.compliance.license=permissive,weak-copyleft
+      -Djenesis.license.allowed=Apache-2.0,MIT,BSD-3-Clause
+      -Djenesis.license.allowed=permissive,weak-copyleft
 
-- **Overrides** assert a license for a coordinate whose metadata is wrong or empty:
+- **Overrides** curate a wrong or empty declaration. `jenesis.license.override`
+  points at a properties file keyed by the internal dependency coordinate (the
+  `maven/` repository prefix, with or without a version):
 
-      -Djenesis.compliance.license.override.org.example/widget=Apache-2.0
+      # overrides.properties
+      maven/org.example/widget=Apache-2.0
+      maven/org.example/legacy/1.0.0=MIT
+
+      -Djenesis.license.override=overrides.properties
 
 Verdicts are written to `reports/compliance/licenses.txt`, one line per dependency
 (`OK`, `DENIED`, `MISSING`, `WARN`, or `UNKNOWN`).
@@ -58,22 +64,22 @@ Verdicts are written to `reports/compliance/licenses.txt`, one line per dependen
 Vulnerability check
 -------------------
 
-`jenesis.compliance.vulnerability` is a severity threshold
+`jenesis.vulnerability.severity` is a severity threshold
 (`low`/`medium`/`high`/`critical`). When set, the build queries the public
 [OSV.dev](https://osv.dev) database (no account, no API key) for the resolved
 Maven coordinates and fails when a matched advisory is at or above the threshold:
 
-    -Djenesis.compliance.vulnerability=high
+    -Djenesis.vulnerability.severity=high
 
 Vulnerability check
 -------------------
 
-`jenesis.compliance.vulnerability` is a severity threshold
+`jenesis.vulnerability.severity` is a severity threshold
 (`low`/`medium`/`high`/`critical`). When set, the build queries the public
 [OSV.dev](https://osv.dev) database (no account, no API key) for the resolved
 Maven coordinates and fails when a matched advisory is at or above the threshold:
 
-    -Djenesis.compliance.vulnerability=high
+    -Djenesis.vulnerability.severity=high
 
 Findings are written to `reports/compliance/vulnerabilities.txt`. The OSV fetch
 only runs when this property is set, so an unconfigured build never reaches the
@@ -99,7 +105,7 @@ Layout
     demo/demo-11-compliance
     |-- build/jenesis              symlink to ../../../sources/build/jenesis
     |-- pom.xml                    pins commons-lang3 (Apache-2.0)
-    |-- jenesis.properties         jenesis.compliance.license=Apache
+    |-- jenesis.properties         jenesis.license.allowed=Apache
     `-- sources
         `-- compliance
             `-- Sample.java        uses commons-lang3

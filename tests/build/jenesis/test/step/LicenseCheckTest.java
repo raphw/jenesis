@@ -125,14 +125,14 @@ public class LicenseCheckTest {
     @Test
     public void fails_on_a_missing_license_by_default() throws Exception {
         resolve("org.example/lib/1.2.3");
-        String previous = System.getProperty("jenesis.compliance.license.unknown");
-        System.clearProperty("jenesis.compliance.license.unknown");
+        String previous = System.getProperty("jenesis.license.unknown");
+        System.clearProperty("jenesis.license.unknown");
         try {
             assertThatThrownBy(() -> run(new LicenseCheck()))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("no license");
         } finally {
-            restore("jenesis.compliance.license.unknown", previous);
+            restore("jenesis.license.unknown", previous);
         }
     }
 
@@ -145,31 +145,52 @@ public class LicenseCheckTest {
     @Test
     public void reads_the_unknown_policy_from_the_system_property() throws Exception {
         resolve("org.example/lib/1.2.3");
-        String previous = System.getProperty("jenesis.compliance.license.unknown");
-        System.setProperty("jenesis.compliance.license.unknown", "ignore");
+        String previous = System.getProperty("jenesis.license.unknown");
+        System.setProperty("jenesis.license.unknown", "ignore");
         try {
             assertThat(run(new LicenseCheck()).next()).isTrue();
         } finally {
-            restore("jenesis.compliance.license.unknown", previous);
+            restore("jenesis.license.unknown", previous);
         }
     }
 
     @Test
-    public void an_override_supplies_a_license_for_a_coordinate() throws Exception {
+    public void an_override_file_supplies_a_license_for_a_coordinate() throws Exception {
         resolve("org.example/lib/1.2.3");
-        assertThat(run(new LicenseCheck().overrides(Map.of("org.example/lib", "Apache-2.0"))).next()).isTrue();
+        Path overrides = root.resolve("overrides.properties");
+        SequencedProperties properties = new SequencedProperties();
+        properties.setProperty("maven/org.example/lib", "Apache-2.0");
+        properties.store(overrides);
+        assertThat(run(new LicenseCheck().overrides(overrides)).next()).isTrue();
         assertThat(report()).content().contains("[OK]").contains("Apache-2.0");
+    }
+
+    @Test
+    public void reads_the_override_file_named_by_the_system_property() throws Exception {
+        resolve("org.example/lib/1.2.3");
+        Path overrides = root.resolve("overrides.properties");
+        SequencedProperties properties = new SequencedProperties();
+        properties.setProperty("maven/org.example/lib/1.2.3", "MIT");
+        properties.store(overrides);
+        String previous = System.getProperty("jenesis.license.override");
+        System.setProperty("jenesis.license.override", overrides.toString());
+        try {
+            assertThat(run(new LicenseCheck()).next()).isTrue();
+            assertThat(report()).content().contains("MIT");
+        } finally {
+            restore("jenesis.license.override", previous);
+        }
     }
 
     @Test
     public void reads_the_allow_list_from_the_system_property() throws Exception {
         resolve("org.example/lib/1.2.3", "Eclipse Public License 2.0");
-        String previous = System.getProperty("jenesis.compliance.license");
-        System.setProperty("jenesis.compliance.license", "Apache, MIT");
+        String previous = System.getProperty("jenesis.license.allowed");
+        System.setProperty("jenesis.license.allowed", "Apache, MIT");
         try {
             assertThatThrownBy(() -> run(new LicenseCheck())).isInstanceOf(IllegalStateException.class);
         } finally {
-            restore("jenesis.compliance.license", previous);
+            restore("jenesis.license.allowed", previous);
         }
     }
 }
