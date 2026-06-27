@@ -31,4 +31,30 @@ public class OsvDownloadTest {
         assertThat(OsvDownload.severity("{\"severity\":[{\"type\":\"CVSS_V3\",\"score\":\"CVSS:3.1/AV:N\"}]}")).isEmpty();
         assertThat(OsvDownload.severity("not json")).isEmpty();
     }
+
+    @Test
+    public void scores_a_cvss_v3_vector_when_there_is_no_github_word() {
+        assertThat(OsvDownload.severity("{\"severity\":[{\"type\":\"CVSS_V3\",\"score\":\"CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H\"}]}"))
+                .as("9.8 base score").isEqualTo("CRITICAL");
+        assertThat(OsvDownload.severity("{\"severity\":[{\"type\":\"CVSS_V3\",\"score\":\"CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N\"}]}"))
+                .as("5.5 base score").isEqualTo("MEDIUM");
+    }
+
+    @Test
+    public void scores_a_cvss_v2_vector() {
+        assertThat(OsvDownload.severity("{\"severity\":[{\"type\":\"CVSS_V2\",\"score\":\"AV:N/AC:L/Au:N/C:C/I:C/A:C\"}]}"))
+                .as("10.0 base score").isEqualTo("CRITICAL");
+    }
+
+    @Test
+    public void prefers_the_github_word_over_a_cvss_vector() {
+        assertThat(OsvDownload.severity("{\"database_specific\":{\"severity\":\"MODERATE\"},\"severity\":[{\"type\":\"CVSS_V3\",\"score\":\"CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H\"}]}"))
+                .isEqualTo("MEDIUM");
+    }
+
+    @Test
+    public void leaves_a_cvss_v4_only_advisory_unscored() {
+        assertThat(OsvDownload.severity("{\"severity\":[{\"type\":\"CVSS_V4\",\"score\":\"CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N\"}]}"))
+                .isEmpty();
+    }
 }

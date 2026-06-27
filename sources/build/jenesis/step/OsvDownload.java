@@ -92,26 +92,154 @@ public class OsvDownload implements BuildStep {
     }
 
     public static String severity(String response) {
-        if (navigate(response, "database_specific") instanceof Map<?, ?> specific
-                && specific.get("severity") instanceof String word) {
-            return switch (word.toUpperCase(Locale.ROOT)) {
-                case "LOW" -> "LOW";
-                case "MODERATE", "MEDIUM" -> "MEDIUM";
-                case "HIGH" -> "HIGH";
-                case "CRITICAL" -> "CRITICAL";
-                default -> "";
-            };
+        if (!(parse(response) instanceof Map<?, ?> map)) {
+            return "";
         }
-        return "";
+        if (map.get("database_specific") instanceof Map<?, ?> specific
+                && specific.get("severity") instanceof String word
+                && !word(word).isEmpty()) {
+            return word(word);
+        }
+        double highest = -1.0;
+        if (map.get("severity") instanceof List<?> entries) {
+            for (Object entry : entries) {
+                if (entry instanceof Map<?, ?> object && object.get("score") instanceof String vector) {
+                    highest = Math.max(highest, cvss(vector));
+                }
+            }
+        }
+        return highest < 0 ? "" : band(highest);
     }
 
-    private static Object navigate(String response, String field) {
+    private static String word(String value) {
+        return switch (value.toUpperCase(Locale.ROOT)) {
+            case "LOW" -> "LOW";
+            case "MODERATE", "MEDIUM" -> "MEDIUM";
+            case "HIGH" -> "HIGH";
+            case "CRITICAL" -> "CRITICAL";
+            default -> "";
+        };
+    }
+
+    private static String band(double score) {
+        if (score >= 9.0) {
+            return "CRITICAL";
+        }
+        if (score >= 7.0) {
+            return "HIGH";
+        }
+        if (score >= 4.0) {
+            return "MEDIUM";
+        }
+        return score >= 0.1 ? "LOW" : "";
+    }
+
+    // CVSS v2 and v3.0/v3.1 are closed-form base-score formulas; v4.0 (table-based)
+    // is left unscored and falls through to the GitHub severity word when present.
+    private static double cvss(String vector) {
+        String trimmed = vector.trim();
+        if (trimmed.startsWith("CVSS:3.")) {
+            return cvss3(trimmed);
+        }
+        return trimmed.contains("Au:") ? cvss2(trimmed) : -1.0;
+    }
+
+    private static double cvss3(String vector) {
+        Map<String, String> metric = metrics(vector);
+        boolean changed = "C".equals(metric.get("S"));
+        double av = switch (metric.getOrDefault("AV", "")) {
+            case "N" -> 0.85; case "A" -> 0.62; case "L" -> 0.55; case "P" -> 0.2; default -> -1;
+        };
+        double ac = switch (metric.getOrDefault("AC", "")) {
+            case "L" -> 0.77; case "H" -> 0.44; default -> -1;
+        };
+        double pr = switch (metric.getOrDefault("PR", "")) {
+            case "N" -> 0.85;
+            case "L" -> changed ? 0.68 : 0.62;
+            case "H" -> changed ? 0.5 : 0.27;
+            default -> -1;
+        };
+        double ui = switch (metric.getOrDefault("UI", "")) {
+            case "N" -> 0.85; case "R" -> 0.62; default -> -1;
+        };
+        double c = impact3(metric.getOrDefault("C", ""));
+        double i = impact3(metric.getOrDefault("I", ""));
+        double a = impact3(metric.getOrDefault("A", ""));
+        if (av < 0 || ac < 0 || pr < 0 || ui < 0 || c < 0 || i < 0 || a < 0) {
+            return -1.0;
+        }
+        double iss = 1 - (1 - c) * (1 - i) * (1 - a);
+        double impact = changed
+                ? 7.52 * (iss - 0.029) - 3.25 * Math.pow(iss - 0.02, 15)
+                : 6.42 * iss;
+        if (impact <= 0) {
+            return 0.0;
+        }
+        double exploitability = 8.22 * av * ac * pr * ui;
+        return roundUp(Math.min((changed ? 1.08 : 1.0) * (impact + exploitability), 10));
+    }
+
+    private static double impact3(String value) {
+        return switch (value) {
+            case "H" -> 0.56; case "L" -> 0.22; case "N" -> 0.0; default -> -1;
+        };
+    }
+
+    private static double cvss2(String vector) {
+        Map<String, String> metric = metrics(vector);
+        double av = switch (metric.getOrDefault("AV", "")) {
+            case "L" -> 0.395; case "A" -> 0.646; case "N" -> 1.0; default -> -1;
+        };
+        double ac = switch (metric.getOrDefault("AC", "")) {
+            case "H" -> 0.35; case "M" -> 0.61; case "L" -> 0.71; default -> -1;
+        };
+        double au = switch (metric.getOrDefault("Au", "")) {
+            case "M" -> 0.45; case "S" -> 0.56; case "N" -> 0.704; default -> -1;
+        };
+        double c = impact2(metric.getOrDefault("C", ""));
+        double i = impact2(metric.getOrDefault("I", ""));
+        double a = impact2(metric.getOrDefault("A", ""));
+        if (av < 0 || ac < 0 || au < 0 || c < 0 || i < 0 || a < 0) {
+            return -1.0;
+        }
+        double impact = 10.41 * (1 - (1 - c) * (1 - i) * (1 - a));
+        double exploitability = 20 * av * ac * au;
+        double base = ((0.6 * impact) + (0.4 * exploitability) - 1.5) * (impact == 0 ? 0 : 1.176);
+        return Math.round(base * 10.0) / 10.0;
+    }
+
+    private static double impact2(String value) {
+        return switch (value) {
+            case "N" -> 0.0; case "P" -> 0.275; case "C" -> 0.660; default -> -1;
+        };
+    }
+
+    private static double roundUp(double input) {
+        long scaled = Math.round(input * 100_000);
+        return scaled % 10_000 == 0 ? scaled / 100_000.0 : (Math.floorDiv(scaled, 10_000) + 1) / 10.0;
+    }
+
+    private static Map<String, String> metrics(String vector) {
+        Map<String, String> metric = new HashMap<>();
+        for (String part : vector.split("/")) {
+            int colon = part.indexOf(':');
+            if (colon > 0) {
+                metric.put(part.substring(0, colon), part.substring(colon + 1));
+            }
+        }
+        return metric;
+    }
+
+    private static Object parse(String response) {
         try {
-            Object root = new Json(response).parse();
-            return root instanceof Map<?, ?> map ? map.get(field) : null;
+            return new Json(response).parse();
         } catch (RuntimeException _) {
             return null;
         }
+    }
+
+    private static Object navigate(String response, String field) {
+        return parse(response) instanceof Map<?, ?> map ? map.get(field) : null;
     }
 
     private static String mavenCoordinate(String key) {
