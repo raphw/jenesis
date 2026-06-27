@@ -9,8 +9,8 @@ and `google-java-format` verifies the source layout. Each tool resolves in its
 own group, independently of the module's own dependencies (here, none).
 
 This is the code-quality counterpart to the plain Java demos that precede it;
-the language-specific tools follow each language demo (`../demo-13-kotlin-quality`,
-`../demo-16-scala-quality`, `../demo-18-groovy-quality`).
+the language-specific tools follow each language demo (`../demo-14-kotlin-quality`,
+`../demo-17-scala-quality`, `../demo-19-groovy-quality`).
 
 Build it
 --------
@@ -95,7 +95,7 @@ the report, so other tools can find it.
 
 By default the linters are report-only: they record findings but do not fail the
 build. Pass `.strict(true)` when wiring a tool yourself (see
-`../demo-27-custom-assembler`) to turn a finding into a build failure.
+`../demo-28-custom-assembler`) to turn a finding into a build failure.
 
 Formatting: verify, and how to reformat
 ---------------------------------------
