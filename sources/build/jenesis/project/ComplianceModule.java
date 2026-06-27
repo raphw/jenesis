@@ -37,9 +37,7 @@ public class ComplianceModule implements BuildExecutorModule {
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
-        if (System.getProperty("jenesis.compliance.license") != null) {
-            buildExecutor.addStep("license", licenses, inherited.sequencedKeySet().stream());
-        }
+        buildExecutor.addStep("license", licenses, inherited.sequencedKeySet().stream());
         if (System.getProperty("jenesis.compliance.vulnerability") != null && osv != null) {
             buildExecutor.addStep("osv", osv, inherited.sequencedKeySet().stream());
             buildExecutor.addStep("vulnerability", vulnerabilities,

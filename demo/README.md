@@ -64,7 +64,7 @@ Quick index
 | 8  | [`annotations`](demo-08-annotations/README.md)              | Run a Java annotation processor declared with `@jenesis.plugin`; the same jar on the module path stays dormant unless declared | `java build/jenesis/Project.java`  |
 | 9  | [`java-quality`](demo-09-java-quality/README.md)             | Inferred code quality for Java: Checkstyle, PMD, SpotBugs, and a verifying `google-java-format`, each turned on by its config file | `java build/jenesis/Project.java`  |
 | 10 | [`sbom`](demo-10-sbom/README.md)                             | Emit a CycloneDX SBOM (embedded in the jar, staged as a report, and attached to the Maven repo for publication) with `-Djenesis.sbom.cyclonedx=json` | `java build/jenesis/Project.java`  |
-| 11 | [`compliance`](demo-11-compliance/README.md)               | License and known-vulnerability gates over the resolved dependencies, off until a policy is set: an allow list (`-Djenesis.compliance.license=`) and an OSV.dev severity threshold (`-Djenesis.compliance.vulnerability=`) | `java build/jenesis/Project.java`  |
+| 11 | [`compliance`](demo-11-compliance/README.md)               | License and known-vulnerability gates over the resolved dependencies: the license check runs by default (SPDX-normalized; fails on a missing or disallowed license, tunable with `-Djenesis.compliance.license.unknown=` and `-Djenesis.compliance.license=`), the OSV.dev severity gate is opt-in (`-Djenesis.compliance.vulnerability=`) | `java build/jenesis/Project.java`  |
 | 12 | [`profiles`](demo-12-profiles/README.md)                     | Build profiles: a `release` profile selected with `-Djenesis.project.properties=release` turns on source jars and chains to a `supply-chain` profile that adds an SBOM | `java build/jenesis/Project.java`  |
 | 13 | [`kotlin`](demo-13-kotlin/README.md)                         | Java + Kotlin in one module; exports a pure-Kotlin package            | `java build/jenesis/Project.java`  |
 | 14 | [`kotlin-quality`](demo-14-kotlin-quality/README.md)         | Inferred code quality for Kotlin: detekt and ktlint, with ktlint also verifying formatting | `java build/jenesis/Project.java`  |
@@ -310,17 +310,21 @@ the pom so `export` publishes it to Maven Central.
 ## 9. Dependency compliance - [`compliance`](demo-11-compliance/README.md)
 
 `compliance` gates the build on the licenses and known vulnerabilities of its
-resolved dependencies, over the same graph the SBOM records. Both checks are off
-by default and each is turned on by one property, read as the step's default:
-`-Djenesis.compliance.license=` is a comma-separated allow list of license-name
-fragments and fails when a dependency carries none of them, while
-`-Djenesis.compliance.vulnerability=<severity>` queries the public OSV.dev
-database (no key) for the resolved coordinates and fails at or above the
-threshold. The default assembler runs the `ComplianceModule` after the `Sbom`
-step; its `LicenseCheck`, `OsvDownload`, and `VulnerabilityCheck` steps each
-write a report under `reports/compliance/` and fail the build by throwing, the
-same way strict pinning does. The OSV fetch runs only when the vulnerability
-property is set, so an unconfigured build never reaches the network.
+resolved dependencies, over the same graph the SBOM records. The license check
+runs by default over the shipped (`main` compile/runtime) dependencies: each
+declared license (name and URL, falling back to the jar's `Bundle-License`) is
+normalized to an SPDX id and category, and a dependency with **no** recognized
+license fails the build by default (`jenesis.compliance.license.unknown` =
+`ignore`/`warn`/`fail`, since "no license" is legally all-rights-reserved). An
+optional allow list (`-Djenesis.compliance.license=Apache-2.0,MIT` or a category
+like `permissive`) additionally rejects anything off it, and
+`-Djenesis.compliance.license.override.<g/a>=<spdx>` curates a wrong or empty one.
+The vulnerability check stays off until `-Djenesis.compliance.vulnerability=<severity>`
+is set, which queries the public OSV.dev database (no key) and fails at or above
+the threshold. The default assembler runs the `ComplianceModule` after the `Sbom`
+step; each step writes a report under `reports/compliance/` and fails the build by
+throwing, the same way strict pinning does. The OSV fetch runs only when the
+vulnerability property is set, so a build never reaches the network unless asked.
 
 ## 10. Build profiles - [`profiles`](demo-12-profiles/README.md)
 

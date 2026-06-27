@@ -11,9 +11,9 @@ This is the supply-chain counterpart to the [`sbom`](../demo-10-sbom/README.md)
 demo: where that freezes the resolved graph into a bill of materials, this
 enforces a policy over the same graph.
 
-Both checks are off by default. Each is turned on by a single property, read as
-the step's default, and is otherwise inert - so a project carries the compliance
-module without paying for it until a policy is set.
+The license check runs by default and fails on a dependency with no recognized
+license; the vulnerability check is off until its property is set. Both are
+configured by properties read as the steps' defaults.
 
 Build it
 --------
@@ -22,24 +22,48 @@ From this directory:
 
     java build/jenesis/Project.java
 
-The project ships a `jenesis.properties` that sets
-`jenesis.compliance.license=Apache`, so the license check runs. The one
-dependency, `commons-lang3`, is Apache-2.0, so the build passes and a report is
-written. Point the property at a license the dependency does not carry (for
-example `-Djenesis.compliance.license=MIT`) and the same build fails.
+The license check runs over the project's `main` compile/runtime dependencies. The
+one dependency, `commons-lang3`, declares Apache-2.0, so it passes and a report is
+written. The shipped `jenesis.properties` also sets `jenesis.compliance.license=Apache`
+to demonstrate an allow list; point it at a license the dependency does not carry
+(`-Djenesis.compliance.license=MIT`) and the build fails.
 
 License check
 -------------
 
-`jenesis.compliance.license` is a comma-separated allow list of license-name
-fragments, matched case-insensitively against each dependency's declared license.
-The build fails when a resolved dependency carries no license from the list; with
-the property unset the check does not run.
+The check runs by default over the shipped (`main` compile/runtime) dependencies;
+in-build snapshots and build-tool closures are excluded. Each dependency's declared
+license (name and URL, with parent-POM inheritance, falling back to the jar's
+`Bundle-License` manifest header) is normalized to a canonical SPDX id and category.
 
-    -Djenesis.compliance.license=Apache,MIT,BSD
+- **Missing licenses** are gated by `jenesis.compliance.license.unknown` =
+  `ignore` | `warn` | `fail`, **default `fail`** - "no declared license" is legally
+  all-rights-reserved, so the strict default refuses it. Set `ignore` to relax.
+- **An allow list** (`jenesis.compliance.license`, optional) fails any dependency
+  whose license is not on it. Entries match the SPDX id, the category, or the raw
+  name/URL, so `Apache-2.0`, `Apache`, or `permissive` all match an Apache license.
+  A dependency with several licenses passes if *any one* is allowed (Maven lists
+  licenses disjunctively).
 
-The verdicts are written to `reports/compliance/licenses.txt`, one line per
-dependency (`OK`, `DENIED`, or `UNKNOWN`).
+      -Djenesis.compliance.license=Apache-2.0,MIT,BSD-3-Clause
+      -Djenesis.compliance.license=permissive,weak-copyleft
+
+- **Overrides** assert a license for a coordinate whose metadata is wrong or empty:
+
+      -Djenesis.compliance.license.override.org.example/widget=Apache-2.0
+
+Verdicts are written to `reports/compliance/licenses.txt`, one line per dependency
+(`OK`, `DENIED`, `MISSING`, `WARN`, or `UNKNOWN`).
+
+Vulnerability check
+-------------------
+
+`jenesis.compliance.vulnerability` is a severity threshold
+(`low`/`medium`/`high`/`critical`). When set, the build queries the public
+[OSV.dev](https://osv.dev) database (no account, no API key) for the resolved
+Maven coordinates and fails when a matched advisory is at or above the threshold:
+
+    -Djenesis.compliance.vulnerability=high
 
 Vulnerability check
 -------------------
