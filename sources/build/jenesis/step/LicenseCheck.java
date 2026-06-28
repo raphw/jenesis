@@ -5,6 +5,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
+import build.jenesis.Json;
 import build.jenesis.SequencedProperties;
 import build.jenesis.maven.MavenDependencyKey;
 
@@ -93,6 +94,7 @@ public class LicenseCheck implements BuildStep {
         }
         SequencedMap<String, List<String[]>> licensesByCoordinate = new TreeMap<>();
         SequencedMap<String, Path> jarByCoordinate = new LinkedHashMap<>();
+        SequencedSet<String> strict = new LinkedHashSet<>();
         for (BuildStepArgument argument : arguments.values()) {
             Path index = argument.folder().resolve(DEPENDENCIES);
             if (!Files.exists(index)) {
@@ -105,9 +107,7 @@ public class LicenseCheck implements BuildStep {
                     : new SequencedProperties();
             for (String key : dependencies.stringPropertyNames()) {
                 int first = key.indexOf('/'), second = key.indexOf('/', first + 1), third = key.indexOf('/', second + 1);
-                if (third < 0
-                        || !key.substring(0, first).equals("main")
-                        || !key.substring(second + 1, third).equals("maven")) {
+                if (third < 0 || !key.substring(0, first).equals("main")) {
                     continue;
                 }
                 String coordinate = key.substring(third + 1);
@@ -116,6 +116,9 @@ public class LicenseCheck implements BuildStep {
                     continue;
                 }
                 licensesByCoordinate.put(coordinate, licenses(licenses, key.substring(second + 1)));
+                if (key.substring(second + 1, third).equals("maven")) {
+                    strict.add(coordinate);
+                }
                 String value = dependencies.getProperty(key);
                 int space = value.indexOf(' ');
                 jarByCoordinate.put(coordinate,
@@ -129,6 +132,9 @@ public class LicenseCheck implements BuildStep {
             List<String[]> licenses = resolve(coordinate, entry.getValue(), jarByCoordinate.get(coordinate), overrideMap);
             String verdict;
             if (licenses.isEmpty()) {
+                if (!strict.contains(coordinate)) {
+                    continue;
+                }
                 verdict = switch (unknown) {
                     case FAIL -> "MISSING";
                     case WARN -> "WARN";
@@ -161,8 +167,7 @@ public class LicenseCheck implements BuildStep {
         if (!declared.isEmpty()) {
             return declared;
         }
-        String embedded = jarLicense(jar);
-        return embedded == null ? declared : Collections.singletonList(new String[]{embedded, null});
+        return jarLicenses(jar);
     }
 
     // Overrides are keyed by the internal dependency coordinate, with the maven/ repository
@@ -274,24 +279,102 @@ public class LicenseCheck implements BuildStep {
         return null;
     }
 
-    private static String jarLicense(Path jar) {
+    private static List<String[]> jarLicenses(Path jar) {
         if (jar == null || !Files.isRegularFile(jar)) {
-            return null;
+            return List.of();
         }
         try (JarFile file = new JarFile(jar.toFile())) {
             Manifest manifest = file.getManifest();
-            if (manifest == null) {
-                return null;
+            if (manifest != null) {
+                List<String[]> embedded = sbomLicenses(file, manifest);
+                if (!embedded.isEmpty()) {
+                    return embedded;
+                }
+                String bundle = bundleLicense(manifest);
+                if (bundle != null) {
+                    return Collections.singletonList(new String[]{bundle, null});
+                }
             }
-            String value = manifest.getMainAttributes().getValue("Bundle-License");
-            if (value == null || value.isBlank()) {
-                return null;
-            }
-            int semicolon = value.indexOf(';');
-            return (semicolon < 0 ? value : value.substring(0, semicolon)).trim();
+            String text = licenseFile(file);
+            return text == null ? List.of() : Collections.singletonList(new String[]{text, null});
         } catch (IOException _) {
+            return List.of();
+        }
+    }
+
+    private static List<String[]> sbomLicenses(JarFile file, Manifest manifest) {
+        String location = manifest.getMainAttributes().getValue("Sbom-Location");
+        if (location == null || location.isBlank()) {
+            return List.of();
+        }
+        JarEntry entry = file.getJarEntry(location.trim());
+        if (entry == null) {
+            return List.of();
+        }
+        Object document;
+        try (InputStream in = file.getInputStream(entry)) {
+            document = Json.parse(new String(in.readAllBytes(), StandardCharsets.UTF_8));
+        } catch (IOException | RuntimeException _) {
+            return List.of();
+        }
+        if (!(document instanceof Map<?, ?> root)
+                || !(root.get("metadata") instanceof Map<?, ?> metadata)
+                || !(metadata.get("component") instanceof Map<?, ?> component)
+                || !(component.get("licenses") instanceof List<?> licenses)) {
+            return List.of();
+        }
+        List<String[]> result = new ArrayList<>();
+        for (Object element : licenses) {
+            if (!(element instanceof Map<?, ?> wrapper)) {
+                continue;
+            }
+            if (wrapper.get("license") instanceof Map<?, ?> license) {
+                String id = string(license.get("id"));
+                String name = string(license.get("name"));
+                String url = string(license.get("url"));
+                if (id != null) {
+                    result.add(new String[]{id, url});
+                } else if (name != null || url != null) {
+                    result.add(new String[]{name, url});
+                }
+            } else {
+                String expression = string(wrapper.get("expression"));
+                if (expression != null) {
+                    result.add(new String[]{expression, null});
+                }
+            }
+        }
+        return result;
+    }
+
+    private static String bundleLicense(Manifest manifest) {
+        String value = manifest.getMainAttributes().getValue("Bundle-License");
+        if (value == null || value.isBlank()) {
             return null;
         }
+        int semicolon = value.indexOf(';');
+        return (semicolon < 0 ? value : value.substring(0, semicolon)).trim();
+    }
+
+    private static String licenseFile(JarFile file) throws IOException {
+        for (String name : List.of("META-INF/LICENSE", "META-INF/LICENSE.txt", "META-INF/LICENSE.md", "LICENSE", "LICENSE.txt")) {
+            JarEntry entry = file.getJarEntry(name);
+            if (entry == null) {
+                continue;
+            }
+            String[] spdx;
+            try (InputStream in = file.getInputStream(entry)) {
+                spdx = identify(new String(in.readAllBytes(), StandardCharsets.UTF_8), null);
+            }
+            if (spdx != null) {
+                return spdx[0];
+            }
+        }
+        return null;
+    }
+
+    private static String string(Object value) {
+        return value instanceof String text && !text.isBlank() ? text : null;
     }
 
     private static String describe(List<String[]> licenses) {
