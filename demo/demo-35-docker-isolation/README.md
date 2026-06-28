@@ -236,6 +236,7 @@ those properties spell out:
     FROM eclipse-temurin:25-jre
     COPY modulepath/ /app/modulepath/
     WORKDIR /app
+    USER 1000:1000
     ENTRYPOINT ["java", "--module-path", "modulepath", \
                 "--module", "demo.dockerisolation/sample.Sample"]
 
@@ -244,3 +245,11 @@ A classpath-only app swaps the `--module-path`/`--module` pair for
 Unlike `jpackage`/`jlink`, the bundle embeds no runtime, so the JVM comes from the
 base image and a single image can be rebased onto a newer JVM without rebuilding
 the app.
+
+The image runs as an unprivileged user (`USER 1000:1000`) instead of root, so a
+compromised dependency or artifact `main` cannot act as root inside the container,
+extending to the shipped image the same confinement the build-time flags above
+apply. One caveat comes with writable volumes: if the app persists to a mounted
+path (say a `/data` directory you keep across runs), that volume must be writable
+by UID 1000 on the host, or you must pick a UID that already owns it. The bundle
+itself is read-only to the app, so only writable mounts need this.
