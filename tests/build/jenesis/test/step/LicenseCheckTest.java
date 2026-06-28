@@ -193,4 +193,85 @@ public class LicenseCheckTest {
             restore("jenesis.license.allowed", previous);
         }
     }
+
+    @Test
+    public void reads_an_embedded_sbom_license_when_no_pom_license_is_declared() throws Exception {
+        Path jar = argument.resolve("resolved/lib.jar");
+        resolveJarOnly("jenesis", "org.example.lib/1.0.0", jar);
+        writeSbomJar(jar, "META-INF/sbom/lib.cdx.json", """
+                {
+                  "bomFormat": "CycloneDX",
+                  "specVersion": "1.6",
+                  "metadata": {
+                    "component": {
+                      "type": "library",
+                      "name": "org.example.lib",
+                      "version": "1.0.0",
+                      "licenses": [ { "license": { "id": "Apache-2.0" } } ]
+                    }
+                  }
+                }
+                """);
+        assertThat(run(new LicenseCheck().allowed(new LinkedHashSet<>(List.of("Apache-2.0")))).next()).isTrue();
+        assertThat(report()).content().contains("org.example.lib/1.0.0 [OK]").contains("Apache-2.0");
+    }
+
+    @Test
+    public void reads_an_embedded_sbom_license_in_name_and_url_form() throws Exception {
+        Path jar = argument.resolve("resolved/lib.jar");
+        resolveJarOnly("jenesis", "org.example.lib/2.0.0", jar);
+        writeSbomJar(jar, "META-INF/sbom/lib.cdx.json", """
+                {
+                  "metadata": {
+                    "component": {
+                      "licenses": [ { "license": { "name": "Custom", "url": "https://opensource.org/licenses/MIT" } } ]
+                    }
+                  }
+                }
+                """);
+        assertThat(run(new LicenseCheck().allowed(new LinkedHashSet<>(List.of("MIT")))).next()).isTrue();
+    }
+
+    @Test
+    public void reads_a_license_text_file_when_the_manifest_has_no_license() throws Exception {
+        Path jar = argument.resolve("resolved/lib.jar");
+        resolveJarOnly("jenesis", "org.example.lib/3.0.0", jar);
+        writeFileJar(jar, "META-INF/LICENSE", """
+                Apache License
+                Version 2.0, January 2004
+                http://www.apache.org/licenses/
+                """);
+        assertThat(run(new LicenseCheck().allowed(new LinkedHashSet<>(List.of("Apache-2.0")))).next()).isTrue();
+        assertThat(report()).content().contains("org.example.lib/3.0.0 [OK]").contains("Apache-2.0");
+    }
+
+    private void resolveJarOnly(String repository, String coordinate, Path jar) throws IOException {
+        SequencedProperties dependencies = new SequencedProperties();
+        dependencies.setProperty("main/compile/" + repository + "/" + coordinate,
+                argument.relativize(jar).toString());
+        dependencies.store(argument.resolve(BuildStep.DEPENDENCIES));
+    }
+
+    private static void writeSbomJar(Path jar, String sbomLocation, String sbom) throws IOException {
+        Files.createDirectories(jar.getParent());
+        Manifest manifest = new Manifest();
+        manifest.getMainAttributes().putValue("Manifest-Version", "1.0");
+        manifest.getMainAttributes().putValue("Sbom-Location", sbomLocation);
+        try (JarOutputStream out = new JarOutputStream(Files.newOutputStream(jar), manifest)) {
+            out.putNextEntry(new JarEntry(sbomLocation));
+            out.write(sbom.getBytes(StandardCharsets.UTF_8));
+            out.closeEntry();
+        }
+    }
+
+    private static void writeFileJar(Path jar, String entryName, String content) throws IOException {
+        Files.createDirectories(jar.getParent());
+        Manifest manifest = new Manifest();
+        manifest.getMainAttributes().putValue("Manifest-Version", "1.0");
+        try (JarOutputStream out = new JarOutputStream(Files.newOutputStream(jar), manifest)) {
+            out.putNextEntry(new JarEntry(entryName));
+            out.write(content.getBytes(StandardCharsets.UTF_8));
+            out.closeEntry();
+        }
+    }
 }
