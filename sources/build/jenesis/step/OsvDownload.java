@@ -5,6 +5,7 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
+import build.jenesis.Json;
 import build.jenesis.SequencedProperties;
 import build.jenesis.maven.MavenDependencyKey;
 
@@ -236,7 +237,7 @@ public class OsvDownload implements BuildStep {
 
     private static Object parse(String response) {
         try {
-            return new Json(response).parse();
+            return Json.parse(response);
         } catch (RuntimeException _) {
             return null;
         }
@@ -310,118 +311,4 @@ public class OsvDownload implements BuildStep {
         }
     }
 
-    private static final class Json {
-
-        private final String text;
-        private int pos;
-
-        private Json(String text) {
-            this.text = text;
-        }
-
-        private Object parse() {
-            skip();
-            Object value = value();
-            skip();
-            return value;
-        }
-
-        private Object value() {
-            skip();
-            return switch (text.charAt(pos)) {
-                case '{' -> object();
-                case '[' -> array();
-                case '"' -> string();
-                case 't' -> literal("true", Boolean.TRUE);
-                case 'f' -> literal("false", Boolean.FALSE);
-                case 'n' -> literal("null", null);
-                default -> number();
-            };
-        }
-
-        private Map<String, Object> object() {
-            Map<String, Object> map = new LinkedHashMap<>();
-            pos++;
-            skip();
-            if (text.charAt(pos) == '}') {
-                pos++;
-                return map;
-            }
-            while (true) {
-                skip();
-                String key = string();
-                skip();
-                pos++;
-                map.put(key, value());
-                skip();
-                if (text.charAt(pos++) == '}') {
-                    return map;
-                }
-            }
-        }
-
-        private List<Object> array() {
-            List<Object> list = new ArrayList<>();
-            pos++;
-            skip();
-            if (text.charAt(pos) == ']') {
-                pos++;
-                return list;
-            }
-            while (true) {
-                list.add(value());
-                skip();
-                if (text.charAt(pos++) == ']') {
-                    return list;
-                }
-            }
-        }
-
-        private String string() {
-            StringBuilder builder = new StringBuilder();
-            pos++;
-            while (true) {
-                char c = text.charAt(pos++);
-                if (c == '"') {
-                    return builder.toString();
-                }
-                if (c != '\\') {
-                    builder.append(c);
-                    continue;
-                }
-                char escaped = text.charAt(pos++);
-                switch (escaped) {
-                    case 'n' -> builder.append('\n');
-                    case 't' -> builder.append('\t');
-                    case 'r' -> builder.append('\r');
-                    case 'b' -> builder.append('\b');
-                    case 'f' -> builder.append('\f');
-                    case 'u' -> {
-                        builder.append((char) Integer.parseInt(text.substring(pos, pos + 4), 16));
-                        pos += 4;
-                    }
-                    default -> builder.append(escaped);
-                }
-            }
-        }
-
-        private Object number() {
-            int start = pos;
-            while (pos < text.length() && "+-0123456789.eE".indexOf(text.charAt(pos)) >= 0) {
-                pos++;
-            }
-            return Double.parseDouble(text.substring(start, pos));
-        }
-
-        private Object literal(String token, Object value) {
-            pos += token.length();
-            return value;
-        }
-
-        private void skip() {
-            while (pos < text.length() && Character.isWhitespace(text.charAt(pos))) {
-                pos++;
-            }
-        }
-    }
 }
