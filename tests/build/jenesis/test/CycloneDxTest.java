@@ -1,34 +1,34 @@
-package build.jenesis.test.step;
+package build.jenesis.test;
 
 import module java.base;
 import module org.junit.jupiter.api;
+import build.jenesis.CycloneDx;
 import build.jenesis.License;
-import build.jenesis.step.CycloneDxEmitter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class CycloneDxEmitterTest {
+public class CycloneDxTest {
 
-    private final CycloneDxEmitter emitter = new CycloneDxEmitter();
+    private final CycloneDx emitter = new CycloneDx();
 
-    private static final CycloneDxEmitter.Component PROJECT = new CycloneDxEmitter.Component(
+    private static final CycloneDx.Component PROJECT = new CycloneDx.Component(
             "build.jenesis/demo/1.0.0", "build.jenesis", "demo", "1.0.0", "pkg:maven/build.jenesis/demo@1.0.0", null,
             List.of(new License("Apache-2.0", "https://www.apache.org/licenses/LICENSE-2.0.txt")));
 
-    private static final List<CycloneDxEmitter.Component> COMPONENTS = List.of(
-            new CycloneDxEmitter.Component("org.foo/bar/1.2.3", "org.foo", "bar", "1.2.3", "pkg:maven/org.foo/bar@1.2.3", "abc123",
+    private static final List<CycloneDx.Component> COMPONENTS = List.of(
+            new CycloneDx.Component("org.foo/bar/1.2.3", "org.foo", "bar", "1.2.3", "pkg:maven/org.foo/bar@1.2.3", "abc123",
                     List.of(new License("The Apache Software License, Version 2.0", "https://apache.org/"))),
-            new CycloneDxEmitter.Component("org.baz/qux/4.5", "org.baz", "qux", "4.5", "pkg:maven/org.baz/qux@4.5", "def456",
+            new CycloneDx.Component("org.baz/qux/4.5", "org.baz", "qux", "4.5", "pkg:maven/org.baz/qux@4.5", "def456",
                     List.of(new License("Some Custom License", "https://example.com/license"))));
 
-    private static final List<CycloneDxEmitter.Dependency> DEPENDENCIES = List.of(
-            new CycloneDxEmitter.Dependency("build.jenesis/demo/1.0.0", List.of("org.foo/bar/1.2.3")),
-            new CycloneDxEmitter.Dependency("org.foo/bar/1.2.3", List.of("org.baz/qux/4.5")),
-            new CycloneDxEmitter.Dependency("org.baz/qux/4.5", List.of()));
+    private static final List<CycloneDx.Dependency> DEPENDENCIES = List.of(
+            new CycloneDx.Dependency("build.jenesis/demo/1.0.0", List.of("org.foo/bar/1.2.3")),
+            new CycloneDx.Dependency("org.foo/bar/1.2.3", List.of("org.baz/qux/4.5")),
+            new CycloneDx.Dependency("org.baz/qux/4.5", List.of()));
 
     @Test
     public void emits_cyclonedx_json() {
-        String json = emitter.emit(CycloneDxEmitter.Format.JSON, PROJECT, COMPONENTS, DEPENDENCIES);
+        String json = emitter.emit(CycloneDx.Format.JSON, PROJECT, COMPONENTS, DEPENDENCIES);
         assertThat(json)
                 .contains("\"bomFormat\": \"CycloneDX\"")
                 .contains("\"specVersion\": \"1.6\"")
@@ -49,7 +49,7 @@ public class CycloneDxEmitterTest {
 
     @Test
     public void emits_cyclonedx_xml() {
-        String xml = emitter.emit(CycloneDxEmitter.Format.XML, PROJECT, COMPONENTS, DEPENDENCIES);
+        String xml = emitter.emit(CycloneDx.Format.XML, PROJECT, COMPONENTS, DEPENDENCIES);
         assertThat(xml)
                 .contains("<bom")
                 .contains("cyclonedx.org/schema/bom/1.6")
@@ -62,8 +62,8 @@ public class CycloneDxEmitterTest {
 
     @Test
     public void is_deterministic_and_order_independent() {
-        String first = emitter.emit(CycloneDxEmitter.Format.JSON, PROJECT, COMPONENTS, DEPENDENCIES);
-        String reversed = emitter.emit(CycloneDxEmitter.Format.JSON, PROJECT,
+        String first = emitter.emit(CycloneDx.Format.JSON, PROJECT, COMPONENTS, DEPENDENCIES);
+        String reversed = emitter.emit(CycloneDx.Format.JSON, PROJECT,
                 List.of(COMPONENTS.get(1), COMPONENTS.get(0)),
                 List.of(DEPENDENCIES.get(2), DEPENDENCIES.get(1), DEPENDENCIES.get(0)));
         assertThat(reversed)

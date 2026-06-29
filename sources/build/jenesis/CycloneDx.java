@@ -1,10 +1,9 @@
-package build.jenesis.step;
+package build.jenesis;
 
 import module java.base;
 import module java.xml;
-import build.jenesis.License;
 
-public class CycloneDxEmitter {
+public class CycloneDx {
 
     public enum Format {
 
