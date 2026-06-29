@@ -111,24 +111,24 @@ public class InferredSourceCodeQualityModule implements BuildExecutorModule {
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
         Bind.configured(buildExecutor, inherited.sequencedKeySet(), CHECKSTYLE, checkstyle,
                 CheckstyleModule.configurationFile(configuration),
-                new CheckstyleModule(repositories, resolvers).pinning(pinning));
+                () -> new CheckstyleModule(repositories, resolvers).pinning(pinning));
         Bind.configured(buildExecutor, inherited.sequencedKeySet(), PMD, pmd,
                 PmdModule.configurationFile(configuration),
-                new PmdModule(repositories, resolvers).pinning(pinning));
+                () -> new PmdModule(repositories, resolvers).pinning(pinning));
         Bind.configured(buildExecutor, inherited.sequencedKeySet(), DETEKT, detekt,
                 DetektModule.configurationFile(configuration),
-                new DetektModule(repositories, resolvers).pinning(pinning));
+                () -> new DetektModule(repositories, resolvers).pinning(pinning));
         Bind.configured(buildExecutor, inherited.sequencedKeySet(), KTLINT, ktlint,
                 KtlintModule.configurationFile(configuration),
-                new KtlintModule(repositories, resolvers).pinning(pinning));
+                () -> new KtlintModule(repositories, resolvers).pinning(pinning));
         Bind.configured(buildExecutor, inherited.sequencedKeySet(), SCALASTYLE, scalastyle,
                 ScalastyleModule.configurationFile(configuration),
-                new ScalastyleModule(repositories, resolvers).pinning(pinning));
+                () -> new ScalastyleModule(repositories, resolvers).pinning(pinning));
         Bind.configured(buildExecutor, inherited.sequencedKeySet(), SCALAFMT, scalafmt,
                 ScalafmtModule.configurationFile(configuration),
-                new ScalafmtModule(repositories, resolvers).pinning(pinning));
+                () -> new ScalafmtModule(repositories, resolvers).pinning(pinning));
         Bind.configured(buildExecutor, inherited.sequencedKeySet(), CODENARC, codenarc,
                 CodeNarcModule.configurationFile(configuration),
-                new CodeNarcModule(repositories, resolvers).pinning(pinning));
+                () -> new CodeNarcModule(repositories, resolvers).pinning(pinning));
     }
 }

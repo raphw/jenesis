@@ -81,7 +81,7 @@ public class InferredTestObservationModule implements BuildExecutorModule {
                 inherited.sequencedKeySet(),
                 MUTATE,
                 true,
-                configuration == null ? null : PiTestModule.configurationFile(configuration),
-                new PiTestModule(repositories, resolvers).pinning(pinning));
+                PiTestModule.configurationFile(configuration),
+                () -> new PiTestModule(repositories, resolvers).pinning(pinning));
     }
 }

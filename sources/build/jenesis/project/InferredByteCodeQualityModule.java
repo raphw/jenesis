@@ -52,6 +52,6 @@ public class InferredByteCodeQualityModule implements BuildExecutorModule {
                 SPOTBUGS,
                 spotbugs,
                 SpotBugsModule.configurationFile(configuration),
-                new SpotBugsModule(repositories, resolvers).pinning(pinning));
+                () -> new SpotBugsModule(repositories, resolvers).pinning(pinning));
     }
 }

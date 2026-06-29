@@ -41,7 +41,7 @@ public class Bind implements BuildStep {
                                   String name,
                                   boolean enabled,
                                   Path configurationFile,
-                                  BuildExecutorModule module) {
+                                  Supplier<? extends BuildExecutorModule> module) {
         if (!enabled || configurationFile == null) {
             return;
         }
@@ -52,7 +52,7 @@ public class Bind implements BuildStep {
             SequencedSet<String> toolInputs = new LinkedHashSet<>();
             toolInputs.add("configuration");
             toolInputs.addAll(inherited.sequencedKeySet());
-            nested.addModule("tool", module, toolInputs);
+            nested.addModule("tool", module.get(), toolInputs);
         }, inputs);
     }
 

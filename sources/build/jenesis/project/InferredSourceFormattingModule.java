@@ -92,10 +92,10 @@ public class InferredSourceFormattingModule implements BuildExecutorModule {
         }
         Bind.configured(buildExecutor, inherited.sequencedKeySet(), KTLINT, ktlint,
                 KtlintFormatModule.configurationFile(configuration),
-                new KtlintFormatModule(repositories, resolvers).pinning(pinning).verify(verify));
+                () -> new KtlintFormatModule(repositories, resolvers).pinning(pinning).verify(verify));
         Bind.configured(buildExecutor, inherited.sequencedKeySet(), SCALAFMT, scalafmt,
                 ScalafmtFormatModule.configurationFile(configuration),
-                new ScalafmtFormatModule(repositories, resolvers).pinning(pinning).verify(verify));
+                () -> new ScalafmtFormatModule(repositories, resolvers).pinning(pinning).verify(verify));
     }
 
     private static JavaFormatter javaFormatterFrom(Path configuration) throws IOException {
