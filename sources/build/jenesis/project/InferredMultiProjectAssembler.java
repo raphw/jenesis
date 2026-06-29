@@ -5,7 +5,6 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
-import build.jenesis.CycloneDx;
 import build.jenesis.PathPlacement;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
@@ -27,7 +26,6 @@ public record InferredMultiProjectAssembler(String packaging,
                                             boolean bundle,
                                             boolean launcher,
                                             boolean nativeImage,
-                                            CycloneDx.Format sbom,
                                             UnaryOperator<InferredSourceCodeQualityModule> check,
                                             UnaryOperator<InferredSourceFormattingModule> format,
                                             UnaryOperator<InferredByteCodeQualityModule> validate,
@@ -37,19 +35,12 @@ public record InferredMultiProjectAssembler(String packaging,
 
     public InferredMultiProjectAssembler() {
         String packagingOverride = System.getProperty("jenesis.java.jpackage");
-        String sbomFormat = System.getProperty("jenesis.sbom.cyclonedx");
         this(packagingOverride == null ? null : (packagingOverride.isEmpty() ? "app-image" : packagingOverride),
                 Boolean.getBoolean("jenesis.java.jmod"),
                 Boolean.getBoolean("jenesis.java.jlink"),
                 Boolean.getBoolean("jenesis.java.bundle"),
                 Boolean.getBoolean("jenesis.java.launcher"),
                 Boolean.getBoolean("jenesis.java.native"),
-                sbomFormat == null ? null : switch (sbomFormat) {
-                    case "", "json" -> CycloneDx.Format.JSON;
-                    case "xml" -> CycloneDx.Format.XML;
-                    default -> throw new IllegalArgumentException(
-                            "Unknown SBOM format: " + sbomFormat + " (expected json or xml)");
-                },
                 UnaryOperator.identity(),
                 UnaryOperator.identity(),
                 UnaryOperator.identity(),
@@ -59,55 +50,51 @@ public record InferredMultiProjectAssembler(String packaging,
     }
 
     public InferredMultiProjectAssembler packaging(String packaging) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, sbom, check, format, validate, observe, test, compliance);
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, check, format, validate, observe, test, compliance);
     }
 
     public InferredMultiProjectAssembler jmod(boolean jmod) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, sbom, check, format, validate, observe, test, compliance);
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, check, format, validate, observe, test, compliance);
     }
 
     public InferredMultiProjectAssembler jlink(boolean jlink) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, sbom, check, format, validate, observe, test, compliance);
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, check, format, validate, observe, test, compliance);
     }
 
     public InferredMultiProjectAssembler bundle(boolean bundle) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, sbom, check, format, validate, observe, test, compliance);
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, check, format, validate, observe, test, compliance);
     }
 
     public InferredMultiProjectAssembler launcher(boolean launcher) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, sbom, check, format, validate, observe, test, compliance);
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, check, format, validate, observe, test, compliance);
     }
 
     public InferredMultiProjectAssembler nativeImage(boolean nativeImage) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, sbom, check, format, validate, observe, test, compliance);
-    }
-
-    public InferredMultiProjectAssembler sbom(CycloneDx.Format sbom) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, sbom, check, format, validate, observe, test, compliance);
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, check, format, validate, observe, test, compliance);
     }
 
     public InferredMultiProjectAssembler check(UnaryOperator<InferredSourceCodeQualityModule> check) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, sbom, check, format, validate, observe, test, compliance);
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, check, format, validate, observe, test, compliance);
     }
 
     public InferredMultiProjectAssembler format(UnaryOperator<InferredSourceFormattingModule> format) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, sbom, check, format, validate, observe, test, compliance);
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, check, format, validate, observe, test, compliance);
     }
 
     public InferredMultiProjectAssembler validate(UnaryOperator<InferredByteCodeQualityModule> validate) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, sbom, check, format, validate, observe, test, compliance);
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, check, format, validate, observe, test, compliance);
     }
 
     public InferredMultiProjectAssembler observe(UnaryOperator<InferredTestObservationModule> observe) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, sbom, check, format, validate, observe, test, compliance);
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, check, format, validate, observe, test, compliance);
     }
 
     public InferredMultiProjectAssembler test(UnaryOperator<TestModule> test) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, sbom, check, format, validate, observe, test, compliance);
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, check, format, validate, observe, test, compliance);
     }
 
     public InferredMultiProjectAssembler compliance(UnaryOperator<ComplianceModule> compliance) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, sbom, check, format, validate, observe, test, compliance);
+        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, check, format, validate, observe, test, compliance);
     }
 
     @Override
@@ -127,11 +114,12 @@ public record InferredMultiProjectAssembler(String packaging,
                     format.apply(new InferredSourceFormattingModule(descriptor.configuration(), repositories, resolvers)
                             .pinning(descriptor.pinning())),
                     descriptor.sources());
+            Sbom sbom = Sbom.configured(descriptor.configuration());
             if (sbom != null) {
-                sub.addStep("sbom", new Sbom().format(sbom),
+                sub.addStep("sbom", sbom,
                         Stream.concat(descriptor.manifests().stream(), descriptor.artifacts().stream()));
             }
-            sub.addModule("compliance", compliance.apply(new ComplianceModule()),
+            sub.addModule("compliance", compliance.apply(new ComplianceModule(descriptor.configuration())),
                     Stream.concat(descriptor.manifests().stream(), descriptor.artifacts().stream()));
             sub.addModule("binary", new JavaToolchainModule()
                             .compiler(new InferredCompilerChainModule(repositories, resolvers)

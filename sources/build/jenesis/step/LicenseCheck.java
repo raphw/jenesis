@@ -18,20 +18,42 @@ public class LicenseCheck implements BuildStep {
     private final SequencedSet<String> allowed;
     private final SequencedSet<String> denied;
     private final Unknown unknown;
-    private final Path overrides;
+    private final Map<String, String> overrides;
 
     public LicenseCheck() {
-        this(listFrom(System.getProperty("jenesis.license.allowed")),
+        this(null,
                 null,
-                unknownFrom(System.getProperty("jenesis.license.unknown")),
-                pathFrom(System.getProperty("jenesis.license.override")));
+                Unknown.FAIL,
+                Map.of());
     }
 
-    private LicenseCheck(SequencedSet<String> allowed, SequencedSet<String> denied, Unknown unknown, Path overrides) {
+    private LicenseCheck(SequencedSet<String> allowed,
+                         SequencedSet<String> denied,
+                         Unknown unknown,
+                         Map<String, String> overrides) {
         this.allowed = allowed;
         this.denied = denied;
         this.unknown = unknown;
         this.overrides = overrides;
+    }
+
+    public static LicenseCheck configured(Path configuration) throws IOException {
+        Path file = configuration.resolve("licensing.properties");
+        if (!Files.isRegularFile(file)) {
+            return null;
+        }
+        SequencedProperties properties = SequencedProperties.ofFiles(file);
+        SequencedMap<String, String> overrides = new LinkedHashMap<>();
+        for (String key : properties.stringPropertyNames()) {
+            if (key.startsWith("override.")) {
+                overrides.put(key.substring("override.".length()), properties.getProperty(key));
+            }
+        }
+        return new LicenseCheck()
+                .allowed(listFrom(properties.getProperty("allowed")))
+                .denied(listFrom(properties.getProperty("denied")))
+                .unknown(unknownFrom(properties.getProperty("unknown")))
+                .overrides(overrides);
     }
 
     public LicenseCheck allowed(SequencedSet<String> allowed) {
@@ -46,7 +68,7 @@ public class LicenseCheck implements BuildStep {
         return new LicenseCheck(allowed, denied, unknown, overrides);
     }
 
-    public LicenseCheck overrides(Path overrides) {
+    public LicenseCheck overrides(Map<String, String> overrides) {
         return new LicenseCheck(allowed, denied, unknown, overrides);
     }
 
@@ -75,23 +97,11 @@ public class LicenseCheck implements BuildStep {
         };
     }
 
-    private static Path pathFrom(String value) {
-        return value == null || value.isBlank() ? null : Path.of(value);
-    }
-
     @Override
     public CompletionStage<BuildStepResult> apply(Executor executor,
                                                   BuildStepContext context,
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
-        Map<String, String> overrideMap;
-        if (overrides == null) {
-            overrideMap = Map.of();
-        } else if (!Files.isRegularFile(overrides)) {
-            throw new IllegalStateException("License override file not found: " + overrides);
-        } else {
-            overrideMap = load(overrides);
-        }
         SequencedMap<String, List<String[]>> licensesByCoordinate = new TreeMap<>();
         SequencedMap<String, Path> jarByCoordinate = new LinkedHashMap<>();
         SequencedSet<String> strict = new LinkedHashSet<>();
@@ -129,7 +139,7 @@ public class LicenseCheck implements BuildStep {
         StringBuilder builder = new StringBuilder();
         for (Map.Entry<String, List<String[]>> entry : licensesByCoordinate.entrySet()) {
             String coordinate = entry.getKey();
-            List<String[]> licenses = resolve(coordinate, entry.getValue(), jarByCoordinate.get(coordinate), overrideMap);
+            List<String[]> licenses = resolve(coordinate, entry.getValue(), jarByCoordinate.get(coordinate), overrides);
             String verdict;
             if (licenses.isEmpty()) {
                 if (!strict.contains(coordinate)) {
@@ -387,15 +397,6 @@ public class LicenseCheck implements BuildStep {
             }
         }
         return String.join("; ", rendered);
-    }
-
-    private static Map<String, String> load(Path file) throws IOException {
-        SequencedProperties properties = SequencedProperties.ofFiles(file);
-        Map<String, String> overrides = new HashMap<>();
-        for (String key : properties.stringPropertyNames()) {
-            overrides.put(key, properties.getProperty(key));
-        }
-        return overrides;
     }
 
     private static List<String[]> licenses(SequencedProperties licenses, String licenseKey) {

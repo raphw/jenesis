@@ -28,6 +28,25 @@ public class Sbom implements BuildStep {
         return new Sbom(format);
     }
 
+    public static Sbom configured(Path configuration) throws IOException {
+        Path file = configuration.resolve("sbom.properties");
+        if (!Files.isRegularFile(file)) {
+            return null;
+        }
+        SequencedProperties properties = SequencedProperties.ofFiles(file);
+        return new Sbom().format(format(properties.getProperty("format")));
+    }
+
+    private static CycloneDx.Format format(String value) {
+        if (value == null || value.isBlank()) {
+            return CycloneDx.Format.JSON;
+        }
+        return switch (value.trim().toLowerCase(Locale.ROOT)) {
+            case "xml" -> CycloneDx.Format.XML;
+            default -> CycloneDx.Format.JSON;
+        };
+    }
+
     @Override
     public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
         return arguments.values().stream().anyMatch(argument -> argument.hasChanged(

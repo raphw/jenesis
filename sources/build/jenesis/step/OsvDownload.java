@@ -14,7 +14,7 @@ public class OsvDownload implements BuildStep {
     private final URI endpoint;
 
     public OsvDownload() {
-        this(endpointFrom(System.getProperty("jenesis.osv.endpoint")));
+        this(endpointFrom(null));
     }
 
     private static URI endpointFrom(String value) {
@@ -23,6 +23,15 @@ public class OsvDownload implements BuildStep {
 
     private OsvDownload(URI endpoint) {
         this.endpoint = endpoint;
+    }
+
+    public static OsvDownload configured(Path configuration) throws IOException {
+        Path file = configuration.resolve("vulnerability.properties");
+        if (!Files.isRegularFile(file)) {
+            return null;
+        }
+        SequencedProperties properties = SequencedProperties.ofFiles(file);
+        return new OsvDownload().endpoint(endpointFrom(properties.getProperty("osv.endpoint")));
     }
 
     public OsvDownload endpoint(URI endpoint) {

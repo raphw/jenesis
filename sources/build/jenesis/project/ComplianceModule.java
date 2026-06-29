@@ -9,49 +9,55 @@ import build.jenesis.step.VulnerabilityCheck;
 
 public class ComplianceModule implements BuildExecutorModule {
 
+    private final Path configuration;
     private final OsvDownload osv;
     private final LicenseCheck licenses;
     private final VulnerabilityCheck vulnerabilities;
 
-    public ComplianceModule() {
-        this(new OsvDownload(), new LicenseCheck(), new VulnerabilityCheck());
+    public ComplianceModule(Path configuration) {
+        this(configuration, null, null, null);
     }
 
-    private ComplianceModule(OsvDownload osv, LicenseCheck licenses, VulnerabilityCheck vulnerabilities) {
+    private ComplianceModule(Path configuration,
+                             OsvDownload osv,
+                             LicenseCheck licenses,
+                             VulnerabilityCheck vulnerabilities) {
+        this.configuration = configuration;
         this.osv = osv;
         this.licenses = licenses;
         this.vulnerabilities = vulnerabilities;
     }
 
     public ComplianceModule osv(OsvDownload osv) {
-        return new ComplianceModule(osv, licenses, vulnerabilities);
+        return new ComplianceModule(configuration, osv, licenses, vulnerabilities);
     }
 
     public ComplianceModule licenses(LicenseCheck licenses) {
-        return new ComplianceModule(osv, licenses, vulnerabilities);
+        return new ComplianceModule(configuration, osv, licenses, vulnerabilities);
     }
 
     public ComplianceModule vulnerabilities(VulnerabilityCheck vulnerabilities) {
-        return new ComplianceModule(osv, licenses, vulnerabilities);
+        return new ComplianceModule(configuration, osv, licenses, vulnerabilities);
     }
 
     @Override
-    public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
-        if (licenseConfigured()) {
-            buildExecutor.addStep("license", licenses, inherited.sequencedKeySet().stream());
+    public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) throws IOException {
+        LicenseCheck license = licenses != null ? licenses : LicenseCheck.configured(configuration);
+        if (license != null) {
+            buildExecutor.addStep("license", license, inherited.sequencedKeySet().stream());
         }
-        if (System.getProperty("jenesis.vulnerability.severity") != null && osv != null) {
-            buildExecutor.addStep("osv", osv, inherited.sequencedKeySet().stream());
-            buildExecutor.addStep("vulnerability", vulnerabilities,
-                    Stream.concat(inherited.sequencedKeySet().stream(), Stream.of("osv")));
-        } else if (System.getProperty("jenesis.vulnerability.severity") != null) {
-            buildExecutor.addStep("vulnerability", vulnerabilities, inherited.sequencedKeySet().stream());
+        VulnerabilityCheck vulnerability = vulnerabilities != null
+                ? vulnerabilities
+                : VulnerabilityCheck.configured(configuration);
+        if (vulnerability != null) {
+            OsvDownload download = osv != null ? osv : OsvDownload.configured(configuration);
+            if (download != null) {
+                buildExecutor.addStep("osv", download, inherited.sequencedKeySet().stream());
+                buildExecutor.addStep("vulnerability", vulnerability,
+                        Stream.concat(inherited.sequencedKeySet().stream(), Stream.of("osv")));
+            } else {
+                buildExecutor.addStep("vulnerability", vulnerability, inherited.sequencedKeySet().stream());
+            }
         }
-    }
-
-    private static boolean licenseConfigured() {
-        return System.getProperty("jenesis.license.allowed") != null
-                || System.getProperty("jenesis.license.unknown") != null
-                || System.getProperty("jenesis.license.override") != null;
     }
 }
