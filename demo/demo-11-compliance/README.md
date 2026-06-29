@@ -11,9 +11,10 @@ This is the supply-chain counterpart to the [`sbom`](../demo-10-sbom/README.md)
 demo: where that freezes the resolved graph into a bill of materials, this
 enforces a policy over the same graph.
 
-The license check runs by default and fails on a dependency with no recognized
-license; the vulnerability check is off until its property is set. Both are
-configured by properties read as the steps' defaults.
+Both checks are off until configured: the license check runs once a license policy
+is set (an allow list, an unknown-license policy, or an override file), and the
+vulnerability check runs once its severity property is set. Both are configured by
+properties read as the steps' defaults.
 
 Build it
 --------
@@ -22,17 +23,20 @@ From this directory:
 
     java build/jenesis/Project.java
 
-The license check runs over the project's `main` compile/runtime dependencies. The
-one dependency, `commons-lang3`, declares Apache-2.0, so it passes and a report is
-written. The shipped `jenesis.properties` also sets `jenesis.license.allowed=Apache`
-to demonstrate an allow list; point it at a license the dependency does not carry
-(`-Djenesis.license.allowed=MIT`) and the build fails.
+The shipped `jenesis.properties` sets `jenesis.license.allowed=Apache`, which turns
+the license check on (it stays off until a license policy is configured) and serves
+as the allow list. The check runs over the project's `main` compile/runtime
+dependencies; the one dependency, `commons-lang3`, declares Apache-2.0, so it passes
+and a report is written. Point the allow list at a license the dependency does not
+carry (`-Djenesis.license.allowed=MIT`) and the build fails.
 
 License check
 -------------
 
-The check runs by default over the shipped (`main` compile/runtime) dependencies;
-in-build snapshots and build-tool closures are excluded. Each dependency's declared
+The check is off until a license policy is configured (`jenesis.license.allowed`,
+`jenesis.license.unknown`, or `jenesis.license.override`); once on, it runs over the
+shipped (`main` compile/runtime) dependencies, while in-build snapshots and
+build-tool closures are excluded. Each dependency's declared
 license (name and URL, with parent-POM inheritance, falling back to the jar's
 `Bundle-License` manifest header) is normalized to a canonical SPDX id and category.
 

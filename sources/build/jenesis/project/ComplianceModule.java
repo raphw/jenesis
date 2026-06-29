@@ -37,7 +37,9 @@ public class ComplianceModule implements BuildExecutorModule {
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
-        buildExecutor.addStep("license", licenses, inherited.sequencedKeySet().stream());
+        if (licenseConfigured()) {
+            buildExecutor.addStep("license", licenses, inherited.sequencedKeySet().stream());
+        }
         if (System.getProperty("jenesis.vulnerability.severity") != null && osv != null) {
             buildExecutor.addStep("osv", osv, inherited.sequencedKeySet().stream());
             buildExecutor.addStep("vulnerability", vulnerabilities,
@@ -45,5 +47,11 @@ public class ComplianceModule implements BuildExecutorModule {
         } else if (System.getProperty("jenesis.vulnerability.severity") != null) {
             buildExecutor.addStep("vulnerability", vulnerabilities, inherited.sequencedKeySet().stream());
         }
+    }
+
+    private static boolean licenseConfigured() {
+        return System.getProperty("jenesis.license.allowed") != null
+                || System.getProperty("jenesis.license.unknown") != null
+                || System.getProperty("jenesis.license.override") != null;
     }
 }
