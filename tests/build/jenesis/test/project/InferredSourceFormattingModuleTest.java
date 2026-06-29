@@ -10,7 +10,6 @@ import build.jenesis.BuildStepHashFunction;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.SequencedProperties;
 import build.jenesis.project.InferredSourceFormattingModule;
-import build.jenesis.project.InferredSourceFormattingModule.JavaFormatter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -46,34 +45,8 @@ public class InferredSourceFormattingModuleTest {
     }
 
     @Test
-    public void wires_the_selected_google_java_formatter() throws IOException {
-        BuildExecutor executor = newExecutor();
-        executor.addSource("project", project);
-        executor.addModule("format",
-                new InferredSourceFormattingModule(project, Map.of(), Map.of()).javaFormatter(JavaFormatter.GOOGLE),
-                "project");
-        executor.execute("format/google-java-format/required");
-
-        assertThat(coordinates("google-java-format"))
-                .containsExactly("google-java-format/runtime/maven/com.google.googlejavaformat/google-java-format/RELEASE");
-    }
-
-    @Test
-    public void wires_the_selected_palantir_java_formatter() throws IOException {
-        BuildExecutor executor = newExecutor();
-        executor.addSource("project", project);
-        executor.addModule("format",
-                new InferredSourceFormattingModule(project, Map.of(), Map.of()).javaFormatter(JavaFormatter.PALANTIR),
-                "project");
-        executor.execute("format/palantir-java-format/required");
-
-        assertThat(coordinates("palantir-java-format"))
-                .containsExactly("palantir-java-format/runtime/maven/com.palantir.javaformat/palantir-java-format/RELEASE");
-    }
-
-    @Test
-    public void wires_the_java_formatter_from_the_formatting_properties_file() throws IOException {
-        Files.writeString(project.resolve("formatting.properties"), "java=google\n");
+    public void wires_google_java_format_from_the_javaformat_properties_file() throws IOException {
+        Files.writeString(project.resolve("javaformat.properties"), "format=google\n");
 
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
@@ -85,29 +58,36 @@ public class InferredSourceFormattingModuleTest {
     }
 
     @Test
-    public void the_format_java_system_property_overrides_the_file() throws IOException {
-        Files.writeString(project.resolve("formatting.properties"), "java=google\n");
-        String previous = System.getProperty("jenesis.format.java");
-        System.setProperty("jenesis.format.java", "palantir");
-        try {
-            BuildExecutor executor = newExecutor();
-            executor.addSource("project", project);
-            executor.addModule("format", new InferredSourceFormattingModule(project, Map.of(), Map.of()), "project");
-            executor.execute("format/palantir-java-format/required");
+    public void wires_palantir_java_format_from_the_javaformat_properties_file() throws IOException {
+        Files.writeString(project.resolve("javaformat.properties"), "format=palantir\n");
 
-            assertThat(coordinates("palantir-java-format"))
-                    .containsExactly("palantir-java-format/runtime/maven/com.palantir.javaformat/palantir-java-format/RELEASE");
-        } finally {
-            if (previous == null) {
-                System.clearProperty("jenesis.format.java");
-            } else {
-                System.setProperty("jenesis.format.java", previous);
-            }
-        }
+        BuildExecutor executor = newExecutor();
+        executor.addSource("project", project);
+        executor.addModule("format", new InferredSourceFormattingModule(project, Map.of(), Map.of()), "project");
+        executor.execute("format/palantir-java-format/required");
+
+        assertThat(coordinates("palantir-java-format"))
+                .containsExactly("palantir-java-format/runtime/maven/com.palantir.javaformat/palantir-java-format/RELEASE");
     }
 
     @Test
-    public void does_not_wire_a_java_formatter_by_default() throws IOException {
+    public void the_java_override_switches_off_the_formatter_from_the_file() throws IOException {
+        Files.writeString(project.resolve("javaformat.properties"), "format=google\n");
+
+        BuildExecutor executor = newExecutor();
+        executor.addSource("project", project);
+        executor.addModule("format",
+                new InferredSourceFormattingModule(project, Map.of(), Map.of()).java(false),
+                "project");
+        executor.execute();
+
+        assertThat(root.resolve("format").resolve("google-java-format"))
+                .as("jenesis.format.java=false switches the formatter off even with a javaformat.properties file")
+                .doesNotExist();
+    }
+
+    @Test
+    public void does_not_wire_a_java_formatter_without_a_javaformat_properties_file() throws IOException {
         Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
         Files.writeString(project.resolve(BuildStep.SOURCES + "sample").resolve("Sample.java"), "package sample; class Sample {}");
 
@@ -117,7 +97,7 @@ public class InferredSourceFormattingModuleTest {
         executor.execute();
 
         assertThat(root.resolve("format").resolve("google-java-format"))
-                .as("no Java formatter is wired unless one is selected, even when Java sources exist")
+                .as("no Java formatter is wired without a javaformat.properties file, even when Java sources exist")
                 .doesNotExist();
         assertThat(root.resolve("format").resolve("palantir-java-format")).doesNotExist();
     }

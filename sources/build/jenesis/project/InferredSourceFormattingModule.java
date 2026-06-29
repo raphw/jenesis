@@ -24,8 +24,8 @@ public class InferredSourceFormattingModule implements BuildExecutorModule {
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
     private final Pinning pinning;
-    private final JavaFormatter javaFormatter;
     private final boolean verify;
+    private final boolean java;
     private final boolean ktlint;
     private final boolean scalafmt;
 
@@ -33,8 +33,8 @@ public class InferredSourceFormattingModule implements BuildExecutorModule {
                                           Map<String, Repository> repositories,
                                           Map<String, Resolver> resolvers) {
         this(configuration, repositories, resolvers, null,
-                null,
                 !Boolean.getBoolean("jenesis.format.rewrite"),
+                Boolean.parseBoolean(System.getProperty("jenesis.format.java", "true")),
                 Boolean.parseBoolean(System.getProperty("jenesis.format.ktlint", "true")),
                 Boolean.parseBoolean(System.getProperty("jenesis.format.scalafmt", "true")));
     }
@@ -43,43 +43,43 @@ public class InferredSourceFormattingModule implements BuildExecutorModule {
                                            Map<String, Repository> repositories,
                                            Map<String, Resolver> resolvers,
                                            Pinning pinning,
-                                           JavaFormatter javaFormatter,
                                            boolean verify,
+                                           boolean java,
                                            boolean ktlint,
                                            boolean scalafmt) {
         this.configuration = configuration;
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.pinning = pinning;
-        this.javaFormatter = javaFormatter;
         this.verify = verify;
+        this.java = java;
         this.ktlint = ktlint;
         this.scalafmt = scalafmt;
     }
 
     public InferredSourceFormattingModule pinning(Pinning pinning) {
-        return new InferredSourceFormattingModule(configuration, repositories, resolvers, pinning, javaFormatter, verify, ktlint, scalafmt);
-    }
-
-    public InferredSourceFormattingModule javaFormatter(JavaFormatter javaFormatter) {
-        return new InferredSourceFormattingModule(configuration, repositories, resolvers, pinning, javaFormatter, verify, ktlint, scalafmt);
+        return new InferredSourceFormattingModule(configuration, repositories, resolvers, pinning, verify, java, ktlint, scalafmt);
     }
 
     public InferredSourceFormattingModule verify(boolean verify) {
-        return new InferredSourceFormattingModule(configuration, repositories, resolvers, pinning, javaFormatter, verify, ktlint, scalafmt);
+        return new InferredSourceFormattingModule(configuration, repositories, resolvers, pinning, verify, java, ktlint, scalafmt);
+    }
+
+    public InferredSourceFormattingModule java(boolean java) {
+        return new InferredSourceFormattingModule(configuration, repositories, resolvers, pinning, verify, java, ktlint, scalafmt);
     }
 
     public InferredSourceFormattingModule ktlint(boolean ktlint) {
-        return new InferredSourceFormattingModule(configuration, repositories, resolvers, pinning, javaFormatter, verify, ktlint, scalafmt);
+        return new InferredSourceFormattingModule(configuration, repositories, resolvers, pinning, verify, java, ktlint, scalafmt);
     }
 
     public InferredSourceFormattingModule scalafmt(boolean scalafmt) {
-        return new InferredSourceFormattingModule(configuration, repositories, resolvers, pinning, javaFormatter, verify, ktlint, scalafmt);
+        return new InferredSourceFormattingModule(configuration, repositories, resolvers, pinning, verify, java, ktlint, scalafmt);
     }
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) throws IOException {
-        JavaFormatter formatter = javaFormatter != null ? javaFormatter : javaFormatterFrom(configuration);
+        JavaFormatter formatter = java ? javaFormatterFrom(configuration) : null;
         if (formatter != null) {
             switch (formatter) {
                 case GOOGLE -> buildExecutor.addModule(GOOGLE_JAVA_FORMAT,
@@ -99,14 +99,11 @@ public class InferredSourceFormattingModule implements BuildExecutorModule {
     }
 
     private static JavaFormatter javaFormatterFrom(Path configuration) throws IOException {
-        String selection = System.getProperty("jenesis.format.java");
-        if (selection == null) {
-            Path file = configuration.resolve("formatting.properties");
-            if (Files.isRegularFile(file)) {
-                selection = SequencedProperties.ofFiles(file).getProperty("java");
-            }
+        Path file = configuration.resolve("javaformat.properties");
+        if (!Files.isRegularFile(file)) {
+            return null;
         }
-        return switch (selection == null ? "" : selection) {
+        return switch (SequencedProperties.ofFiles(file).getProperty("format", "")) {
             case "google" -> JavaFormatter.GOOGLE;
             case "palantir" -> JavaFormatter.PALANTIR;
             default -> null;

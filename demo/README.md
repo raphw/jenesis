@@ -286,7 +286,7 @@ The version is pinned the usual way, with the `pin` step writing back a
 `java-quality` turns on a set of code-quality tools without a build script: each
 tool runs because its configuration file is present at the project root. A
 `checkstyle.xml` and a `pmd.xml` lint the sources, a `spotbugs-exclude.xml` brings
-in SpotBugs over the compiled classes, and `jenesis.format.java=google` selects
+in SpotBugs over the compiled classes, and a `javaformat.properties` file selects
 `google-java-format`.
 
 The new idea is **inference from configuration**. Jenesis binds the matched file
