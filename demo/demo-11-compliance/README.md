@@ -28,7 +28,9 @@ that file exists) and sets `allowed=Apache` as the allow list. The check runs ov
 the project's `main` compile/runtime dependencies; the one dependency,
 `commons-lang3`, declares Apache-2.0, so it passes and a report is written. Point
 the allow list at a license the dependency does not carry (`allowed=MIT`) and the
-build fails.
+build fails. The shipped `vulnerability.properties` also runs the vulnerability
+check, which queries OSV.dev for the same dependency and passes (no critical
+advisory).
 
 License check
 -------------
@@ -72,15 +74,12 @@ A `vulnerability.properties` file enables the vulnerability check. Its `severity
 key is a threshold (`low`/`medium`/`high`/`critical`); the build queries the public
 [OSV.dev](https://osv.dev) database (no account, no API key) for the resolved Maven
 coordinates and fails when a matched advisory is at or above it. An optional
-`osv.endpoint` key overrides the OSV endpoint.
+`osv.endpoint` key overrides the OSV endpoint (default `https://api.osv.dev`).
 
-    # vulnerability.properties
-    severity=high
-
-Findings are written to `reports/compliance/vulnerabilities.txt`. The OSV fetch
-only runs when this file is present, so an unconfigured build never reaches the
-network. This demo ships no `vulnerability.properties`, so the build stays offline
-and deterministic.
+The shipped `vulnerability.properties` sets `severity=critical`, so the build
+queries OSV.dev for `commons-lang3`, writes any advisories to
+`reports/compliance/vulnerabilities.txt`, and fails only on a critical one. The OSV
+fetch runs only when this file is present; remove it to keep the build offline.
 
 How it works
 ------------
@@ -103,6 +102,7 @@ Layout
     |-- build/jenesis              symlink to ../../../sources/build/jenesis
     |-- pom.xml                    pins commons-lang3 (Apache-2.0)
     |-- licensing.properties       allowed=Apache
+    |-- vulnerability.properties   severity=critical
     `-- sources
         `-- compliance
             `-- Sample.java        uses commons-lang3

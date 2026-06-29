@@ -6,6 +6,7 @@ import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
+import build.jenesis.SequencedProperties;
 import build.jenesis.step.Bind;
 
 public class InferredSourceFormattingModule implements BuildExecutorModule {
@@ -32,11 +33,7 @@ public class InferredSourceFormattingModule implements BuildExecutorModule {
                                           Map<String, Repository> repositories,
                                           Map<String, Resolver> resolvers) {
         this(configuration, repositories, resolvers, null,
-                switch (System.getProperty("jenesis.format.java", "")) {
-                    case "google" -> JavaFormatter.GOOGLE;
-                    case "palantir" -> JavaFormatter.PALANTIR;
-                    default -> null;
-                },
+                null,
                 !Boolean.getBoolean("jenesis.format.rewrite"),
                 Boolean.parseBoolean(System.getProperty("jenesis.format.ktlint", "true")),
                 Boolean.parseBoolean(System.getProperty("jenesis.format.scalafmt", "true")));
@@ -81,9 +78,10 @@ public class InferredSourceFormattingModule implements BuildExecutorModule {
     }
 
     @Override
-    public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) {
-        if (javaFormatter != null) {
-            switch (javaFormatter) {
+    public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) throws IOException {
+        JavaFormatter formatter = javaFormatter != null ? javaFormatter : javaFormatterFrom(configuration);
+        if (formatter != null) {
+            switch (formatter) {
                 case GOOGLE -> buildExecutor.addModule(GOOGLE_JAVA_FORMAT,
                         new GoogleJavaFormatModule(repositories, resolvers).pinning(pinning).verify(verify),
                         inherited.sequencedKeySet());
@@ -98,5 +96,20 @@ public class InferredSourceFormattingModule implements BuildExecutorModule {
         Bind.configured(buildExecutor, inherited.sequencedKeySet(), SCALAFMT, scalafmt,
                 ScalafmtFormatModule.configurationFile(configuration),
                 new ScalafmtFormatModule(repositories, resolvers).pinning(pinning).verify(verify));
+    }
+
+    private static JavaFormatter javaFormatterFrom(Path configuration) throws IOException {
+        String selection = System.getProperty("jenesis.format.java");
+        if (selection == null) {
+            Path file = configuration.resolve("formatting.properties");
+            if (Files.isRegularFile(file)) {
+                selection = SequencedProperties.ofFiles(file).getProperty("java");
+            }
+        }
+        return switch (selection == null ? "" : selection) {
+            case "google" -> JavaFormatter.GOOGLE;
+            case "palantir" -> JavaFormatter.PALANTIR;
+            default -> null;
+        };
     }
 }

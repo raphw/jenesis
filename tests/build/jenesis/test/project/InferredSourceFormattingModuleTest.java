@@ -72,6 +72,41 @@ public class InferredSourceFormattingModuleTest {
     }
 
     @Test
+    public void wires_the_java_formatter_from_the_formatting_properties_file() throws IOException {
+        Files.writeString(project.resolve("formatting.properties"), "java=google\n");
+
+        BuildExecutor executor = newExecutor();
+        executor.addSource("project", project);
+        executor.addModule("format", new InferredSourceFormattingModule(project, Map.of(), Map.of()), "project");
+        executor.execute("format/google-java-format/required");
+
+        assertThat(coordinates("google-java-format"))
+                .containsExactly("google-java-format/runtime/maven/com.google.googlejavaformat/google-java-format/RELEASE");
+    }
+
+    @Test
+    public void the_format_java_system_property_overrides_the_file() throws IOException {
+        Files.writeString(project.resolve("formatting.properties"), "java=google\n");
+        String previous = System.getProperty("jenesis.format.java");
+        System.setProperty("jenesis.format.java", "palantir");
+        try {
+            BuildExecutor executor = newExecutor();
+            executor.addSource("project", project);
+            executor.addModule("format", new InferredSourceFormattingModule(project, Map.of(), Map.of()), "project");
+            executor.execute("format/palantir-java-format/required");
+
+            assertThat(coordinates("palantir-java-format"))
+                    .containsExactly("palantir-java-format/runtime/maven/com.palantir.javaformat/palantir-java-format/RELEASE");
+        } finally {
+            if (previous == null) {
+                System.clearProperty("jenesis.format.java");
+            } else {
+                System.setProperty("jenesis.format.java", previous);
+            }
+        }
+    }
+
+    @Test
     public void does_not_wire_a_java_formatter_by_default() throws IOException {
         Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
         Files.writeString(project.resolve(BuildStep.SOURCES + "sample").resolve("Sample.java"), "package sample; class Sample {}");

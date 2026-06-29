@@ -27,7 +27,8 @@ public class OsvDownload implements BuildStep {
             return null;
         }
         SequencedProperties properties = SequencedProperties.ofFiles(file);
-        return new OsvDownload().endpoint(URI.create(properties.getProperty("osv.endpoint")));
+        String endpoint = properties.getProperty("osv.endpoint");
+        return endpoint == null ? new OsvDownload() : new OsvDownload().endpoint(URI.create(endpoint));
     }
 
     public OsvDownload endpoint(URI endpoint) {
