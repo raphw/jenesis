@@ -77,16 +77,6 @@ Maven coordinates and fails when a matched advisory is at or above the threshold
 
     -Djenesis.vulnerability.severity=high
 
-Vulnerability check
--------------------
-
-`jenesis.vulnerability.severity` is a severity threshold
-(`low`/`medium`/`high`/`critical`). When set, the build queries the public
-[OSV.dev](https://osv.dev) database (no account, no API key) for the resolved
-Maven coordinates and fails when a matched advisory is at or above the threshold:
-
-    -Djenesis.vulnerability.severity=high
-
 Findings are written to `reports/compliance/vulnerabilities.txt`. The OSV fetch
 only runs when this property is set, so an unconfigured build never reaches the
 network. This demo leaves it off, so the build stays offline and deterministic.
