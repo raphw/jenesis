@@ -5,12 +5,12 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
+import build.jenesis.CycloneDx;
 import build.jenesis.PathPlacement;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Bundle;
-import build.jenesis.step.CycloneDxEmitter;
 import build.jenesis.step.Inventory;
 import build.jenesis.step.JLink;
 import build.jenesis.step.JMod;
@@ -27,7 +27,7 @@ public record InferredMultiProjectAssembler(String packaging,
                                             boolean bundle,
                                             boolean launcher,
                                             boolean nativeImage,
-                                            CycloneDxEmitter.Format sbom,
+                                            CycloneDx.Format sbom,
                                             UnaryOperator<InferredSourceCodeQualityModule> check,
                                             UnaryOperator<InferredSourceFormattingModule> format,
                                             UnaryOperator<InferredByteCodeQualityModule> validate,
@@ -45,8 +45,8 @@ public record InferredMultiProjectAssembler(String packaging,
                 Boolean.getBoolean("jenesis.java.launcher"),
                 Boolean.getBoolean("jenesis.java.native"),
                 sbomFormat == null ? null : switch (sbomFormat) {
-                    case "", "json" -> CycloneDxEmitter.Format.JSON;
-                    case "xml" -> CycloneDxEmitter.Format.XML;
+                    case "", "json" -> CycloneDx.Format.JSON;
+                    case "xml" -> CycloneDx.Format.XML;
                     default -> throw new IllegalArgumentException(
                             "Unknown SBOM format: " + sbomFormat + " (expected json or xml)");
                 },
@@ -82,7 +82,7 @@ public record InferredMultiProjectAssembler(String packaging,
         return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, sbom, check, format, validate, observe, test, compliance);
     }
 
-    public InferredMultiProjectAssembler sbom(CycloneDxEmitter.Format sbom) {
+    public InferredMultiProjectAssembler sbom(CycloneDx.Format sbom) {
         return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, sbom, check, format, validate, observe, test, compliance);
     }
 
