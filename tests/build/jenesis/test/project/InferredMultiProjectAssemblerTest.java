@@ -12,6 +12,7 @@ import build.jenesis.BuildExecutorModule;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.SequencedProperties;
 import build.jenesis.project.AssemblyDescriptor;
+import build.jenesis.project.ComplianceModule;
 import build.jenesis.project.InferredMultiProjectAssembler;
 import build.jenesis.project.ProjectModule;
 import build.jenesis.project.ProjectModuleDescriptor;
@@ -338,9 +339,14 @@ public class InferredMultiProjectAssemblerTest {
         assertThat(assembler.validate().apply(null)).as("validate configurator defaults to identity").isNull();
         assertThat(assembler.observe().apply(null)).as("observe configurator defaults to identity").isNull();
         assertThat(assembler.test().apply(null)).as("test configurator defaults to identity").isNull();
+        assertThat(assembler.compliance().apply(null)).as("compliance configurator defaults to identity").isNull();
 
         UnaryOperator<TestModule> custom = test -> test.requireEngine(false);
         assertThat(assembler.test(custom).test()).as("the test wither stores the configurator").isSameAs(custom);
+
+        UnaryOperator<ComplianceModule> customCompliance = compliance -> compliance;
+        assertThat(assembler.compliance(customCompliance).compliance())
+                .as("the compliance wither stores the configurator").isSameAs(customCompliance);
     }
 
     private static SequencedProperties readProperties(Path path) throws IOException {
