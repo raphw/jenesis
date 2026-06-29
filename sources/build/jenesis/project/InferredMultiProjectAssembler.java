@@ -31,7 +31,7 @@ public record InferredMultiProjectAssembler(String packaging,
                                             UnaryOperator<InferredByteCodeQualityModule> validate,
                                             UnaryOperator<InferredTestObservationModule> observe,
                                             UnaryOperator<TestModule> test,
-                                            UnaryOperator<ComplianceModule> compliance) implements MultiProjectAssembler<ProjectModuleDescriptor> {
+                                            UnaryOperator<InferredComplianceModule> compliance) implements MultiProjectAssembler<ProjectModuleDescriptor> {
 
     public InferredMultiProjectAssembler() {
         String packagingOverride = System.getProperty("jenesis.java.jpackage");
@@ -93,7 +93,7 @@ public record InferredMultiProjectAssembler(String packaging,
         return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, check, format, validate, observe, test, compliance);
     }
 
-    public InferredMultiProjectAssembler compliance(UnaryOperator<ComplianceModule> compliance) {
+    public InferredMultiProjectAssembler compliance(UnaryOperator<InferredComplianceModule> compliance) {
         return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, check, format, validate, observe, test, compliance);
     }
 
@@ -119,7 +119,7 @@ public record InferredMultiProjectAssembler(String packaging,
                 sub.addStep("sbom", sbom,
                         Stream.concat(descriptor.manifests().stream(), descriptor.artifacts().stream()));
             }
-            sub.addModule("compliance", compliance.apply(new ComplianceModule(descriptor.configuration())),
+            sub.addModule("compliance", compliance.apply(new InferredComplianceModule(descriptor.configuration())),
                     Stream.concat(descriptor.manifests().stream(), descriptor.artifacts().stream()));
             sub.addModule("binary", new JavaToolchainModule()
                             .compiler(new InferredCompilerChainModule(repositories, resolvers)

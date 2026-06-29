@@ -21,16 +21,6 @@ public class OsvDownload implements BuildStep {
         this.endpoint = endpoint;
     }
 
-    public static OsvDownload configured(Path configuration) throws IOException {
-        Path file = configuration.resolve("vulnerability.properties");
-        if (!Files.isRegularFile(file)) {
-            return null;
-        }
-        SequencedProperties properties = SequencedProperties.ofFiles(file);
-        String endpoint = properties.getProperty("osv.endpoint");
-        return endpoint == null ? new OsvDownload() : new OsvDownload().endpoint(URI.create(endpoint));
-    }
-
     public OsvDownload endpoint(URI endpoint) {
         return new OsvDownload(endpoint);
     }

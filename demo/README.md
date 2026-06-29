@@ -313,7 +313,7 @@ the pom so `export` publishes it to Maven Central.
 
 Two gates over the resolved dependency graph - the same graph the SBOM records -
 each turned on by a property file in the configuration directory and run by the
-default assembler's `ComplianceModule` after the `Sbom` step. Each writes a report
+default assembler's `InferredComplianceModule` after the `Sbom` step. Each writes a report
 under `reports/compliance/` and fails the build by throwing, the same way strict
 pinning does.
 

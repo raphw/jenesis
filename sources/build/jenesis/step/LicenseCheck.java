@@ -37,25 +37,6 @@ public class LicenseCheck implements BuildStep {
         this.overrides = overrides;
     }
 
-    public static LicenseCheck configured(Path configuration) throws IOException {
-        Path file = configuration.resolve("licensing.properties");
-        if (!Files.isRegularFile(file)) {
-            return null;
-        }
-        SequencedProperties properties = SequencedProperties.ofFiles(file);
-        SequencedMap<String, String> overrides = new LinkedHashMap<>();
-        for (String key : properties.stringPropertyNames()) {
-            if (key.startsWith("override.")) {
-                overrides.put(key.substring("override.".length()), properties.getProperty(key));
-            }
-        }
-        return new LicenseCheck()
-                .allowed(listFrom(properties.getProperty("allowed")))
-                .denied(listFrom(properties.getProperty("denied")))
-                .unknown(unknownFrom(properties.getProperty("unknown")))
-                .overrides(overrides);
-    }
-
     public LicenseCheck allowed(SequencedSet<String> allowed) {
         return new LicenseCheck(allowed, denied, unknown, overrides);
     }
@@ -70,31 +51,6 @@ public class LicenseCheck implements BuildStep {
 
     public LicenseCheck overrides(Map<String, String> overrides) {
         return new LicenseCheck(allowed, denied, unknown, overrides);
-    }
-
-    private static SequencedSet<String> listFrom(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        SequencedSet<String> entries = new LinkedHashSet<>();
-        for (String entry : value.split(",")) {
-            String trimmed = entry.trim();
-            if (!trimmed.isEmpty()) {
-                entries.add(trimmed);
-            }
-        }
-        return entries.isEmpty() ? null : entries;
-    }
-
-    private static Unknown unknownFrom(String value) {
-        if (value == null) {
-            return Unknown.FAIL;
-        }
-        return switch (value.trim().toLowerCase(Locale.ROOT)) {
-            case "ignore" -> Unknown.IGNORE;
-            case "warn" -> Unknown.WARN;
-            default -> Unknown.FAIL;
-        };
     }
 
     @Override

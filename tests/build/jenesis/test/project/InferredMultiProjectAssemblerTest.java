@@ -12,7 +12,7 @@ import build.jenesis.BuildExecutorModule;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.SequencedProperties;
 import build.jenesis.project.AssemblyDescriptor;
-import build.jenesis.project.ComplianceModule;
+import build.jenesis.project.InferredComplianceModule;
 import build.jenesis.project.InferredMultiProjectAssembler;
 import build.jenesis.project.ProjectModule;
 import build.jenesis.project.ProjectModuleDescriptor;
@@ -344,7 +344,7 @@ public class InferredMultiProjectAssemblerTest {
         UnaryOperator<TestModule> custom = test -> test.requireEngine(false);
         assertThat(assembler.test(custom).test()).as("the test wither stores the configurator").isSameAs(custom);
 
-        UnaryOperator<ComplianceModule> customCompliance = compliance -> compliance;
+        UnaryOperator<InferredComplianceModule> customCompliance = compliance -> compliance;
         assertThat(assembler.compliance(customCompliance).compliance())
                 .as("the compliance wither stores the configurator").isSameAs(customCompliance);
     }

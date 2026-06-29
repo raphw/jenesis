@@ -10,7 +10,7 @@ selects the policy.
 
 This is the sibling of the [`compliance`](../demo-11-compliance/README.md) demo:
 where that gates the same resolved graph on dependency licenses, this gates it on
-known vulnerabilities. Both run as steps of the same `ComplianceModule`, each turned
+known vulnerabilities. Both run as steps of the same `InferredComplianceModule`, each turned
 on by the presence of its property file.
 
 Run it
@@ -60,7 +60,7 @@ offline.
 How it works
 ------------
 
-The default Java assembler runs a `ComplianceModule` after the `Sbom` step, over the
+The default Java assembler runs an `InferredComplianceModule` after the `Sbom` step, over the
 same resolved dependency graph. Two steps do the work: `OsvDownload` queries OSV.dev
 and writes an advisory feed, and `VulnerabilityCheck` matches the resolved
 coordinates against it and applies the threshold, failing the build by throwing the

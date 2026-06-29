@@ -84,7 +84,7 @@ Verdicts are written to `reports/compliance/licenses.txt`, one line per dependen
 How it works
 ------------
 
-The default Java assembler runs a `ComplianceModule` after the `Sbom` step, over the
+The default Java assembler runs an `InferredComplianceModule` after the `Sbom` step, over the
 same resolved dependency graph. The `LicenseCheck` step reads the licenses captured
 during resolution and evaluates the allow list, failing the build by throwing the
 same way strict dependency pinning does. It is skipped entirely when

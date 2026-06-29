@@ -59,10 +59,10 @@ SpotBugs, which runs *after* `javac` and so only ever sees compiled classes, not
 the project root. The Java formatter is selected by a `javaformat.properties` file
 naming the formatter:
 
-    format=google
+    formatter=google
 
-`format=palantir` selects the Palantir formatter instead; without the file, no Java
-formatter runs.
+`formatter=palantir` selects the Palantir formatter instead; without the file, no
+Java formatter runs.
 
 A discovered tool can be switched off without deleting its configuration file by
 setting its property to `false`. By default every property is `true`, so file

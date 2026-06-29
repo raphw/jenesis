@@ -136,25 +136,6 @@ public class LicenseCheckTest {
     }
 
     @Test
-    public void configured_reads_the_licensing_properties_file() throws Exception {
-        Path configuration = Files.createDirectory(root.resolve("configuration"));
-        SequencedProperties properties = new SequencedProperties();
-        properties.setProperty("allowed", "Apache-2.0,MIT");
-        properties.setProperty("override.maven/org.example/lib", "Apache-2.0");
-        properties.store(configuration.resolve("licensing.properties"));
-        resolve("org.example/lib/1.2.3");
-        LicenseCheck step = LicenseCheck.configured(configuration);
-        assertThat(step).isNotNull();
-        assertThat(run(step).next()).isTrue();
-        assertThat(report()).content().contains("[OK]");
-    }
-
-    @Test
-    public void configured_returns_null_without_a_licensing_properties_file() throws Exception {
-        assertThat(LicenseCheck.configured(Files.createDirectory(root.resolve("configuration")))).isNull();
-    }
-
-    @Test
     public void reads_an_embedded_sbom_license_when_no_pom_license_is_declared() throws Exception {
         Path jar = argument.resolve("resolved/lib.jar");
         resolveJarOnly("jenesis", "org.example.lib/1.0.0", jar);

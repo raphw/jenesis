@@ -25,9 +25,9 @@ public class InferredSourceFormattingModuleTest {
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
         executor.addModule("format", new InferredSourceFormattingModule(project, Map.of(), Map.of()), "project");
-        executor.execute("format/ktlint-format/tool/required");
+        executor.execute("format/ktlint/tool/required");
 
-        assertThat(coordinates("ktlint-format", "tool"))
+        assertThat(coordinates("ktlint", "tool"))
                 .containsExactly("ktlint-format/runtime/maven/com.pinterest.ktlint/ktlint-cli/RELEASE");
     }
 
@@ -38,41 +38,41 @@ public class InferredSourceFormattingModuleTest {
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
         executor.addModule("format", new InferredSourceFormattingModule(project, Map.of(), Map.of()), "project");
-        executor.execute("format/scalafmt-format/tool/required");
+        executor.execute("format/scalafmt/tool/required");
 
-        assertThat(coordinates("scalafmt-format", "tool"))
+        assertThat(coordinates("scalafmt", "tool"))
                 .containsExactly("scalafmt-format/runtime/maven/org.scalameta/scalafmt-cli_2.13/RELEASE");
     }
 
     @Test
     public void wires_google_java_format_from_the_javaformat_properties_file() throws IOException {
-        Files.writeString(project.resolve("javaformat.properties"), "format=google\n");
+        Files.writeString(project.resolve("javaformat.properties"), "formatter=google\n");
 
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
         executor.addModule("format", new InferredSourceFormattingModule(project, Map.of(), Map.of()), "project");
-        executor.execute("format/google-java-format/required");
+        executor.execute("format/java/required");
 
-        assertThat(coordinates("google-java-format"))
+        assertThat(coordinates("java"))
                 .containsExactly("google-java-format/runtime/maven/com.google.googlejavaformat/google-java-format/RELEASE");
     }
 
     @Test
     public void wires_palantir_java_format_from_the_javaformat_properties_file() throws IOException {
-        Files.writeString(project.resolve("javaformat.properties"), "format=palantir\n");
+        Files.writeString(project.resolve("javaformat.properties"), "formatter=palantir\n");
 
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
         executor.addModule("format", new InferredSourceFormattingModule(project, Map.of(), Map.of()), "project");
-        executor.execute("format/palantir-java-format/required");
+        executor.execute("format/java/required");
 
-        assertThat(coordinates("palantir-java-format"))
+        assertThat(coordinates("java"))
                 .containsExactly("palantir-java-format/runtime/maven/com.palantir.javaformat/palantir-java-format/RELEASE");
     }
 
     @Test
     public void the_java_override_switches_off_the_formatter_from_the_file() throws IOException {
-        Files.writeString(project.resolve("javaformat.properties"), "format=google\n");
+        Files.writeString(project.resolve("javaformat.properties"), "formatter=google\n");
 
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
@@ -81,7 +81,7 @@ public class InferredSourceFormattingModuleTest {
                 "project");
         executor.execute();
 
-        assertThat(root.resolve("format").resolve("google-java-format"))
+        assertThat(root.resolve("format").resolve("java"))
                 .as("jenesis.format.java=false switches the formatter off even with a javaformat.properties file")
                 .doesNotExist();
     }
@@ -96,10 +96,9 @@ public class InferredSourceFormattingModuleTest {
         executor.addModule("format", new InferredSourceFormattingModule(project, Map.of(), Map.of()), "project");
         executor.execute();
 
-        assertThat(root.resolve("format").resolve("google-java-format"))
+        assertThat(root.resolve("format").resolve("java"))
                 .as("no Java formatter is wired without a javaformat.properties file, even when Java sources exist")
                 .doesNotExist();
-        assertThat(root.resolve("format").resolve("palantir-java-format")).doesNotExist();
     }
 
     @Test
@@ -109,7 +108,7 @@ public class InferredSourceFormattingModuleTest {
         executor.addModule("format", new InferredSourceFormattingModule(project, Map.of(), Map.of()), "project");
         executor.execute();
 
-        assertThat(root.resolve("format").resolve("ktlint-format")).doesNotExist();
+        assertThat(root.resolve("format").resolve("ktlint")).doesNotExist();
     }
 
     private Iterable<String> coordinates(String... segments) throws IOException {

@@ -6,19 +6,13 @@ import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
-import build.jenesis.SequencedProperties;
 import build.jenesis.step.Bind;
 
 public class InferredSourceFormattingModule implements BuildExecutorModule {
 
-    public enum JavaFormatter {
-        GOOGLE, PALANTIR
-    }
-
-    public static final String GOOGLE_JAVA_FORMAT = "google-java-format",
-            PALANTIR_JAVA_FORMAT = "palantir-java-format",
-            KTLINT = "ktlint-format",
-            SCALAFMT = "scalafmt-format";
+    private static final String JAVA = "java",
+            KTLINT = "ktlint",
+            SCALAFMT = "scalafmt";
 
     private final Path configuration;
     private final Map<String, Repository> repositories;
@@ -79,34 +73,19 @@ public class InferredSourceFormattingModule implements BuildExecutorModule {
 
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) throws IOException {
-        JavaFormatter formatter = java ? javaFormatterFrom(configuration) : null;
-        if (formatter != null) {
-            switch (formatter) {
-                case GOOGLE -> buildExecutor.addModule(GOOGLE_JAVA_FORMAT,
-                        new GoogleJavaFormatModule(repositories, resolvers).pinning(pinning).verify(verify),
-                        inherited.sequencedKeySet());
-                case PALANTIR -> buildExecutor.addModule(PALANTIR_JAVA_FORMAT,
-                        new PalantirJavaFormatModule(repositories, resolvers).pinning(pinning).verify(verify),
-                        inherited.sequencedKeySet());
-            }
-        }
+        Bind.configuredByProperties(buildExecutor, inherited.sequencedKeySet(), JAVA, java,
+                configuration.resolve("javaformat.properties"),
+                properties -> switch (properties.getProperty("formatter")) {
+                    case "google" -> new GoogleJavaFormatModule(repositories, resolvers).pinning(pinning).verify(verify);
+                    case "palantir" -> new PalantirJavaFormatModule(repositories, resolvers).pinning(pinning).verify(verify);
+                    case null -> null;
+                    default -> throw new IllegalArgumentException("Unknown Java format: " + properties.getProperty("formatter"));
+                });
         Bind.configured(buildExecutor, inherited.sequencedKeySet(), KTLINT, ktlint,
                 KtlintFormatModule.configurationFile(configuration),
                 () -> new KtlintFormatModule(repositories, resolvers).pinning(pinning).verify(verify));
         Bind.configured(buildExecutor, inherited.sequencedKeySet(), SCALAFMT, scalafmt,
                 ScalafmtFormatModule.configurationFile(configuration),
                 () -> new ScalafmtFormatModule(repositories, resolvers).pinning(pinning).verify(verify));
-    }
-
-    private static JavaFormatter javaFormatterFrom(Path configuration) throws IOException {
-        Path file = configuration.resolve("javaformat.properties");
-        if (!Files.isRegularFile(file)) {
-            return null;
-        }
-        return switch (SequencedProperties.ofFiles(file).getProperty("format", "")) {
-            case "google" -> JavaFormatter.GOOGLE;
-            case "palantir" -> JavaFormatter.PALANTIR;
-            default -> null;
-        };
     }
 }
