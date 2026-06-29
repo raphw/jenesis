@@ -37,8 +37,10 @@ The check is off until a license policy is configured (`jenesis.license.allowed`
 `jenesis.license.unknown`, or `jenesis.license.override`); once on, it runs over the
 shipped (`main` compile/runtime) dependencies, while in-build snapshots and
 build-tool closures are excluded. Each dependency's declared
-license (name and URL, with parent-POM inheritance, falling back to the jar's
-`Bundle-License` manifest header) is normalized to a canonical SPDX id and category.
+license (name and URL, with parent-POM inheritance) is normalized to a canonical
+SPDX id and category. A dependency that declares none is read from its jar instead:
+the embedded CycloneDX SBOM (via `Sbom-Location`), then the OSGi `Bundle-License`
+header, then a `META-INF/LICENSE` text file matched heuristically to an SPDX id.
 
 - **Missing licenses** are gated by `jenesis.license.unknown` =
   `ignore` | `warn` | `fail`, **default `fail`** - "no declared license" is legally
