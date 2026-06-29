@@ -13,12 +13,18 @@ where that gates the same resolved graph on dependency licenses, this gates it o
 known vulnerabilities. Both run as steps of the same `ComplianceModule`, each turned
 on by the presence of its property file.
 
-Build it
---------
+Run it
+------
 
 From this directory:
 
-    java build/jenesis/Project.java
+    java build/Demo.java
+
+The build is *meant* to fail, so `Demo.java` runs it and asserts the failure, the
+way the `supply-chain-security` demo does, printing:
+
+    [blocked] log4j-core 2.14.1's critical Log4Shell advisory at the configured severity threshold
+    The vulnerability check blocked the build, as expected.
 
 The project depends on `log4j-core` 2.14.1, the version behind **Log4Shell**. The
 shipped `vulnerability.properties` enables the check and sets `severity=critical`,
@@ -71,6 +77,7 @@ Layout
 ------
 
     demo/demo-12-vulnerabilities
+    |-- build/Demo.java            runs the build and asserts the vulnerability check fails
     |-- build/jenesis              symlink to ../../../sources/build/jenesis
     |-- pom.xml                    pins log4j-core 2.14.1 (vulnerable) and log4j-api
     |-- vulnerability.properties   severity=critical

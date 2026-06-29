@@ -18,16 +18,22 @@ The check is off until its property file exists in the configuration directory (
 project root by default): the license check reads `licensing.properties`. The file's
 presence enables the step; its contents configure it.
 
-Build it
---------
+Run it
+------
 
 From this directory:
 
-    java build/jenesis/Project.java
+    java build/Demo.java
+
+The build is *meant* to fail, so `Demo.java` runs it and asserts the failure, the
+way the `supply-chain-security` demo does, printing:
+
+    [blocked] a GPL dependency under a permissive-only license policy
+    The license check blocked the build, as expected.
 
 The shipped `licensing.properties` enables the license check (it stays off until
 that file exists) and sets `allowed=permissive`, requiring a permissive license on
-every resolved `main` compile/runtime dependency. The report is written to
+every resolved `main` compile/runtime dependency. The verdicts are written to
 `reports/compliance/licenses.txt`, one line per dependency:
 
     mysql/mysql-connector-java/5.1.49 [DENIED] The GNU General Public License, Version 2
@@ -89,6 +95,7 @@ Layout
 ------
 
     demo/demo-11-compliance
+    |-- build/Demo.java            runs the build and asserts the license check fails
     |-- build/jenesis              symlink to ../../../sources/build/jenesis
     |-- pom.xml                    pins commons-lang3 (Apache) and mysql-connector-java 5.1.49 (GPL)
     |-- licensing.properties       allowed=permissive

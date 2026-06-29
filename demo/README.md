@@ -41,8 +41,9 @@ Some demos ship their own launcher and are run with `java build/Demo.java`
 instead: the ones that customize, replace, or drive the template directly
 (`custom-assembler`, `internal-module`, `external-module`,
 `custom-maven`, `custom-modular`, `custom-build`, `custom-jmod`,
-`supply-chain-security`, `publishing`) and the two executable demos (`java-pom-executable`,
-`java-modular-executable`), which stage a
+`publishing`), the ones that assert the build fails on a policy violation
+(`compliance`, `vulnerabilities`, `supply-chain-security`), and the two
+executable demos (`java-pom-executable`, `java-modular-executable`), which stage a
 `jpackage` image and run it with the arguments you pass, and additionally ship a
 `build/DemoNative.java` sibling that builds a native installer and a
 `build/DemoLauncher.java` sibling that builds a single `java -jar`-able executable jar
@@ -64,8 +65,8 @@ Quick index
 | 8  | [`annotations`](demo-08-annotations/README.md)              | Run a Java annotation processor declared with `@jenesis.plugin`; the same jar on the module path stays dormant unless declared | `java build/jenesis/Project.java`  |
 | 9  | [`java-quality`](demo-09-java-quality/README.md)             | Inferred code quality for Java: Checkstyle, PMD, SpotBugs, and a verifying `google-java-format`, each turned on by its config file | `java build/jenesis/Project.java`  |
 | 10 | [`sbom`](demo-10-sbom/README.md)                             | Emit a CycloneDX SBOM (embedded in the jar, staged as a report, and attached to the Maven repo for publication) with `-Djenesis.sbom.cyclonedx=json` | `java build/jenesis/Project.java`  |
-| 11 | [`compliance`](demo-11-compliance/README.md)               | License gate over the resolved dependencies: each declared license is SPDX-normalized and checked against an allow/deny policy in `licensing.properties`; ships a GPL dependency rejected by a permissive-only policy | `java build/jenesis/Project.java`  |
-| 12 | [`vulnerabilities`](demo-12-vulnerabilities/README.md)     | Known-vulnerability gate: a `vulnerability.properties` file queries OSV.dev for the resolved coordinates and fails at or above a severity threshold; ships a deliberately vulnerable `log4j-core` 2.14.1 (Log4Shell) | `java build/jenesis/Project.java`  |
+| 11 | [`compliance`](demo-11-compliance/README.md)               | License gate over the resolved dependencies: each declared license is SPDX-normalized and checked against an allow/deny policy in `licensing.properties`; ships a GPL dependency rejected by a permissive-only policy | `java build/Demo.java`             |
+| 12 | [`vulnerabilities`](demo-12-vulnerabilities/README.md)     | Known-vulnerability gate: a `vulnerability.properties` file queries OSV.dev for the resolved coordinates and fails at or above a severity threshold; ships a deliberately vulnerable `log4j-core` 2.14.1 (Log4Shell) | `java build/Demo.java`             |
 | 13 | [`profiles`](demo-13-profiles/README.md)                     | Build profiles: a `release` profile selected with `-Djenesis.project.properties=release` turns on source jars and chains to a `supply-chain` profile that adds an SBOM | `java build/jenesis/Project.java`  |
 | 14 | [`kotlin`](demo-14-kotlin/README.md)                         | Java + Kotlin in one module; exports a pure-Kotlin package            | `java build/jenesis/Project.java`  |
 | 15 | [`kotlin-quality`](demo-15-kotlin-quality/README.md)         | Inferred code quality for Kotlin: detekt and ktlint, with ktlint also verifying formatting | `java build/jenesis/Project.java`  |

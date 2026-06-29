@@ -86,12 +86,8 @@ jobs:
           - { name: publishing, dir: demo-38-publishing, entry: build/Demo.java }
           - { name: kotlin-plugin, dir: demo-16-kotlin-plugin, entry: build/jenesis/Project.java }
           - { name: sbom, dir: demo-10-sbom, entry: build/jenesis/Project.java }
-          # The license check fails the build on a GPL dependency under a
-          # permissive-only policy, so this demo is expected to exit non-zero.
-          - { name: compliance, dir: demo-11-compliance, entry: build/jenesis/Project.java, expect: fail }
-          # The vulnerability check fails the build on log4j-core 2.14.1's
-          # Log4Shell advisory, so this demo is expected to exit non-zero.
-          - { name: vulnerabilities, dir: demo-12-vulnerabilities, entry: build/jenesis/Project.java, expect: fail }
+          - { name: compliance, dir: demo-11-compliance, entry: build/Demo.java }
+          - { name: vulnerabilities, dir: demo-12-vulnerabilities, entry: build/Demo.java }
           - { name: profiles, dir: demo-13-profiles, entry: build/jenesis/Project.java, flags: -Djenesis.project.properties=release }
           - { name: test-selection, dir: demo-22-test-selection, entry: build/Demo.java }
           - { name: pitest, dir: demo-23-pitest, entry: build/jenesis/Project.java }
@@ -108,12 +104,7 @@ jobs:
       - name: Demo ${{ matrix.demo.name }}
         shell: bash
         working-directory: demo/${{ matrix.demo.dir }}
-        run: |
-          if java ${{ matrix.demo.flags }} ${{ matrix.demo.entry }}; then
-            test "${{ matrix.demo.expect }}" != fail
-          else
-            test "${{ matrix.demo.expect }}" = fail
-          fi
+        run: java ${{ matrix.demo.flags }} ${{ matrix.demo.entry }}
 
       - name: Upload target on failure
         if: failure()
