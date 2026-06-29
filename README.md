@@ -297,7 +297,7 @@ The build phase stays per-module and is the only thing siblings bind (through `a
 downstream module's compile. Because `native-image` lives in that terminal phase rather than the per-module pipeline,
 the main module's image can depend on the test module's capture even though the test module `requires build.jenesis` -
 the cycle that previously forced a two-build `META-INF/native-image/` hand-off is gone. The same flow drives an
-application image end to end in [`demo-38-native-image`](demo/demo-38-native-image). Committing the metadata under
+application image end to end in [`demo-39-native-image`](demo/demo-39-native-image). Committing the metadata under
 `sources/META-INF/native-image/` still works - GraalVM scans it inside every jar on the module path - and remains the
 way to vet exactly what reflection gets baked into a published artifact.
 
@@ -778,7 +778,7 @@ Two callbacks govern how the build is assembled, and they are pluggable independ
   that resolves PIT and its JUnit 5 plugin in a `pitest` group, seeds faults into the compiled classes and re-runs
   the tests against each mutant, and reports under `reports/pitest/` which mutants survived; the JUnit 5 plugin's
   version is taken from the project's resolved `junit-platform` so it always matches the test framework. The
-  [`pitest`](demo/demo-22-pitest/README.md) demo shows it killing both mutants of a covered method. The detekt runner targets the
+  [`pitest`](demo/demo-23-pitest/README.md) demo shows it killing both mutants of a covered method. The detekt runner targets the
   1.x main class (`io.gitlab.arturbosch.detekt.cli.Main`); detekt 2.x relocates it to `dev.detekt.cli.Main`, so
   the floated `RELEASE` and runner main class want confirming against the resolved jar.
 - The **inferred formatting chain** (`InferredSourceFormattingModule`) is the rewriting counterpart to the
@@ -903,7 +903,7 @@ classes, walks the graph to the tests that reach them, and passes only those to 
 change that reaches no test runs nothing, and any non-class change (a resource, a dependency) falls back to the full
 suite. This is a development-loop optimisation for `watch`, not a correctness gate: static selection cannot see
 reflection or other indirect couplings, so continuous integration should keep running the whole suite with selection
-off. The [`test-selection`](demo/demo-21-test-selection/README.md) demo shows it editing one class and re-running only
+off. The [`test-selection`](demo/demo-22-test-selection/README.md) demo shows it editing one class and re-running only
 that class's test.
 
 ### Printing the dependency tree
@@ -1759,7 +1759,7 @@ path, the Kotlin compiler (its `kotlinc`-group scope `plugin` jars) to `-Xplugin
 `scalac`-group scope `plugin` jars) to `-Xplugin:<jar>`. Each compile step matches
 only its own module's plugin artifacts (never a sibling module's), so a processor or plugin is loaded only by the
 compiler it was declared for. `demo/demo-08-annotations` runs a Java annotation processor (Immutables) and
-`demo/demo-15-kotlin-plugin` a Kotlin compiler plugin (kotlinx.serialization) this way - each showing that the jar
+`demo/demo-16-kotlin-plugin` a Kotlin compiler plugin (kotlinx.serialization) this way - each showing that the jar
 is not run until it is declared; the Scala path is wired identically.
 
 An optional space-separated `<algorithm>/<hex>` after the version on a `@jenesis.pin` Javadoc tag

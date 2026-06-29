@@ -1,20 +1,20 @@
-Dependency compliance demo
-==========================
+Dependency licensing demo
+=========================
 
-Gate a build on the licenses and known vulnerabilities of its resolved
-dependencies. A small Maven project depends on one library; turning compliance on
-checks every resolved component against a policy and fails the build when the
-policy is violated. There is no build script and no scanner plugin to configure: a
-property file selects the policy.
+Gate a build on the licenses of its resolved dependencies. A small Maven project
+depends on one library; turning the license check on checks every resolved
+component against a policy and fails when the policy is violated. There is no build
+script and no scanner plugin to configure: a property file selects the policy.
 
 This is the supply-chain counterpart to the [`sbom`](../demo-10-sbom/README.md)
-demo: where that freezes the resolved graph into a bill of materials, this
-enforces a policy over the same graph.
+demo: where that freezes the resolved graph into a bill of materials, this enforces
+a policy over the same graph. Its sibling
+[`vulnerabilities`](../demo-12-vulnerabilities/README.md) demo applies the other
+compliance gate, scanning the same graph against the OSV.dev advisory database.
 
-Each check is off until its property file exists in the configuration directory
-(the project root by default): the license check reads `licensing.properties` and
-the vulnerability check reads `vulnerability.properties`. The file's presence
-enables the step; its contents configure it.
+The check is off until its property file exists in the configuration directory (the
+project root by default): the license check reads `licensing.properties`. The file's
+presence enables the step; its contents configure it.
 
 Build it
 --------
@@ -28,9 +28,7 @@ that file exists) and sets `allowed=Apache` as the allow list. The check runs ov
 the project's `main` compile/runtime dependencies; the one dependency,
 `commons-lang3`, declares Apache-2.0, so it passes and a report is written. Point
 the allow list at a license the dependency does not carry (`allowed=MIT`) and the
-build fails. The shipped `vulnerability.properties` also runs the vulnerability
-check, which queries OSV.dev for the same dependency and passes (no critical
-advisory).
+build fails.
 
 License check
 -------------
@@ -67,42 +65,23 @@ The file's keys:
 Verdicts are written to `reports/compliance/licenses.txt`, one line per dependency
 (`OK`, `DENIED`, `MISSING`, `WARN`, or `UNKNOWN`).
 
-Vulnerability check
--------------------
-
-A `vulnerability.properties` file enables the vulnerability check. Its `severity`
-key is a threshold (`low`/`medium`/`high`/`critical`); the build queries the public
-[OSV.dev](https://osv.dev) database (no account, no API key) for the resolved Maven
-coordinates and fails when a matched advisory is at or above it. An optional
-`osv.endpoint` key overrides the OSV endpoint (default `https://api.osv.dev`).
-
-The shipped `vulnerability.properties` sets `severity=critical`, so the build
-queries OSV.dev for `commons-lang3`, writes any advisories to
-`reports/compliance/vulnerabilities.txt`, and fails only on a critical one. The OSV
-fetch runs only when this file is present; remove it to keep the build offline.
-
 How it works
 ------------
 
-The default Java assembler runs a `ComplianceModule` after the `Sbom` step, over
-the same resolved dependency graph. Each concern is a separate step:
-
-- `LicenseCheck` reads the licenses captured during resolution and evaluates the
-  allow list.
-- `OsvDownload` queries OSV.dev and writes an advisory feed; `VulnerabilityCheck`
-  matches the resolved coordinates against it and applies the threshold.
-
-Both fail the build by throwing, the same way strict dependency pinning does, and
-both are skipped entirely when their property file is absent.
+The default Java assembler runs a `ComplianceModule` after the `Sbom` step, over the
+same resolved dependency graph. The `LicenseCheck` step reads the licenses captured
+during resolution and evaluates the allow list, failing the build by throwing the
+same way strict dependency pinning does. It is skipped entirely when
+`licensing.properties` is absent. The module's other step, `VulnerabilityCheck`, is
+shown in the [`vulnerabilities`](../demo-12-vulnerabilities/README.md) demo.
 
 Layout
 ------
 
     demo/demo-11-compliance
     |-- build/jenesis              symlink to ../../../sources/build/jenesis
-    |-- pom.xml                    pins commons-lang3 (Apache-2.0)
+    |-- pom.xml                    pins commons-lang3
     |-- licensing.properties       allowed=Apache
-    |-- vulnerability.properties   severity=critical
     `-- sources
         `-- compliance
             `-- Sample.java        uses commons-lang3
