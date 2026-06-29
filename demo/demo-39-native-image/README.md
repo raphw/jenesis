@@ -23,19 +23,19 @@ do not carry, so unlike most demos it is not part of the CI matrix.
 Build the native image
 ----------------------
 
-A single build captures the metadata and compiles the image in one pass. The capture
-attaches GraalVM's tracing agent to the test run (`-Djenesis.observe.native=true`),
-and the native compilation reads what it recorded (`-Djenesis.java.native=true`).
+A single build captures the metadata and compiles the image in one pass. The demo
+ships a `graal.properties` file, whose presence attaches GraalVM's tracing agent to
+the test run, and the native compilation reads what it recorded (`-Djenesis.java.native=true`).
 `native-image` is located the same way every external tool is - `GRAALVM_HOME` first,
 then the running JDK's own `bin/` (`java.home`), then `PATH` - so either run the build
 with a GraalVM JDK:
 
-    ~/.sdkman/candidates/java/25.0.3-graal/bin/java -Djenesis.observe.native=true -Djenesis.java.native=true build/jenesis/Project.java stage
+    ~/.sdkman/candidates/java/25.0.3-graal/bin/java -Djenesis.java.native=true build/jenesis/Project.java stage
 
 or keep your usual JDK 25 and point `GRAALVM_HOME` at a GraalVM install (here one
 managed by [SDKMAN](https://sdkman.io/), `sdk install java 25.0.3-graal`):
 
-    GRAALVM_HOME=~/.sdkman/candidates/java/25.0.3-graal java -Djenesis.observe.native=true -Djenesis.java.native=true build/jenesis/Project.java stage
+    GRAALVM_HOME=~/.sdkman/candidates/java/25.0.3-graal java -Djenesis.java.native=true build/jenesis/Project.java stage
 
 The build compiles the modules, runs the test under the agent, then runs
 `native-image` over the produced module path. The image build is the slow step (a
@@ -52,9 +52,9 @@ Run it directly - there is no `java` in the command, because there is no JVM:
 The result is a ~15 MB ELF executable (`.exe` on Windows, a Mach-O binary on macOS)
 that links `java.base` statically and starts without a runtime. The greeting comes
 back through reflection - which only works because the test capture told native-image
-to keep `sample.Greeter`. Build with `-Djenesis.java.native=true` alone (no
-`-Djenesis.observe.native=true`, so nothing captures the reflection) and the binary
-fails at run time with `ClassNotFoundException: sample.Greeter`: the closed-world
+to keep `sample.Greeter`. Build with `-Djenesis.java.native=true` but suppress the
+capture with `-Djenesis.observe.native=false` (so nothing records the reflection) and
+the binary fails at run time with `ClassNotFoundException: sample.Greeter`: the closed-world
 analysis dropped the class it never saw referenced.
 
 How the test capture reaches the image, in one build
@@ -63,8 +63,8 @@ How the test capture reaches the image, in one build
 Where does that metadata come from? Jenesis runs GraalVM's tracing agent the same way
 it runs JaCoCo coverage (`../demo-21-code-coverage`): as a **test-observation engine**.
 The `demo.graal.image.test` module exercises exactly the reflective call `Sample`
-makes, so `-Djenesis.observe.native=true` attaches `-agentlib:native-image-agent` to
-the test JVM, and the agent records every reflective, JNI, resource and proxy access
+makes, so the `graal.properties` file's presence attaches `-agentlib:native-image-agent`
+to the test JVM, and the agent records every reflective, JNI, resource and proxy access
 the test triggers, into a `native-image/` directory in the test's own output.
 
 The reason this can feed the same build is the assembler's two-phase layout. An
@@ -118,6 +118,7 @@ Layout
 
     demo/demo-39-native-image
     |-- build/jenesis        symlink to ../../../sources/build/jenesis
+    |-- graal.properties     marker file; presence enables the GraalVM tracing agent
     |-- sources/
     |   |-- module-info.java     module demo.graal.image (@jenesis.main sample.Sample)
     |   `-- sample/

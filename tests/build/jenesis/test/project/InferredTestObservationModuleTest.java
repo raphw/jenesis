@@ -5,7 +5,6 @@ import module org.junit.jupiter.api;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorCache;
 import build.jenesis.BuildExecutorCallback;
-import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepHashFunction;
 import build.jenesis.HashDigestFunction;
@@ -21,14 +20,15 @@ public class InferredTestObservationModuleTest {
     private Path root, project;
 
     @Test
-    public void wires_jacoco_and_passes_its_engine_when_selected() throws IOException {
+    public void wires_jacoco_when_a_jacoco_properties_file_is_present() throws IOException {
+        Files.writeString(project.resolve("jacoco.properties"), "");
         List<ObservabilityEngine> observed = new ArrayList<>();
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
-        executor.addModule("observed", new InferredTestObservationModule(null, Map.of(), Map.of(), null, engines -> {
+        executor.addModule("observed", new InferredTestObservationModule(project, Map.of(), Map.of(), null, engines -> {
             observed.addAll(engines);
             return (_, _) -> {};
-        }).jacoco(true), "project");
+        }), "project");
         executor.execute("observed/jacoco/required");
 
         assertThat(observed).extracting(ObservabilityEngine::name).containsExactly("jacoco");
@@ -39,20 +39,36 @@ public class InferredTestObservationModuleTest {
     }
 
     @Test
-    public void wires_only_the_test_module_when_no_engine_is_selected() throws IOException {
+    public void does_not_wire_an_engine_without_a_config_file() throws IOException {
         List<ObservabilityEngine> observed = new ArrayList<>();
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
-        executor.addModule("observed", new InferredTestObservationModule(null, Map.of(), Map.of(), null, engines -> {
+        executor.addModule("observed", new InferredTestObservationModule(project, Map.of(), Map.of(), null, engines -> {
             observed.addAll(engines);
             return (_, _) -> {};
-        }).jacoco(false).nativeImage(false), "project");
+        }), "project");
         executor.execute();
 
         assertThat(observed).isEmpty();
         assertThat(root.resolve("observed").resolve("jacoco"))
-                .as("no observation engine is wired unless it is selected")
+                .as("no observation engine is wired without its config file")
                 .doesNotExist();
+    }
+
+    @Test
+    public void the_observe_override_switches_off_jacoco() throws IOException {
+        Files.writeString(project.resolve("jacoco.properties"), "");
+        List<ObservabilityEngine> observed = new ArrayList<>();
+        BuildExecutor executor = newExecutor();
+        executor.addSource("project", project);
+        executor.addModule("observed", new InferredTestObservationModule(project, Map.of(), Map.of(), null, engines -> {
+            observed.addAll(engines);
+            return (_, _) -> {};
+        }).jacoco(false), "project");
+        executor.execute();
+
+        assertThat(observed).isEmpty();
+        assertThat(root.resolve("observed").resolve("jacoco")).doesNotExist();
     }
 
     @Test
@@ -61,12 +77,11 @@ public class InferredTestObservationModuleTest {
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
         executor.addModule("observed",
-                new InferredTestObservationModule(project, Map.of(), Map.of(), null, _ -> (_, _) -> {})
-                        .jacoco(false).nativeImage(false),
+                new InferredTestObservationModule(project, Map.of(), Map.of(), null, _ -> (_, _) -> {}),
                 "project");
-        executor.execute("observed/mutate/tool/required");
+        executor.execute("observed/mutate/required");
 
-        Path requiredOutput = root.resolve("observed").resolve("mutate").resolve("tool").resolve("required").resolve("output");
+        Path requiredOutput = root.resolve("observed").resolve("mutate").resolve("required").resolve("output");
         SequencedProperties requires = SequencedProperties.ofFiles(requiredOutput.resolve(BuildStep.REQUIRES));
         assertThat(requires.stringPropertyNames())
                 .containsExactlyInAnyOrder(
@@ -79,14 +94,26 @@ public class InferredTestObservationModuleTest {
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
         executor.addModule("observed",
-                new InferredTestObservationModule(project, Map.of(), Map.of(), null, _ -> (_, _) -> {})
-                        .jacoco(false).nativeImage(false),
+                new InferredTestObservationModule(project, Map.of(), Map.of(), null, _ -> (_, _) -> {}),
                 "project");
         executor.execute();
 
         assertThat(root.resolve("observed").resolve("mutate"))
-                .as("mutation testing is not wired unless pitest.properties is present")
+                .as("mutation testing is not wired without pitest.properties")
                 .doesNotExist();
+    }
+
+    @Test
+    public void the_mutate_override_switches_off_pitest() throws IOException {
+        Files.writeString(project.resolve("pitest.properties"), "targetClasses=sample.*\n");
+        BuildExecutor executor = newExecutor();
+        executor.addSource("project", project);
+        executor.addModule("observed",
+                new InferredTestObservationModule(project, Map.of(), Map.of(), null, _ -> (_, _) -> {}).pitest(false),
+                "project");
+        executor.execute();
+
+        assertThat(root.resolve("observed").resolve("mutate")).doesNotExist();
     }
 
     private BuildExecutor newExecutor() throws IOException {

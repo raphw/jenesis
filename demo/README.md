@@ -75,7 +75,7 @@ Quick index
 | 18 | [`scala-quality`](demo-18-scala-quality/README.md)           | Inferred code quality for Scala: Scalastyle and scalafmt, with scalafmt also verifying formatting | `java build/jenesis/Project.java`  |
 | 19 | [`groovy`](demo-19-groovy/README.md)                         | Java + Groovy in one module; why a Groovy-only package cannot be exported | `java build/jenesis/Project.java`  |
 | 20 | [`groovy-quality`](demo-20-groovy-quality/README.md)         | Inferred code quality for Groovy: CodeNarc lints the sources          | `java build/jenesis/Project.java`  |
-| 21 | [`code-coverage`](demo-21-code-coverage/README.md)          | Inferred test observation: JaCoCo records coverage during the test run and renders an HTML/XML report, enabled with `-Djenesis.observe.jacoco=true` | `java build/jenesis/Project.java`  |
+| 21 | [`code-coverage`](demo-21-code-coverage/README.md)          | Inferred test observation: JaCoCo records coverage during the test run and renders an HTML/XML report, enabled by a `jacoco.properties` config file | `java build/jenesis/Project.java`  |
 | 22 | [`test-selection`](demo-22-test-selection/README.md)         | Re-run only the tests a change can affect (`-Djenesis.test.incremental`), a watch-mode development-loop optimisation | `java build/Demo.java`             |
 | 23 | [`pitest`](demo-23-pitest/README.md)                         | Mutation testing: a `pitest.properties` config file makes the build run PIT, which seeds faults into the code and checks the tests catch them | `java build/jenesis/Project.java`  |
 | 24 | [`maven-exclusions`](demo-24-maven-exclusions/README.md)     | Maven only: a dependency with an `<exclusions>` block; a test asserts the excluded transitive is absent | `java build/jenesis/Project.java`  |
@@ -407,10 +407,12 @@ formatter, so it is lint-only.
 
 ## 14. Test coverage, selection, and mutation - [`code-coverage`](demo-21-code-coverage/README.md), [`test-selection`](demo-22-test-selection/README.md), [`pitest`](demo-23-pitest/README.md)
 
-`code-coverage` adds the first *test observation* engine: JaCoCo. Pass
-`-Djenesis.observe.jacoco=true` and the test run is wrapped so the JaCoCo agent
-records which lines the tests exercise; a report step then renders an HTML and
-XML coverage report from that data, the compiled classes, and the sources.
+`code-coverage` adds the first *test observation* engine: JaCoCo. A
+`jacoco.properties` config file enables it (the `jenesis.observe.jacoco` property
+defaults to `true` and suppresses coverage when set to `false`), and the test run
+is wrapped so the JaCoCo agent records which lines the tests exercise; a report
+step then renders an HTML and XML coverage report from that data, the compiled
+classes, and the sources.
 
 The new idea is **inferred test observation**. An `InferredTestObservationModule`
 sits where the plain test module used to, and an observation engine wraps the test
@@ -419,8 +421,9 @@ run; with it on, the agent instruments the run with no change to the sources, an
 JaCoCo resolves its own tooling in a `jacoco` group, separate from the project's
 dependencies.
 
-A second observation engine plugs into the same slot: `-Djenesis.observe.native=true`
-attaches the **GraalVM native-image tracing agent**, which records the reflection,
+A second observation engine plugs into the same slot: a `graal.properties` config
+file attaches the **GraalVM native-image tracing agent** (with `jenesis.observe.native`
+defaulting to `true` as a suppress override), which records the reflection,
 JNI, resource and proxy use the tests exercise and stages it as reachability
 metadata under `nativeimage/` (a build-internal capture, deliberately not a `reports/`
 report). The ahead-of-time `native-image` build (section 25) picks that capture up
@@ -729,14 +732,15 @@ The new idea is **closed-world ahead-of-time compilation**, and its catch:
 `native-image` only sees code reached statically, so anything dynamic (reflection,
 JNI, resources, proxies) needs reachability metadata. The demo walks the whole loop:
 `Sample` loads its greeter by a name assembled at run time, so the binary needs
-metadata; `-Djenesis.observe.native=true` runs the tracing agent during the test
+metadata; a `graal.properties` config file runs the tracing agent during the test
 (the second observation engine from section 13) and stages what it records under
 `nativeimage/`. Because packaging runs in a cross-module *package* phase after every
 module builds, the `native-image` step picks that capture up automatically - routed
 from the test module to the image it tests - so one build produces the working binary
 with no committed `META-INF/native-image/`. The `stage` goal then collects the
 executable into `stage/native/output/`, the native-image analogue of `stage/packages`
-and `stage/runtime`. Build without `-Djenesis.observe.native=true` and nothing is
+and `stage/runtime`. Build without a `graal.properties` file (or with
+`-Djenesis.observe.native=false`) and nothing is
 captured, so the binary fails at run time with `ClassNotFoundException`; committing the
 metadata into `sources/META-INF/native-image/` stays the way to vet exactly what a
 published artifact bakes in. native-image is an *alternative* to jpackage, not a

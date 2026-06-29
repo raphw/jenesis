@@ -25,38 +25,40 @@ public class PiTestModule implements BuildExecutorModule {
     private final Pinning pinning;
     private final String tool;
     private final String group;
+    private final SequencedProperties config;
 
     public PiTestModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, null, "pitest", "main");
+        this(repositories, resolvers, null, "pitest", "main", new SequencedProperties());
     }
 
     private PiTestModule(Map<String, Repository> repositories,
                          Map<String, Resolver> resolvers,
                          Pinning pinning,
                          String tool,
-                         String group) {
+                         String group,
+                         SequencedProperties config) {
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.pinning = pinning;
         this.tool = tool;
         this.group = group;
-    }
-
-    public static Path configurationFile(Path configuration) {
-        Path file = configuration.resolve("pitest.properties");
-        return Files.isRegularFile(file) ? file : null;
+        this.config = config;
     }
 
     public PiTestModule pinning(Pinning pinning) {
-        return new PiTestModule(repositories, resolvers, pinning, tool, group);
+        return new PiTestModule(repositories, resolvers, pinning, tool, group, config);
     }
 
     public PiTestModule tool(String tool) {
-        return new PiTestModule(repositories, resolvers, pinning, tool, group);
+        return new PiTestModule(repositories, resolvers, pinning, tool, group, config);
     }
 
     public PiTestModule group(String group) {
-        return new PiTestModule(repositories, resolvers, pinning, tool, group);
+        return new PiTestModule(repositories, resolvers, pinning, tool, group, config);
+    }
+
+    public PiTestModule config(SequencedProperties config) {
+        return new PiTestModule(repositories, resolvers, pinning, tool, group, config);
     }
 
     @Override
@@ -71,7 +73,7 @@ public class PiTestModule implements BuildExecutorModule {
         SequencedSet<String> mutateInputs = new LinkedHashSet<>();
         mutateInputs.add(DEPENDENCIES);
         mutateInputs.addAll(inherited.sequencedKeySet());
-        buildExecutor.addStep(MUTATE, new Mutate(tool, group), mutateInputs);
+        buildExecutor.addStep(MUTATE, new Mutate(tool, group, config), mutateInputs);
     }
 
     private record Requires(String tool) implements BuildStep {
@@ -121,11 +123,13 @@ public class PiTestModule implements BuildExecutorModule {
 
         private final String tool;
         private final String group;
+        private final SequencedProperties config;
 
-        private Mutate(String tool, String group) {
+        private Mutate(String tool, String group, SequencedProperties config) {
             super("pitest", ProcessHandler.OfProcess.ofJavaHome("bin/java"));
             this.tool = tool;
             this.group = group;
+            this.config = config;
         }
 
         @Override
@@ -134,7 +138,6 @@ public class PiTestModule implements BuildExecutorModule {
                                                      SequencedMap<String, BuildStepArgument> arguments,
                                                      SequencedMap<String, SequencedMap<String, String>> properties)
                 throws IOException {
-            SequencedProperties config = new SequencedProperties();
             List<String> tools = new ArrayList<>(), external = new ArrayList<>(), sources = new ArrayList<>();
             SequencedSet<String> candidates = new LinkedHashSet<>();
             Set<String> expanded = new HashSet<>();
@@ -161,10 +164,6 @@ public class PiTestModule implements BuildExecutorModule {
                 Path source = argument.folder().resolve(BuildStep.SOURCES);
                 if (Files.isDirectory(source)) {
                     sources.add(source.toString());
-                }
-                Path candidate = argument.folder().resolve("pitest.properties");
-                if (Files.isRegularFile(candidate)) {
-                    config.putAll(SequencedProperties.ofFiles(candidate));
                 }
             }
             if (tools.isEmpty()) {

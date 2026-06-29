@@ -976,7 +976,7 @@ public record Project(
                                         same per language.
                       code-coverage     Inferred test observation: JaCoCo records
                                         coverage during the test run, enabled
-                                        with -Djenesis.observe.jacoco=true.
+                                        by a jacoco.properties file.
                       custom-assembler  Wrap `InferredMultiProjectAssembler` to
                                         preprocess sources before the regular flow.
                       custom-build      A hand-wired `BuildExecutor`, no `Project`,

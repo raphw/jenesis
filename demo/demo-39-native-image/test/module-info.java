@@ -1,8 +1,8 @@
 /**
  * The test module for demo.graal.image. It exercises the same reflective greeter
  * that sample.Sample uses, so when the build runs the test under the GraalVM
- * tracing agent (-Djenesis.observe.native=true) the agent records exactly the
- * reachability metadata the native image needs. Its JUnit closure is pinned on
+ * tracing agent (enabled by the graal.properties file) the agent records exactly
+ * the reachability metadata the native image needs. Its JUnit closure is pinned on
  * the plain module trail.
  *
  * @jenesis.release 25
