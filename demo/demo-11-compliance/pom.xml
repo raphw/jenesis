@@ -18,6 +18,12 @@
                 <version>3.14.0</version>
                 <!--Checksum/SHA-256/7b96bf3ee68949abb5bc465559ac270e0551596fa34523fddf890ec418dde13c-->
             </dependency>
+            <dependency>
+                <groupId>mysql</groupId>
+                <artifactId>mysql-connector-java</artifactId>
+                <version>5.1.49</version>
+                <!--Checksum/SHA-256/5bba9ff50e5e637a0996a730619dee19ccae274883a4d28c890d945252bb0e12-->
+            </dependency>
         </dependencies>
     </dependencyManagement>
     <dependencies>
@@ -25,6 +31,11 @@
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
             <version>3.14.0</version>
+        </dependency>
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>5.1.49</version>
         </dependency>
     </dependencies>
 </project>

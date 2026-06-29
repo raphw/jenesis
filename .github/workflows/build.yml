@@ -86,7 +86,9 @@ jobs:
           - { name: publishing, dir: demo-38-publishing, entry: build/Demo.java }
           - { name: kotlin-plugin, dir: demo-16-kotlin-plugin, entry: build/jenesis/Project.java }
           - { name: sbom, dir: demo-10-sbom, entry: build/jenesis/Project.java }
-          - { name: compliance, dir: demo-11-compliance, entry: build/jenesis/Project.java }
+          # The license check fails the build on a GPL dependency under a
+          # permissive-only policy, so this demo is expected to exit non-zero.
+          - { name: compliance, dir: demo-11-compliance, entry: build/jenesis/Project.java, expect: fail }
           # The vulnerability check fails the build on log4j-core 2.14.1's
           # Log4Shell advisory, so this demo is expected to exit non-zero.
           - { name: vulnerabilities, dir: demo-12-vulnerabilities, entry: build/jenesis/Project.java, expect: fail }

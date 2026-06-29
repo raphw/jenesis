@@ -2,9 +2,11 @@ Dependency licensing demo
 =========================
 
 Gate a build on the licenses of its resolved dependencies. A small Maven project
-depends on one library; turning the license check on checks every resolved
-component against a policy and fails when the policy is violated. There is no build
-script and no scanner plugin to configure: a property file selects the policy.
+depends on two libraries: a permissively licensed one (Apache `commons-lang3`) and a
+copyleft one (GPL `mysql-connector-java`). The policy requires permissive licenses,
+so the license check passes the first, **rejects** the second, and fails the build.
+There is no build script and no scanner plugin to configure: a property file selects
+the policy.
 
 This is the supply-chain counterpart to the [`sbom`](../demo-10-sbom/README.md)
 demo: where that freezes the resolved graph into a bill of materials, this enforces
@@ -24,11 +26,18 @@ From this directory:
     java build/jenesis/Project.java
 
 The shipped `licensing.properties` enables the license check (it stays off until
-that file exists) and sets `allowed=Apache` as the allow list. The check runs over
-the project's `main` compile/runtime dependencies; the one dependency,
-`commons-lang3`, declares Apache-2.0, so it passes and a report is written. Point
-the allow list at a license the dependency does not carry (`allowed=MIT`) and the
-build fails.
+that file exists) and sets `allowed=permissive`, requiring a permissive license on
+every resolved `main` compile/runtime dependency. The report is written to
+`reports/compliance/licenses.txt`, one line per dependency:
+
+    mysql/mysql-connector-java/5.1.49 [DENIED] The GNU General Public License, Version 2
+    org.apache.commons/commons-lang3/3.14.0 [OK] Apache-2.0
+
+`commons-lang3` is Apache-2.0, a permissive license, so it passes. The JDBC driver
+is GPL-2.0, a strong-copyleft license that is **not** permissive, so it is denied and
+the build fails. Relax the policy to admit it (`allowed=permissive,strong-copyleft`,
+or name the license outright, or an `override` for the coordinate) and the build
+passes again.
 
 License check
 -------------
@@ -48,9 +57,10 @@ The file's keys:
   default refuses it. Set `ignore` to relax.
 - **`allowed`** (optional, comma-separated) fails any dependency whose license is
   not on the list. Entries match the SPDX id, the category, or the raw name/URL, so
-  `Apache-2.0`, `Apache`, or `permissive` all match an Apache license. A dependency
-  with several licenses passes if *any one* is allowed (Maven lists licenses
-  disjunctively). A `denied` list (same syntax) rejects matches outright.
+  `Apache-2.0`, `Apache`, or `permissive` all match an Apache license, while
+  `strong-copyleft` matches the GPL family. A dependency with several licenses passes
+  if *any one* is allowed (Maven lists licenses disjunctively). A `denied` list (same
+  syntax) rejects matches outright.
 
       allowed=Apache-2.0,MIT,BSD-3-Clause
       allowed=permissive,weak-copyleft
@@ -80,8 +90,8 @@ Layout
 
     demo/demo-11-compliance
     |-- build/jenesis              symlink to ../../../sources/build/jenesis
-    |-- pom.xml                    pins commons-lang3
-    |-- licensing.properties       allowed=Apache
+    |-- pom.xml                    pins commons-lang3 (Apache) and mysql-connector-java 5.1.49 (GPL)
+    |-- licensing.properties       allowed=permissive
     `-- sources
         `-- compliance
             `-- Sample.java        uses commons-lang3

@@ -64,7 +64,7 @@ Quick index
 | 8  | [`annotations`](demo-08-annotations/README.md)              | Run a Java annotation processor declared with `@jenesis.plugin`; the same jar on the module path stays dormant unless declared | `java build/jenesis/Project.java`  |
 | 9  | [`java-quality`](demo-09-java-quality/README.md)             | Inferred code quality for Java: Checkstyle, PMD, SpotBugs, and a verifying `google-java-format`, each turned on by its config file | `java build/jenesis/Project.java`  |
 | 10 | [`sbom`](demo-10-sbom/README.md)                             | Emit a CycloneDX SBOM (embedded in the jar, staged as a report, and attached to the Maven repo for publication) with `-Djenesis.sbom.cyclonedx=json` | `java build/jenesis/Project.java`  |
-| 11 | [`compliance`](demo-11-compliance/README.md)               | License gate over the resolved dependencies: each declared license is SPDX-normalized and checked against an allow/deny policy in `licensing.properties`, failing on a missing or disallowed license | `java build/jenesis/Project.java`  |
+| 11 | [`compliance`](demo-11-compliance/README.md)               | License gate over the resolved dependencies: each declared license is SPDX-normalized and checked against an allow/deny policy in `licensing.properties`; ships a GPL dependency rejected by a permissive-only policy | `java build/jenesis/Project.java`  |
 | 12 | [`vulnerabilities`](demo-12-vulnerabilities/README.md)     | Known-vulnerability gate: a `vulnerability.properties` file queries OSV.dev for the resolved coordinates and fails at or above a severity threshold; ships a deliberately vulnerable `log4j-core` 2.14.1 (Log4Shell) | `java build/jenesis/Project.java`  |
 | 13 | [`profiles`](demo-13-profiles/README.md)                     | Build profiles: a `release` profile selected with `-Djenesis.project.properties=release` turns on source jars and chains to a `supply-chain` profile that adds an SBOM | `java build/jenesis/Project.java`  |
 | 14 | [`kotlin`](demo-14-kotlin/README.md)                         | Java + Kotlin in one module; exports a pure-Kotlin package            | `java build/jenesis/Project.java`  |
@@ -324,7 +324,9 @@ dependency with **no** recognized license fails by default (`unknown` =
 `ignore`/`warn`/`fail`, since "no license" is legally all-rights-reserved); an
 `allowed`/`denied` policy (matched against the SPDX id, a category like
 `permissive`, or the raw name) rejects anything off the list; and
-`override.maven/<groupId>/<artifactId>` curates a wrong or empty declaration.
+`override.maven/<groupId>/<artifactId>` curates a wrong or empty declaration. The
+demo ships a permissive `commons-lang3` and a GPL `mysql-connector-java`, so a
+permissive-only policy passes the first and fails the build on the second.
 
 `vulnerabilities` is the **known-vulnerability** gate, enabled by a
 `vulnerability.properties` file. It queries the public OSV.dev database (no account,
