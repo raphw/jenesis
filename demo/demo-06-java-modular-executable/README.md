@@ -160,8 +160,8 @@ from its own `bin/java` with no JDK installed:
 The difference from the app-image is only the wrapper: `jpackage` adds a native
 launcher (`bin/demo.modular.executable`) and an installer-friendly layout around the
 same kind of trimmed runtime, while `jlink` leaves you the bare runtime image to
-launch with `java -m`. `../demo-30-custom-jmod` chains all three steps -
-`jmod -> jlink -> jpackage` - and shows extra content packed into the `.jmod` riding
+launch with `java -m`. All three steps can also be chained -
+`jmod -> jlink -> jpackage` - so that extra content packed into the `.jmod` rides
 through the linked runtime into the final app.
 
 Bundle the jars for a JRE-based image

@@ -4,7 +4,8 @@ Java (POM-based) demo
 The simplest way to build a Maven-style Java project with Jenesis: a `pom.xml`
 and your sources. You point Jenesis at the project and it resolves the declared
 dependency, compiles against it, and produces a jar - there is no build script to
-write. Its modular counterpart is `../demo-02-java-modular`.
+write. It also has a modular counterpart that builds the same kind of project
+from a `module-info.java` instead of a `pom.xml`.
 
 Build it
 --------

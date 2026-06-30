@@ -5,8 +5,8 @@ The simplest way to build a single-module Java project that is itself a Java
 module: your only build descriptor is `sources/module-info.java`, with no
 `pom.xml` to write. You point Jenesis at the project and it resolves the module
 you `requires`, compiles your module against it, and produces a modular jar. Its
-POM-based counterpart is `../demo-01-java-pom`, and its multi-module counterpart is
-`../demo-04-java-modular-multi`.
+POM-based counterpart is `../demo-01-java-pom`, and it also has a multi-module
+counterpart that builds several modules where one depends on another.
 
 Build it
 --------
@@ -88,8 +88,7 @@ dependency belongs to group `main` (the default), where `compile` and `runtime`
 are scopes within that group: runtime inherits the compile pin, so a dependency
 that is both compile and runtime is pinned once. Separate resolver groups
 (`kotlin`, `scala`, `groovy`, `plugin`) are reserved for the language toolchains
-and plugin closures, as shown in the `kotlin` / `scala` and
-`internal-module` / `external-module` demos.
+and plugin closures.
 
 Printing the dependency graph
 -----------------------------
@@ -105,5 +104,4 @@ the declared license:
 
 Because this is the default MODULAR_TO_MAVEN layout, `requires org.slf4j` is shown
 as the Maven coordinate it resolves to, with a Maven scope. Under the pure MODULAR
-layout the same dependency shows as a Java module name (`module/org.slf4j`) instead
-- see `../demo-25-module-layout`, which contrasts the two.
+layout the same dependency shows as a Java module name (`module/org.slf4j`) instead.

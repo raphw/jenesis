@@ -6,7 +6,8 @@ image - a launcher with its own bundled Java runtime that a user can run without
 installing a JDK. The project is just a `pom.xml` plus a single Java source with a
 `main` method and one real Maven dependency (`commons-lang3`), and Jenesis packages
 it with the JDK's `jpackage`. It is the executable counterpart of
-`../demo-01-java-pom`, and its modular sibling is `../demo-06-java-modular-executable`.
+`../demo-01-java-pom`, and it has a modular sibling that ships the same kind of app
+from a `module-info.java`.
 
 Run it
 ------
@@ -35,7 +36,7 @@ Declaring the entry point
 
 For the build to package a runnable image it first has to know the main class. In
 the modular layout that comes from a `@jenesis.main` Javadoc tag on
-`module-info.java` (see `../demo-06-java-modular-executable`). A POM project has no
+`module-info.java`. A POM project has no
 `module-info.java`, so the Maven-layout equivalent is a `<mainClass>` property in
 the POM:
 
@@ -104,7 +105,7 @@ needs no JDK and no jpackage:
     COPY bundle/ /opt/app/
     ENTRYPOINT ["java", "-cp", "/opt/app/classpath/*", "sample.Sample"]
 
-The modular sibling `../demo-06-java-modular-executable` splits its jars into
+The modular sibling instead splits its jars into
 `modulepath/` and `classpath/` and adds a `mainModule` entry.
 
 A single executable jar with the launcher
@@ -121,8 +122,8 @@ into the jar root as its `Main-Class` and exploding each dependency into a
 The launcher is shaded into the artifact, so it is pinned like any dependency - the
 `pom.xml` carries a `<!--jenesis.pin launcher/maven/build.jenesis/build.jenesis.launcher
 ... -->` block (its own `launcher` group, kept out of `<dependencyManagement>` because
-it is not an application dependency). See `../demo-06-java-modular-executable` for the
-full layout and how modular dependencies are reconstructed at run time.
+it is not an application dependency). The modular sibling keeps each modular
+dependency in its own subfolder and reconstructs them on the module path at run time.
 
 Fully bundled native installer
 ------------------------------
@@ -146,7 +147,7 @@ macOS. On Linux it prints:
 
 The installer carries the whole bundled runtime, which is why it is tens of megabytes.
 Because this is a classpath (non-modular) application, jpackage bundles a full runtime;
-the modular sibling `../demo-06-java-modular-executable` produces a much smaller package, since
+the modular sibling produces a much smaller package, since
 there jpackage's internal `jlink` can trim the runtime to the module graph.
 
 Producing a native installer needs the platform's packaging tooling on the PATH (Linux:
@@ -183,9 +184,8 @@ Because this is a **classpath** application, the bundled runtime is a *full* Jav
 runtime: jpackage cannot prove which standard-library modules you do not use, so
 it ships them all. Measured with Temurin 25.0.3 that runtime is about 136 MB and
 the whole app-image about 138 MB, so the container carries a JVM the size of an
-off-the-shelf JRE. The modular sibling `../demo-06-java-modular-executable` is far
-smaller, because it bundles only the runtime its module graph resolves - see its
-note for the numbers.
+off-the-shelf JRE. A modular application would be far
+smaller, because it bundles only the runtime its module graph resolves.
 
 Whichever way you size it, this self-contained image carries one guarantee a
 shared base image gives up: jpackage builds the bundled runtime from the very JDK
@@ -194,5 +194,4 @@ JVM** it was built and verified against - not whatever patch version or
 distribution a base image happens to provide. The flip side - that a self-contained
 image cannot share its JVM layer across *different* services, where a common
 `eclipse-temurin:<version>-jre` base can (deduplicated on disk and in the page
-cache) - applies here too; see `../demo-06-java-modular-executable` for that
-trade-off in full.
+cache) - applies here too.

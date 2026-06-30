@@ -207,5 +207,5 @@ node carrying its resolved module name and declared license:
 Even though every descriptor here is a `module-info.java`, the default
 MODULAR_TO_MAVEN layout resolves each `requires` through Maven, so the tree shows
 Maven coordinates and their transitive Maven closure - the same shape as the
-POM-based `../demo-03-java-pom-multi`. The pure MODULAR layout
-(`../demo-25-module-layout`) shows the same dependencies as Java module names.
+POM-based `../demo-03-java-pom-multi`. The pure MODULAR layout shows the same
+dependencies as Java module names instead.
