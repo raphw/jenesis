@@ -64,7 +64,7 @@ public class Bind implements BuildStep {
                                               Path configurationProperties,
                                               Function<SequencedProperties, ? extends BuildExecutorModule> module)
             throws IOException {
-        if (!enabled || !Files.isRegularFile(configurationProperties)) {
+        if (!enabled || configurationProperties == null || !Files.isRegularFile(configurationProperties)) {
             return;
         }
         SequencedProperties properties = SequencedProperties.ofFiles(configurationProperties);

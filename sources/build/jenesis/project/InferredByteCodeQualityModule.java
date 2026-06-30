@@ -12,20 +12,20 @@ public class InferredByteCodeQualityModule implements BuildExecutorModule {
 
     public static final String SPOTBUGS = "spotbugs";
 
-    private final Path configuration;
+    private final ProjectConfiguration configuration;
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
     private final Pinning pinning;
     private final boolean spotbugs;
 
-    public InferredByteCodeQualityModule(Path configuration,
+    public InferredByteCodeQualityModule(ProjectConfiguration configuration,
                                          Map<String, Repository> repositories,
                                          Map<String, Resolver> resolvers) {
         this(configuration, repositories, resolvers, null,
                 Boolean.parseBoolean(System.getProperty("jenesis.validator.spotbugs", "true")));
     }
 
-    private InferredByteCodeQualityModule(Path configuration,
+    private InferredByteCodeQualityModule(ProjectConfiguration configuration,
                                           Map<String, Repository> repositories,
                                           Map<String, Resolver> resolvers,
                                           Pinning pinning,

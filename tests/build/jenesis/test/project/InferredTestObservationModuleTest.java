@@ -1,6 +1,7 @@
 package build.jenesis.test.project;
 
 import module java.base;
+import build.jenesis.project.ProjectConfiguration;
 import module org.junit.jupiter.api;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorCache;
@@ -25,7 +26,7 @@ public class InferredTestObservationModuleTest {
         List<ObservabilityEngine> observed = new ArrayList<>();
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
-        executor.addModule("observed", new InferredTestObservationModule(project, Map.of(), Map.of(), null, engines -> {
+        executor.addModule("observed", new InferredTestObservationModule(ProjectConfiguration.of(project), Map.of(), Map.of(), null, engines -> {
             observed.addAll(engines);
             return (_, _) -> {};
         }), "project");
@@ -43,7 +44,7 @@ public class InferredTestObservationModuleTest {
         List<ObservabilityEngine> observed = new ArrayList<>();
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
-        executor.addModule("observed", new InferredTestObservationModule(project, Map.of(), Map.of(), null, engines -> {
+        executor.addModule("observed", new InferredTestObservationModule(ProjectConfiguration.of(project), Map.of(), Map.of(), null, engines -> {
             observed.addAll(engines);
             return (_, _) -> {};
         }), "project");
@@ -61,7 +62,7 @@ public class InferredTestObservationModuleTest {
         List<ObservabilityEngine> observed = new ArrayList<>();
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
-        executor.addModule("observed", new InferredTestObservationModule(project, Map.of(), Map.of(), null, engines -> {
+        executor.addModule("observed", new InferredTestObservationModule(ProjectConfiguration.of(project), Map.of(), Map.of(), null, engines -> {
             observed.addAll(engines);
             return (_, _) -> {};
         }).jacoco(false), "project");
@@ -77,7 +78,7 @@ public class InferredTestObservationModuleTest {
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
         executor.addModule("observed",
-                new InferredTestObservationModule(project, Map.of(), Map.of(), null, _ -> (_, _) -> {}),
+                new InferredTestObservationModule(ProjectConfiguration.of(project), Map.of(), Map.of(), null, _ -> (_, _) -> {}),
                 "project");
         executor.execute("observed/mutate/required");
 
@@ -94,7 +95,7 @@ public class InferredTestObservationModuleTest {
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
         executor.addModule("observed",
-                new InferredTestObservationModule(project, Map.of(), Map.of(), null, _ -> (_, _) -> {}),
+                new InferredTestObservationModule(ProjectConfiguration.of(project), Map.of(), Map.of(), null, _ -> (_, _) -> {}),
                 "project");
         executor.execute();
 
@@ -109,7 +110,7 @@ public class InferredTestObservationModuleTest {
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
         executor.addModule("observed",
-                new InferredTestObservationModule(project, Map.of(), Map.of(), null, _ -> (_, _) -> {}).pitest(false),
+                new InferredTestObservationModule(ProjectConfiguration.of(project), Map.of(), Map.of(), null, _ -> (_, _) -> {}).pitest(false),
                 "project");
         executor.execute();
 

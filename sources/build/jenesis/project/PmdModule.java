@@ -49,9 +49,8 @@ public class PmdModule implements BuildExecutorModule {
         this.strict = strict;
     }
 
-    public static Path configurationFile(Path configuration) {
-        Path file = configuration.resolve("pmd.xml");
-        return Files.isRegularFile(file) ? file : null;
+    public static Path configurationFile(ProjectConfiguration configuration) {
+        return configuration.locate("pmd.xml");
     }
 
     public PmdModule pinning(Pinning pinning) {

@@ -1,6 +1,7 @@
 package build.jenesis.test.project;
 
 import module java.base;
+import build.jenesis.project.ProjectConfiguration;
 import module org.junit.jupiter.api;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorCache;
@@ -24,7 +25,7 @@ public class InferredByteCodeQualityModuleTest {
 
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
-        executor.addModule("quality", new InferredByteCodeQualityModule(project, Map.of(), Map.of()), "project");
+        executor.addModule("quality", new InferredByteCodeQualityModule(ProjectConfiguration.of(project), Map.of(), Map.of()), "project");
         executor.execute("quality/spotbugs/tool/required");
 
         Path requiredOutput = root.resolve("quality").resolve("spotbugs").resolve("tool").resolve("required").resolve("output");
@@ -37,7 +38,7 @@ public class InferredByteCodeQualityModuleTest {
     public void skips_spotbugs_when_no_filter_file_is_present() throws IOException {
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
-        executor.addModule("quality", new InferredByteCodeQualityModule(project, Map.of(), Map.of()), "project");
+        executor.addModule("quality", new InferredByteCodeQualityModule(ProjectConfiguration.of(project), Map.of(), Map.of()), "project");
         executor.execute();
 
         assertThat(root.resolve("quality").resolve("spotbugs"))

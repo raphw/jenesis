@@ -16,17 +16,17 @@ public class InferredComplianceModule implements BuildExecutorModule {
     private static final Set<String> LICENSING_KEYS = Set.of("allowed", "denied", "unknown");
     private static final Set<String> VULNERABILITY_KEYS = Set.of("severity", "warn", "osv.endpoint");
 
-    private final Path configuration;
+    private final ProjectConfiguration configuration;
     private final boolean license;
     private final boolean vulnerability;
 
-    public InferredComplianceModule(Path configuration) {
+    public InferredComplianceModule(ProjectConfiguration configuration) {
         this(configuration,
                 Boolean.parseBoolean(System.getProperty("jenesis.compliance.license", "true")),
                 Boolean.parseBoolean(System.getProperty("jenesis.compliance.vulnerability", "true")));
     }
 
-    private InferredComplianceModule(Path configuration, boolean license, boolean vulnerability) {
+    private InferredComplianceModule(ProjectConfiguration configuration, boolean license, boolean vulnerability) {
         this.configuration = configuration;
         this.license = license;
         this.vulnerability = vulnerability;
@@ -43,7 +43,7 @@ public class InferredComplianceModule implements BuildExecutorModule {
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) throws IOException {
         Bind.configuredByProperties(buildExecutor, inherited.sequencedKeySet(), LICENSE, license,
-                configuration.resolve("licensing.properties"),
+                configuration.locate("licensing.properties"),
                 properties -> {
                     if (properties.stringPropertyNames().isEmpty()) {
                         return null;
@@ -53,7 +53,7 @@ public class InferredComplianceModule implements BuildExecutorModule {
                     return module;
                 });
         Bind.configuredByProperties(buildExecutor, inherited.sequencedKeySet(), VULNERABILITY, vulnerability,
-                configuration.resolve("vulnerability.properties"),
+                configuration.locate("vulnerability.properties"),
                 properties -> {
                     if (properties.stringPropertyNames().isEmpty()) {
                         return null;

@@ -12,7 +12,7 @@ public class InferredTestObservationModule implements BuildExecutorModule {
 
     public static final String TEST = "test", MUTATE = "mutate";
 
-    private final Path configuration;
+    private final ProjectConfiguration configuration;
     private final boolean jacoco;
     private final boolean nativeImage;
     private final boolean pitest;
@@ -21,7 +21,7 @@ public class InferredTestObservationModule implements BuildExecutorModule {
     private final Pinning pinning;
     private final Function<List<ObservabilityEngine>, BuildExecutorModule> toTarget;
 
-    public InferredTestObservationModule(Path configuration,
+    public InferredTestObservationModule(ProjectConfiguration configuration,
                                          Map<String, Repository> repositories,
                                          Map<String, Resolver> resolvers,
                                          Pinning pinning,
@@ -36,7 +36,7 @@ public class InferredTestObservationModule implements BuildExecutorModule {
                 toTarget);
     }
 
-    private InferredTestObservationModule(Path configuration,
+    private InferredTestObservationModule(ProjectConfiguration configuration,
                                           boolean jacoco,
                                           boolean nativeImage,
                                           boolean pitest,
@@ -70,12 +70,12 @@ public class InferredTestObservationModule implements BuildExecutorModule {
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) throws IOException {
         SequencedMap<String, BuildExecutorModule> reports = new LinkedHashMap<>();
         List<ObservabilityEngine> engines = new ArrayList<>();
-        if (jacoco && Files.isRegularFile(configuration.resolve("jacoco.properties"))) {
+        if (jacoco && configuration.locate("jacoco.properties") != null) {
             JaCoCo engine = new JaCoCo();
             engines.add(engine);
             reports.put(engine.name(), new JaCoCoModule(repositories, resolvers).pinning(pinning));
         }
-        if (nativeImage && Files.isRegularFile(configuration.resolve("graal.properties"))) {
+        if (nativeImage && configuration.locate("graal.properties") != null) {
             NativeImageAgent engine = new NativeImageAgent();
             engines.add(engine);
             reports.put(engine.name(), new NativeImageAgentModule());
@@ -86,7 +86,7 @@ public class InferredTestObservationModule implements BuildExecutorModule {
         reportInputs.addAll(inherited.sequencedKeySet());
         reports.forEach((name, report) -> buildExecutor.addModule(name, report, reportInputs));
         Bind.configuredByProperties(buildExecutor, inherited.sequencedKeySet(), MUTATE, pitest,
-                configuration.resolve("pitest.properties"),
+                configuration.locate("pitest.properties"),
                 properties -> new PiTestModule(repositories, resolvers).pinning(pinning).config(properties));
     }
 }

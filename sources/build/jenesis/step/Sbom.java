@@ -28,11 +28,10 @@ public class Sbom implements BuildStep {
         return new Sbom(format);
     }
 
-    public static Sbom configured(Path configuration) throws IOException {
-        Path file = configuration.resolve("sbom.properties");
-        String format = Files.isRegularFile(file)
-                ? SequencedProperties.ofFiles(file).getProperty("format", "json")
-                : "json";
+    public static Sbom configured(Path properties) throws IOException {
+        String format = properties == null
+                ? "json"
+                : SequencedProperties.ofFiles(properties).getProperty("format", "json");
         return switch (format.trim().toLowerCase(Locale.ROOT)) {
             case "json" -> new Sbom().format(CycloneDx.Format.JSON);
             case "xml" -> new Sbom().format(CycloneDx.Format.XML);

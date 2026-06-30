@@ -14,7 +14,7 @@ public class InferredSourceFormattingModule implements BuildExecutorModule {
             KTLINT = "ktlint",
             SCALAFMT = "scalafmt";
 
-    private final Path configuration;
+    private final ProjectConfiguration configuration;
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
     private final Pinning pinning;
@@ -23,7 +23,7 @@ public class InferredSourceFormattingModule implements BuildExecutorModule {
     private final boolean ktlint;
     private final boolean scalafmt;
 
-    public InferredSourceFormattingModule(Path configuration,
+    public InferredSourceFormattingModule(ProjectConfiguration configuration,
                                           Map<String, Repository> repositories,
                                           Map<String, Resolver> resolvers) {
         this(configuration, repositories, resolvers, null,
@@ -33,7 +33,7 @@ public class InferredSourceFormattingModule implements BuildExecutorModule {
                 Boolean.parseBoolean(System.getProperty("jenesis.format.scalafmt", "true")));
     }
 
-    private InferredSourceFormattingModule(Path configuration,
+    private InferredSourceFormattingModule(ProjectConfiguration configuration,
                                            Map<String, Repository> repositories,
                                            Map<String, Resolver> resolvers,
                                            Pinning pinning,
@@ -74,7 +74,7 @@ public class InferredSourceFormattingModule implements BuildExecutorModule {
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) throws IOException {
         Bind.configuredByProperties(buildExecutor, inherited.sequencedKeySet(), JAVA, java,
-                configuration.resolve("javaformat.properties"),
+                configuration.locate("javaformat.properties"),
                 properties -> switch (properties.getProperty("formatter")) {
                     case "google" -> new GoogleJavaFormatModule(repositories, resolvers).pinning(pinning).verify(verify);
                     case "palantir" -> new PalantirJavaFormatModule(repositories, resolvers).pinning(pinning).verify(verify);

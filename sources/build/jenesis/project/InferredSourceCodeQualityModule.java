@@ -18,7 +18,7 @@ public class InferredSourceCodeQualityModule implements BuildExecutorModule {
             SCALAFMT = "scalafmt",
             CODENARC = "codenarc";
 
-    private final Path configuration;
+    private final ProjectConfiguration configuration;
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
     private final Pinning pinning;
@@ -30,7 +30,7 @@ public class InferredSourceCodeQualityModule implements BuildExecutorModule {
     private final boolean scalafmt;
     private final boolean codenarc;
 
-    public InferredSourceCodeQualityModule(Path configuration,
+    public InferredSourceCodeQualityModule(ProjectConfiguration configuration,
                                            Map<String, Repository> repositories,
                                            Map<String, Resolver> resolvers) {
         this(configuration, repositories, resolvers, null,
@@ -43,7 +43,7 @@ public class InferredSourceCodeQualityModule implements BuildExecutorModule {
                 Boolean.parseBoolean(System.getProperty("jenesis.source.codenarc", "true")));
     }
 
-    private InferredSourceCodeQualityModule(Path configuration,
+    private InferredSourceCodeQualityModule(ProjectConfiguration configuration,
                                             Map<String, Repository> repositories,
                                             Map<String, Resolver> resolvers,
                                             Pinning pinning,

@@ -1,6 +1,7 @@
 package build.jenesis.test.project;
 
 import module java.base;
+import build.jenesis.project.ProjectConfiguration;
 import module org.junit.jupiter.api;
 import build.jenesis.BuildExecutor;
 import build.jenesis.PathPlacement;
@@ -305,7 +306,7 @@ public class InferredMultiProjectAssemblerTest {
                 return new LinkedHashSet<>(List.of(BuildExecutorModule.PREVIOUS + "artifacts"));
             }
         };
-        ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, sources, tests, source, documentation, null, PathPlacement.INFERRED);
+        ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, ProjectConfiguration.of(sources), tests, source, documentation, null, PathPlacement.INFERRED);
         AssemblyDescriptor assembled = new InferredMultiProjectAssembler()
                 .packaging(packageType).jmod(jmod).jlink(jlink).nativeImage(nativeImage).apply(descriptor, Map.of(), Map.of());
         BuildExecutor executor = BuildExecutor.of(build,

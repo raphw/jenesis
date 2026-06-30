@@ -44,9 +44,8 @@ public class KtlintFormatModule implements BuildExecutorModule {
         this.verify = verify;
     }
 
-    public static Path configurationFile(Path configuration) {
-        Path file = configuration.resolve(".editorconfig");
-        return Files.isRegularFile(file) ? file : null;
+    public static Path configurationFile(ProjectConfiguration configuration) {
+        return configuration.locate(".editorconfig");
     }
 
     public KtlintFormatModule pinning(Pinning pinning) {

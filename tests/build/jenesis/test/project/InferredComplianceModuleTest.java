@@ -1,6 +1,7 @@
 package build.jenesis.test.project;
 
 import module java.base;
+import build.jenesis.project.ProjectConfiguration;
 import module org.junit.jupiter.api;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorCache;
@@ -21,14 +22,14 @@ public class InferredComplianceModuleTest {
     public void license_check_is_wired_when_a_licensing_properties_file_exists() throws Exception {
         Path configuration = Files.createDirectories(root.resolve("configuration"));
         Files.writeString(configuration.resolve("licensing.properties"), "allowed=Apache\n");
-        assertThat(execute(new InferredComplianceModule(configuration), "compliance/license/check"))
+        assertThat(execute(new InferredComplianceModule(ProjectConfiguration.of(configuration)), "compliance/license/check"))
                 .containsKey("compliance/license/check");
     }
 
     @Test
     public void license_check_is_omitted_without_a_licensing_properties_file() throws Exception {
         Path configuration = Files.createDirectories(root.resolve("configuration"));
-        assertThatThrownBy(() -> execute(new InferredComplianceModule(configuration), "compliance/license/check"))
+        assertThatThrownBy(() -> execute(new InferredComplianceModule(ProjectConfiguration.of(configuration)), "compliance/license/check"))
                 .rootCause()
                 .hasMessageContaining("license");
     }
@@ -37,7 +38,7 @@ public class InferredComplianceModuleTest {
     public void license_check_is_omitted_when_disabled() throws Exception {
         Path configuration = Files.createDirectories(root.resolve("configuration"));
         Files.writeString(configuration.resolve("licensing.properties"), "allowed=Apache\n");
-        assertThatThrownBy(() -> execute(new InferredComplianceModule(configuration).license(false), "compliance/license/check"))
+        assertThatThrownBy(() -> execute(new InferredComplianceModule(ProjectConfiguration.of(configuration)).license(false), "compliance/license/check"))
                 .rootCause()
                 .hasMessageContaining("license");
     }
@@ -46,7 +47,7 @@ public class InferredComplianceModuleTest {
     public void vulnerability_check_is_wired_when_a_vulnerability_properties_file_exists() throws Exception {
         Path configuration = Files.createDirectories(root.resolve("configuration"));
         Files.writeString(configuration.resolve("vulnerability.properties"), "severity=high\n");
-        assertThat(execute(new InferredComplianceModule(configuration), "compliance/vulnerability/check"))
+        assertThat(execute(new InferredComplianceModule(ProjectConfiguration.of(configuration)), "compliance/vulnerability/check"))
                 .containsKey("compliance/vulnerability/check");
     }
 
@@ -54,7 +55,7 @@ public class InferredComplianceModuleTest {
     public void vulnerability_check_is_omitted_when_disabled() throws Exception {
         Path configuration = Files.createDirectories(root.resolve("configuration"));
         Files.writeString(configuration.resolve("vulnerability.properties"), "severity=high\n");
-        assertThatThrownBy(() -> execute(new InferredComplianceModule(configuration).vulnerability(false), "compliance/vulnerability/check"))
+        assertThatThrownBy(() -> execute(new InferredComplianceModule(ProjectConfiguration.of(configuration)).vulnerability(false), "compliance/vulnerability/check"))
                 .rootCause()
                 .hasMessageContaining("vulnerability");
     }
@@ -63,7 +64,7 @@ public class InferredComplianceModuleTest {
     public void a_check_is_omitted_when_its_properties_file_is_empty() throws Exception {
         Path configuration = Files.createDirectories(root.resolve("configuration"));
         Files.writeString(configuration.resolve("licensing.properties"), "");
-        assertThatThrownBy(() -> execute(new InferredComplianceModule(configuration), "compliance/license/check"))
+        assertThatThrownBy(() -> execute(new InferredComplianceModule(ProjectConfiguration.of(configuration)), "compliance/license/check"))
                 .rootCause()
                 .hasMessageContaining("license");
     }
@@ -72,7 +73,7 @@ public class InferredComplianceModuleTest {
     public void an_unknown_licensing_property_fails_the_build() throws Exception {
         Path configuration = Files.createDirectories(root.resolve("configuration"));
         Files.writeString(configuration.resolve("licensing.properties"), "allowed=Apache\nbogus=x\n");
-        assertThatThrownBy(() -> execute(new InferredComplianceModule(configuration), "compliance/license/check"))
+        assertThatThrownBy(() -> execute(new InferredComplianceModule(ProjectConfiguration.of(configuration)), "compliance/license/check"))
                 .rootCause()
                 .hasMessageContaining("bogus");
     }
@@ -81,7 +82,7 @@ public class InferredComplianceModuleTest {
     public void an_unknown_vulnerability_property_fails_the_build() throws Exception {
         Path configuration = Files.createDirectories(root.resolve("configuration"));
         Files.writeString(configuration.resolve("vulnerability.properties"), "severity=high\nbogus=x\n");
-        assertThatThrownBy(() -> execute(new InferredComplianceModule(configuration), "compliance/vulnerability/check"))
+        assertThatThrownBy(() -> execute(new InferredComplianceModule(ProjectConfiguration.of(configuration)), "compliance/vulnerability/check"))
                 .rootCause()
                 .hasMessageContaining("bogus");
     }

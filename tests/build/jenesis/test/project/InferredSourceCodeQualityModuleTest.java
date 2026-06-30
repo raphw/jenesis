@@ -1,6 +1,7 @@
 package build.jenesis.test.project;
 
 import module java.base;
+import build.jenesis.project.ProjectConfiguration;
 import module org.junit.jupiter.api;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorCache;
@@ -24,7 +25,7 @@ public class InferredSourceCodeQualityModuleTest {
 
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
-        executor.addModule("quality", new InferredSourceCodeQualityModule(project, Map.of(), Map.of()), "project");
+        executor.addModule("quality", new InferredSourceCodeQualityModule(ProjectConfiguration.of(project), Map.of(), Map.of()), "project");
         executor.execute("quality/checkstyle/tool/required");
 
         Path requiredOutput = root.resolve("quality").resolve("checkstyle").resolve("tool").resolve("required").resolve("output");
@@ -37,7 +38,7 @@ public class InferredSourceCodeQualityModuleTest {
     public void skips_checkstyle_when_its_config_file_is_absent() throws IOException {
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
-        executor.addModule("quality", new InferredSourceCodeQualityModule(project, Map.of(), Map.of()), "project");
+        executor.addModule("quality", new InferredSourceCodeQualityModule(ProjectConfiguration.of(project), Map.of(), Map.of()), "project");
         executor.execute();
 
         assertThat(root.resolve("quality").resolve("checkstyle"))

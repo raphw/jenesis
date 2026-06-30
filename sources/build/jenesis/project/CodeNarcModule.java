@@ -46,9 +46,8 @@ public class CodeNarcModule implements BuildExecutorModule {
         this.strict = strict;
     }
 
-    public static Path configurationFile(Path configuration) {
-        Path file = configuration.resolve("codenarc.xml");
-        return Files.isRegularFile(file) ? file : null;
+    public static Path configurationFile(ProjectConfiguration configuration) {
+        return configuration.locate("codenarc.xml");
     }
 
     public CodeNarcModule pinning(Pinning pinning) {

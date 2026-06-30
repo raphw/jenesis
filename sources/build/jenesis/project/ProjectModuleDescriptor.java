@@ -8,7 +8,7 @@ import build.jenesis.PathPlacement;
 public class ProjectModuleDescriptor implements ProjectModule {
 
     private final String name;
-    private final Path configuration;
+    private final ProjectConfiguration configuration;
     private final SequencedSet<String> dependencies;
     private final SequencedSet<String> sources;
     private final SequencedSet<String> resources;
@@ -23,7 +23,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
     private final PathPlacement pathPlacement;
 
     public ProjectModuleDescriptor(ProjectModule base,
-                                   Path configuration,
+                                   ProjectConfiguration configuration,
                                    boolean test,
                                    boolean source,
                                    boolean documentation,
@@ -45,7 +45,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
     }
 
     private ProjectModuleDescriptor(String name,
-                                    Path configuration,
+                                    ProjectConfiguration configuration,
                                     SequencedSet<String> dependencies,
                                     SequencedSet<String> sources,
                                     SequencedSet<String> resources,
@@ -74,7 +74,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
         this.pathPlacement = pathPlacement;
     }
 
-    public Path configuration() {
+    public ProjectConfiguration configuration() {
         return configuration;
     }
 

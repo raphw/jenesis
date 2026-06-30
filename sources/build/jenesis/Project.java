@@ -22,6 +22,7 @@ import build.jenesis.project.Ide;
 import build.jenesis.project.InferredMultiProjectAssembler;
 import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.MultiProjectModule;
+import build.jenesis.project.ProjectConfiguration;
 import build.jenesis.project.ProjectModuleDescriptor;
 import build.jenesis.project.ProjectWatch;
 import build.jenesis.step.Bind;
@@ -94,7 +95,7 @@ public record Project(
                                 printDependencies,
                                 (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
                                         new ProjectModuleDescriptor(descriptor,
-                                                project.configuration(),
+                                                ProjectConfiguration.of(project.configuration()),
                                                 project.tests(),
                                                 project.sources(),
                                                 project.documentation(),
@@ -158,7 +159,7 @@ public record Project(
                                 printDependencies,
                                 (descriptor, mergedRepos, mergedResolvers) -> assembler.apply(
                                         new ProjectModuleDescriptor(descriptor,
-                                                project.configuration(),
+                                                ProjectConfiguration.of(project.configuration()),
                                                 project.tests(),
                                                 project.sources(),
                                                 project.documentation(),
@@ -231,7 +232,7 @@ public record Project(
                                 printDependencies,
                                 (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
                                         new ProjectModuleDescriptor(descriptor,
-                                                project.configuration(),
+                                                ProjectConfiguration.of(project.configuration()),
                                                 project.tests(),
                                                 project.sources(),
                                                 project.documentation(),

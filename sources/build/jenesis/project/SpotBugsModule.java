@@ -51,9 +51,8 @@ public class SpotBugsModule implements BuildExecutorModule {
         this.strict = strict;
     }
 
-    public static Path configurationFile(Path configuration) {
-        Path file = configuration.resolve("spotbugs-exclude.xml");
-        return Files.isRegularFile(file) ? file : null;
+    public static Path configurationFile(ProjectConfiguration configuration) {
+        return configuration.locate("spotbugs-exclude.xml");
     }
 
     public SpotBugsModule pinning(Pinning pinning) {
