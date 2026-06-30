@@ -156,11 +156,47 @@ public class ProjectTest {
                 new LinkedHashSet<>(Arrays.asList(
                         root.resolve("module/config"),
                         root.resolve("missing"),
-                        null)));
+                        null)),
+                Collections.emptyNavigableSet());
         assertThat(folders).hasSize(1);
         Path only = folders.getFirst();
         assertThat(only.isAbsolute()).isTrue();
         assertThat(only).isEqualTo(existing.toAbsolutePath().normalize());
+    }
+
+    @Test
+    public void profiles_default_to_the_selected_profile_names() {
+        System.setProperty("jenesis.project.properties", "release, supply-chain.properties");
+        assertThat(new Project().profiles())
+                .containsExactly(Path.of("release"), Path.of("supply-chain"));
+    }
+
+    @Test
+    public void profiles_default_to_empty_without_a_selection() {
+        assertThat(new Project().profiles()).isEmpty();
+    }
+
+    @Test
+    public void profiles_wither_round_trips() {
+        assertThat(new Project().profiles(Path.of("release"), Path.of("ci")).profiles())
+                .containsExactly(Path.of("release"), Path.of("ci"));
+    }
+
+    @Test
+    public void profile_folders_precede_plain_folders_module_before_root() throws IOException {
+        Path moduleConfig = Files.createDirectories(root.resolve("module").resolve("config"));
+        Path rootConfig = Files.createDirectories(root.resolve("root"));
+        Path moduleProfile = Files.createDirectories(moduleConfig.resolve("release"));
+        Path rootProfile = Files.createDirectories(rootConfig.resolve("release"));
+        SequencedSet<Path> folders = Project.Layout.configurations(
+                moduleConfig,
+                new LinkedHashSet<>(List.of(rootConfig)),
+                new LinkedHashSet<>(List.of(Path.of("release"))));
+        assertThat(folders).containsExactly(
+                moduleProfile.toAbsolutePath().normalize(),
+                rootProfile.toAbsolutePath().normalize(),
+                moduleConfig.toAbsolutePath().normalize(),
+                rootConfig.toAbsolutePath().normalize());
     }
 
     @Test

@@ -33,6 +33,7 @@ import build.jenesis.step.Tree;
 public record Project(
         Path root,
         SequencedSet<Path> configuration,
+        SequencedSet<Path> profiles,
         Path target,
         Path artifacts,
         BuildExecutorCache cache,
@@ -77,13 +78,26 @@ public record Project(
             return location == null ? null : location.resolve("META-INF").resolve("build.jenesis");
         }
 
-        static SequencedSet<Path> configurations(Path local, SequencedSet<Path> folders) {
-            LinkedHashSet<Path> ordered = new LinkedHashSet<>();
+        static SequencedSet<Path> configurations(Path local, SequencedSet<Path> folders, SequencedSet<Path> profiles) {
+            LinkedHashSet<Path> base = new LinkedHashSet<>();
             Stream.concat(Stream.of(local), folders.stream())
                     .filter(folder -> folder != null)
                     .map(folder -> folder.toAbsolutePath().normalize())
-                    .filter(Files::isDirectory)
-                    .forEach(ordered::add);
+                    .forEach(base::add);
+            LinkedHashSet<Path> ordered = new LinkedHashSet<>();
+            for (Path folder : base) {
+                for (Path profile : profiles) {
+                    Path resolved = folder.resolve(profile);
+                    if (Files.isDirectory(resolved)) {
+                        ordered.add(resolved);
+                    }
+                }
+            }
+            for (Path folder : base) {
+                if (Files.isDirectory(folder)) {
+                    ordered.add(folder);
+                }
+            }
             return Collections.unmodifiableSequencedSet(ordered);
         }
 
@@ -112,7 +126,7 @@ public record Project(
                                 printDependencies,
                                 (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
                                         new ProjectModuleDescriptor(descriptor,
-                                                configurations(mavenConfigurationFolder(descriptor.location()), project.configuration()),
+                                                configurations(mavenConfigurationFolder(descriptor.location()), project.configuration(), project.profiles()),
                                                 project.tests(),
                                                 project.sources(),
                                                 project.documentation(),
@@ -178,7 +192,8 @@ public record Project(
                                         new ProjectModuleDescriptor(descriptor,
                                                 configurations(
                                                         modularConfigurationFolder(descriptor.location()),
-                                                        project.configuration()),
+                                                        project.configuration(),
+                                                        project.profiles()),
                                                 project.tests(),
                                                 project.sources(),
                                                 project.documentation(),
@@ -251,7 +266,7 @@ public record Project(
                                 printDependencies,
                                 (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
                                         new ProjectModuleDescriptor(descriptor,
-                                                configurations(modularConfigurationFolder(descriptor.location()), project.configuration()),
+                                                configurations(modularConfigurationFolder(descriptor.location()), project.configuration(), project.profiles()),
                                                 project.tests(),
                                                 project.sources(),
                                                 project.documentation(),
@@ -1157,6 +1172,17 @@ public record Project(
                     .map(value -> configurationRoot.resolve(Path.of(value)))
                     .collect(Collectors.toCollection(LinkedHashSet::new));
         }
+        String profilesOverride = System.getProperty("jenesis.project.properties");
+        SequencedSet<Path> resolvedProfiles = profilesOverride == null
+                ? Collections.emptyNavigableSet()
+                : Arrays.stream(profilesOverride.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isEmpty())
+                .map(value -> value.endsWith(".properties")
+                        ? value.substring(0, value.length() - ".properties".length())
+                        : value)
+                .map(Path::of)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
         Path resolvedTarget = Path.of("target");
         String targetOverride = System.getProperty("jenesis.project.target");
         if (targetOverride != null) {
@@ -1196,6 +1222,7 @@ public record Project(
                 .collect(Collectors.toCollection(LinkedHashSet::new));
         this(resolvedRoot,
                 resolvedConfiguration,
+                resolvedProfiles,
                 resolvedTarget,
                 resolvedArtifacts,
                 resolvedCache,
@@ -1217,6 +1244,7 @@ public record Project(
     public Project root(Path root) {
         return new Project(root,
                 configuration,
+                profiles,
                 target,
                 artifacts,
                 cache,
@@ -1238,6 +1266,29 @@ public record Project(
     public Project configuration(Path... configuration) {
         return new Project(root,
                 new LinkedHashSet<>(List.of(configuration)),
+                profiles,
+                target,
+                artifacts,
+                cache,
+                hashFunction,
+                layout,
+                tests,
+                sources,
+                documentation,
+                pinning,
+                metadata,
+                version,
+                defaultTarget,
+                assembler,
+                repositories,
+                resolvers,
+                configurator);
+    }
+
+    public Project profiles(Path... profiles) {
+        return new Project(root,
+                configuration,
+                new LinkedHashSet<>(List.of(profiles)),
                 target,
                 artifacts,
                 cache,
@@ -1259,6 +1310,7 @@ public record Project(
     public Project target(Path target) {
         return new Project(root,
                 configuration,
+                profiles,
                 target,
                 artifacts,
                 cache,
@@ -1280,6 +1332,7 @@ public record Project(
     public Project artifacts(Path artifacts) {
         return new Project(root,
                 configuration,
+                profiles,
                 target,
                 artifacts,
                 cache,
@@ -1301,6 +1354,7 @@ public record Project(
     public Project cache(BuildExecutorCache cache) {
         return new Project(root,
                 configuration,
+                profiles,
                 target,
                 artifacts,
                 cache,
@@ -1322,6 +1376,7 @@ public record Project(
     public Project hashFunction(HashDigestFunction hashFunction) {
         return new Project(root,
                 configuration,
+                profiles,
                 target,
                 artifacts,
                 cache,
@@ -1343,6 +1398,7 @@ public record Project(
     public Project layout(Layout layout) {
         return new Project(root,
                 configuration,
+                profiles,
                 target,
                 artifacts,
                 cache,
@@ -1364,6 +1420,7 @@ public record Project(
     public Project tests(boolean tests) {
         return new Project(root,
                 configuration,
+                profiles,
                 target,
                 artifacts,
                 cache,
@@ -1385,6 +1442,7 @@ public record Project(
     public Project sources(boolean sources) {
         return new Project(root,
                 configuration,
+                profiles,
                 target,
                 artifacts,
                 cache,
@@ -1406,6 +1464,7 @@ public record Project(
     public Project documentation(boolean documentation) {
         return new Project(root,
                 configuration,
+                profiles,
                 target,
                 artifacts,
                 cache,
@@ -1427,6 +1486,7 @@ public record Project(
     public Project pinning(Pinning pinning) {
         return new Project(root,
                 configuration,
+                profiles,
                 target,
                 artifacts,
                 cache,
@@ -1448,6 +1508,7 @@ public record Project(
     public Project metadata(Path... metadata) {
         return new Project(root,
                 configuration,
+                profiles,
                 target,
                 artifacts,
                 cache,
@@ -1469,6 +1530,7 @@ public record Project(
     public Project version(String version) {
         return new Project(root,
                 configuration,
+                profiles,
                 target,
                 artifacts,
                 cache,
@@ -1490,6 +1552,7 @@ public record Project(
     public Project defaultTarget(String... defaultTarget) {
         return new Project(root,
                 configuration,
+                profiles,
                 target,
                 artifacts,
                 cache,
@@ -1511,6 +1574,7 @@ public record Project(
     public Project assembler(MultiProjectAssembler<? super ProjectModuleDescriptor> assembler) {
         return new Project(root,
                 configuration,
+                profiles,
                 target,
                 artifacts,
                 cache,
@@ -1532,6 +1596,7 @@ public record Project(
     public Project repositories(Map<String, Repository> repositories) {
         return new Project(root,
                 configuration,
+                profiles,
                 target,
                 artifacts,
                 cache,
@@ -1553,6 +1618,7 @@ public record Project(
     public Project resolvers(Map<String, Resolver> resolvers) {
         return new Project(root,
                 configuration,
+                profiles,
                 target,
                 artifacts,
                 cache,
@@ -1574,6 +1640,7 @@ public record Project(
     public Project configurator(Supplier<BuildExecutor.Configuration> configurator) {
         return new Project(root,
                 configuration,
+                profiles,
                 target,
                 artifacts,
                 cache,

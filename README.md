@@ -131,6 +131,13 @@ profile overrides the project's base `jenesis.properties`, which in turn overrid
 `jenesis.project.global` property relocates the user-global folder (default `$HOME`) or, set to an empty string,
 disables it. See the [`profiles`](demo/demo-14-profiles/README.md) demo and *Configuration*.
 
+A selected profile also designates a **configuration subfolder**. The same profile names are held on `Project` as a
+`SequencedSet<Path> profiles` (defaulting to the selected names, settable in code via the `profiles(Path...)` wither),
+and for each profile `<name>` a `<name>/` subfolder under each configuration location is searched **ahead of** the
+location itself, so profile-specific tool config (`checkstyle.xml`, `packaging.properties`, and so on) overrides the
+general config. The resolved search order is: each module-local profile folder, then each project-wide profile folder,
+then the module-local folder, then the project-wide folders - profile beats plain, module beats project-wide.
+
 **2. Custom entry point under `build/`.** When you want code-level control - a tailored assembler, an extra
 step on top of the default per-module pipeline - drop a `.java` file alongside `Project.java` and use the
 Builder there. Run it the same way (`java build/MyBuild.java`):
