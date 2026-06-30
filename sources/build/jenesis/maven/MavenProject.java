@@ -99,9 +99,10 @@ public class MavenProject implements BuildExecutorModule {
         MavenResolver resolver = MavenResolver.of(resolvers.get(prefix));
         return new MultiProjectModule(new MavenProject(root, prefix, repository, resolver).group(group),
                 identifier -> Optional.of(identifier.substring(0, identifier.indexOf('/'))),
-                _ -> (name, dependencies, _) -> {
+                _ -> (name, dependencies, arguments) -> {
+                    Path location = MultiProjectModule.location(root, arguments);
                     AssemblyDescriptor packaging = assembler.apply(
-                            new MavenModuleDescriptor(name, dependencies.sequencedKeySet(), Collections.emptyNavigableSet()),
+                            new MavenModuleDescriptor(name, dependencies.sequencedKeySet(), Collections.emptyNavigableSet(), location),
                             repositories,
                             resolvers);
                     AssemblyDescriptor assembly = new AssemblyDescriptor((buildExecutor, inherited) -> {
@@ -143,7 +144,7 @@ public class MavenProject implements BuildExecutorModule {
                         produceDeps.putIfAbsent(key, key);
                     }
                     buildExecutor.addModule(PRODUCE,
-                            assembler.apply(new MavenModuleDescriptor(name, dependencies.sequencedKeySet(), resources),
+                            assembler.apply(new MavenModuleDescriptor(name, dependencies.sequencedKeySet(), resources, location),
                                     mergedRepositories,
                                     resolvers).build(),
                             produceDeps);
@@ -633,7 +634,8 @@ public class MavenProject implements BuildExecutorModule {
 
     public record MavenModuleDescriptor(String name,
                                         SequencedSet<String> dependencies,
-                                        SequencedSet<String> resources) implements ProjectModule {
+                                        SequencedSet<String> resources,
+                                        Path location) implements ProjectModule {
 
         @Override
         public SequencedSet<String> sources() {

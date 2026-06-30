@@ -70,6 +70,10 @@ public record Project(
                                        MultiProjectAssembler<? super ProjectModuleDescriptor> assembler,
                                        boolean printDependencies) throws IOException;
 
+        private static Path buildJenesisFolder(Path location) {
+            return location == null ? null : location.resolve("META-INF").resolve("build.jenesis");
+        }
+
         Layout MAVEN = (executor, project, assembler, printDependencies) -> {
             executor.addModule(HELP, new HelpModule("maven", assembler.getClass().getName()));
             executor.addModule(SKILL, new SkillModule(project.target()));
@@ -95,7 +99,7 @@ public record Project(
                                 printDependencies,
                                 (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
                                         new ProjectModuleDescriptor(descriptor,
-                                                ProjectConfiguration.of(project.configuration()),
+                                                ProjectConfiguration.of(descriptor.location(), project.configuration()),
                                                 project.tests(),
                                                 project.sources(),
                                                 project.documentation(),
@@ -159,7 +163,9 @@ public record Project(
                                 printDependencies,
                                 (descriptor, mergedRepos, mergedResolvers) -> assembler.apply(
                                         new ProjectModuleDescriptor(descriptor,
-                                                ProjectConfiguration.of(project.configuration()),
+                                                ProjectConfiguration.of(
+                                                        buildJenesisFolder(descriptor.location()),
+                                                        project.configuration()),
                                                 project.tests(),
                                                 project.sources(),
                                                 project.documentation(),
@@ -232,7 +238,7 @@ public record Project(
                                 printDependencies,
                                 (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
                                         new ProjectModuleDescriptor(descriptor,
-                                                ProjectConfiguration.of(project.configuration()),
+                                                ProjectConfiguration.of(buildJenesisFolder(descriptor.location()), project.configuration()),
                                                 project.tests(),
                                                 project.sources(),
                                                 project.documentation(),

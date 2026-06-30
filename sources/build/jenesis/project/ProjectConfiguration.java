@@ -15,7 +15,13 @@ public record ProjectConfiguration(SequencedSet<Path> folders) {
     }
 
     public static ProjectConfiguration of(Path... folders) {
-        return new ProjectConfiguration(new LinkedHashSet<>(List.of(folders)));
+        LinkedHashSet<Path> ordered = new LinkedHashSet<>();
+        for (Path folder : folders) {
+            if (folder != null) {
+                ordered.add(folder);
+            }
+        }
+        return new ProjectConfiguration(ordered);
     }
 
     /**

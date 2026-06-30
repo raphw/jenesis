@@ -101,9 +101,10 @@ public class ModularProject implements BuildExecutorModule {
                                            MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
         return new MultiProjectModule(new ModularProject(prefix, root).group(group).filter(filter).modular(modular),
                 identity -> Optional.of(identity.substring(0, identity.indexOf('/'))),
-                _ -> (name, dependencies, _) -> {
+                _ -> (name, dependencies, arguments) -> {
+                    Path location = MultiProjectModule.location(root, arguments);
                     AssemblyDescriptor packaging = assembler.apply(
-                            new ModularModuleDescriptor(name, dependencies.sequencedKeySet()),
+                            new ModularModuleDescriptor(name, dependencies.sequencedKeySet(), location),
                             repositories,
                             resolvers);
                     AssemblyDescriptor assembly = new AssemblyDescriptor((buildExecutor, inherited) -> {
@@ -136,7 +137,7 @@ public class ModularProject implements BuildExecutorModule {
                         produceDeps.putIfAbsent(key, key);
                     }
                     buildExecutor.addModule(PRODUCE,
-                            assembler.apply(new ModularModuleDescriptor(name, dependencies.sequencedKeySet()),
+                            assembler.apply(new ModularModuleDescriptor(name, dependencies.sequencedKeySet(), location),
                                     mergedRepositories,
                                     resolvers).build(),
                             produceDeps);
@@ -296,7 +297,7 @@ public class ModularProject implements BuildExecutorModule {
         }
     }
 
-    public record ModularModuleDescriptor(String name, SequencedSet<String> dependencies) implements ProjectModule {
+    public record ModularModuleDescriptor(String name, SequencedSet<String> dependencies, Path location) implements ProjectModule {
 
         @Override
         public SequencedSet<String> sources() {
