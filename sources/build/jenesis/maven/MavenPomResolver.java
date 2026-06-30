@@ -769,8 +769,7 @@ public class MavenPomResolver implements MavenResolver {
                                Set<DependencyCoordinate> imports,
                                Map<DependencyCoordinate, UnresolvedPom> unresolved) throws IOException {
         if (!imports.add(new DependencyCoordinate(groupId, artifactId, version))) {
-            throw new IllegalStateException("Circular BOM import to "
-                    + groupId + ":" + artifactId + ":" + version);
+            return;
         }
         UnresolvedPom imported = assembleOrCached(executor,
                 repository,

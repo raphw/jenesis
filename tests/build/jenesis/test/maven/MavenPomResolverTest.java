@@ -1532,6 +1532,122 @@ public class MavenPomResolverTest {
     }
 
     @Test
+    public void can_resolve_dependency_bom_configuration_with_diamond_import() throws IOException {
+        addToRepository("group", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencies>
+                        <dependency>
+                            <groupId>leaf</groupId>
+                            <artifactId>artifact</artifactId>
+                        </dependency>
+                    </dependencies>
+                    <dependencyManagement>
+                        <dependencies>
+                            <dependency>
+                                <groupId>aggregator</groupId>
+                                <artifactId>artifact</artifactId>
+                                <version>1</version>
+                                <type>pom</type>
+                                <scope>import</scope>
+                            </dependency>
+                        </dependencies>
+                    </dependencyManagement>
+                </project>
+                """);
+        addToRepository("aggregator", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencyManagement>
+                        <dependencies>
+                            <dependency>
+                                <groupId>left</groupId>
+                                <artifactId>artifact</artifactId>
+                                <version>1</version>
+                                <type>pom</type>
+                                <scope>import</scope>
+                            </dependency>
+                            <dependency>
+                                <groupId>right</groupId>
+                                <artifactId>artifact</artifactId>
+                                <version>1</version>
+                                <type>pom</type>
+                                <scope>import</scope>
+                            </dependency>
+                        </dependencies>
+                    </dependencyManagement>
+                </project>
+                """);
+        addToRepository("left", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencyManagement>
+                        <dependencies>
+                            <dependency>
+                                <groupId>shared</groupId>
+                                <artifactId>artifact</artifactId>
+                                <version>1</version>
+                                <type>pom</type>
+                                <scope>import</scope>
+                            </dependency>
+                        </dependencies>
+                    </dependencyManagement>
+                </project>
+                """);
+        addToRepository("right", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencyManagement>
+                        <dependencies>
+                            <dependency>
+                                <groupId>shared</groupId>
+                                <artifactId>artifact</artifactId>
+                                <version>1</version>
+                                <type>pom</type>
+                                <scope>import</scope>
+                            </dependency>
+                        </dependencies>
+                    </dependencyManagement>
+                </project>
+                """);
+        addToRepository("shared", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                    <dependencyManagement>
+                        <dependencies>
+                            <dependency>
+                                <groupId>leaf</groupId>
+                                <artifactId>artifact</artifactId>
+                                <version>1</version>
+                            </dependency>
+                        </dependencies>
+                    </dependencyManagement>
+                </project>
+                """);
+        addToRepository("leaf", "artifact", "1", """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <modelVersion>4.0.0</modelVersion>
+                </project>
+                """);
+        SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = mavenPomResolver.dependencies(
+                Runnable::run,
+                mavenRepository,
+                "group",
+                "artifact",
+                "1",
+                null);
+        assertThat(dependencies).containsExactly(Map.entry(
+                new MavenDependencyKey("leaf", "artifact", "jar", null),
+                new MavenDependencyValue("1", MavenDependencyScope.COMPILE, null, null, null)));
+    }
+
+    @Test
     public void can_resolve_lowest_depth_version() throws IOException {
         addToRepository("group", "artifact", "1", """
                 <?xml version="1.0" encoding="UTF-8"?>
