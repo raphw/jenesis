@@ -3,6 +3,7 @@ package build.jenesis.project;
 import module java.base;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
+import build.jenesis.BuildStep;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Bind;
 import build.jenesis.step.LicenseCheck;
@@ -16,17 +17,17 @@ public class InferredComplianceModule implements BuildExecutorModule {
     private static final Set<String> LICENSING_KEYS = Set.of("allowed", "denied", "unknown");
     private static final Set<String> VULNERABILITY_KEYS = Set.of("severity", "warn", "osv.endpoint");
 
-    private final ProjectConfiguration configuration;
+    private final SequencedSet<Path> configuration;
     private final boolean license;
     private final boolean vulnerability;
 
-    public InferredComplianceModule(ProjectConfiguration configuration) {
+    public InferredComplianceModule(SequencedSet<Path> configuration) {
         this(configuration,
                 Boolean.parseBoolean(System.getProperty("jenesis.compliance.license", "true")),
                 Boolean.parseBoolean(System.getProperty("jenesis.compliance.vulnerability", "true")));
     }
 
-    private InferredComplianceModule(ProjectConfiguration configuration, boolean license, boolean vulnerability) {
+    private InferredComplianceModule(SequencedSet<Path> configuration, boolean license, boolean vulnerability) {
         this.configuration = configuration;
         this.license = license;
         this.vulnerability = vulnerability;
@@ -43,27 +44,25 @@ public class InferredComplianceModule implements BuildExecutorModule {
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) throws IOException {
         Bind.configuredByProperties(buildExecutor, inherited.sequencedKeySet(), LICENSE, license,
-                configuration.locate("licensing.properties"),
+                BuildStep.locate(configuration, "licensing.properties"),
                 properties -> {
                     if (properties.stringPropertyNames().isEmpty()) {
                         return null;
                     }
-                    BuildExecutorModule module = (nested, nestedInherited) -> nested.addStep("check",
+                    return (nested, nestedInherited) -> nested.addStep("check",
                             licenseCheck(properties), nestedInherited.sequencedKeySet().stream());
-                    return module;
                 });
         Bind.configuredByProperties(buildExecutor, inherited.sequencedKeySet(), VULNERABILITY, vulnerability,
-                configuration.locate("vulnerability.properties"),
+                BuildStep.locate(configuration, "vulnerability.properties"),
                 properties -> {
                     if (properties.stringPropertyNames().isEmpty()) {
                         return null;
                     }
-                    BuildExecutorModule module = (nested, nestedInherited) -> {
+                    return (nested, nestedInherited) -> {
                         nested.addStep("osv", osvDownload(properties), nestedInherited.sequencedKeySet().stream());
                         nested.addStep("check", vulnerabilityCheck(properties),
                                 Stream.concat(nestedInherited.sequencedKeySet().stream(), Stream.of("osv")));
                     };
-                    return module;
                 });
     }
 

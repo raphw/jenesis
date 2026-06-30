@@ -46,8 +46,8 @@ public class KtlintModule implements BuildExecutorModule {
         this.strict = strict;
     }
 
-    public static Path configurationFile(ProjectConfiguration configuration) {
-        return configuration.locate(".editorconfig");
+    public static Path configurationFile(SequencedSet<Path> configuration) {
+        return BuildStep.locate(configuration, ".editorconfig");
     }
 
     public KtlintModule pinning(Pinning pinning) {

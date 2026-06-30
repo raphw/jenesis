@@ -620,4 +620,30 @@ public class JavacTest {
                 .as("the META-INF/versions multi-release overlay is not copied as a plain resource")
                 .doesNotExist();
     }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    public void copies_meta_inf_resources_but_not_the_build_jenesis_folder(boolean process) throws IOException {
+        Path sample = Files.createDirectories(sources.resolve(BuildStep.SOURCES + "sample"));
+        Files.writeString(sample.resolve("Sample.java"), "package sample; public class Sample { }\n");
+        Path config = Files.createDirectories(sources.resolve(BuildStep.SOURCES + "META-INF/native-image/app"));
+        Files.writeString(config.resolve("reachability-metadata.json"), "[]");
+        Path buildJenesis = Files.createDirectories(sources.resolve(BuildStep.SOURCES + "META-INF/build.jenesis"));
+        Files.writeString(buildJenesis.resolve("checkstyle.xml"), "<module name=\"Checker\"/>");
+        BuildStepResult result = new Javac(process ? ProcessHandler.Factory.FORK : ProcessHandler.Factory.TOOL)
+                .apply(Runnable::run,
+                        new BuildStepContext(previous, next, supplement),
+                        new LinkedHashMap<>(Map.of("sources", new BuildStepArgument(
+                                sources,
+                                Map.of(Path.of("sources/sample/Sample.java"), Checksum.of(ChecksumStatus.ADDED),
+                                        Path.of("sources/META-INF/native-image/app/reachability-metadata.json"), Checksum.of(ChecksumStatus.ADDED),
+                                        Path.of("sources/META-INF/build.jenesis/checkstyle.xml"), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        assertThat(next.resolve(Javac.CLASSES + "META-INF/native-image/app/reachability-metadata.json"))
+                .as("META-INF resources are copied into the classes output verbatim")
+                .content().isEqualTo("[]");
+        assertThat(next.resolve(Javac.CLASSES + "META-INF/build.jenesis/checkstyle.xml"))
+                .as("the per-module META-INF/build.jenesis configuration is kept out of the classes output")
+                .doesNotExist();
+    }
 }

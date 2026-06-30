@@ -1,7 +1,6 @@
 package build.jenesis.test.project;
 
 import module java.base;
-import build.jenesis.project.ProjectConfiguration;
 import module org.junit.jupiter.api;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorCache;
@@ -25,7 +24,7 @@ public class InferredSourceFormattingModuleTest {
 
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
-        executor.addModule("format", new InferredSourceFormattingModule(ProjectConfiguration.of(project), Map.of(), Map.of()), "project");
+        executor.addModule("format", new InferredSourceFormattingModule(new LinkedHashSet<>(List.of(project)), Map.of(), Map.of()), "project");
         executor.execute("format/ktlint/tool/required");
 
         assertThat(coordinates("ktlint", "tool"))
@@ -38,7 +37,7 @@ public class InferredSourceFormattingModuleTest {
 
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
-        executor.addModule("format", new InferredSourceFormattingModule(ProjectConfiguration.of(project), Map.of(), Map.of()), "project");
+        executor.addModule("format", new InferredSourceFormattingModule(new LinkedHashSet<>(List.of(project)), Map.of(), Map.of()), "project");
         executor.execute("format/scalafmt/tool/required");
 
         assertThat(coordinates("scalafmt", "tool"))
@@ -51,7 +50,7 @@ public class InferredSourceFormattingModuleTest {
 
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
-        executor.addModule("format", new InferredSourceFormattingModule(ProjectConfiguration.of(project), Map.of(), Map.of()), "project");
+        executor.addModule("format", new InferredSourceFormattingModule(new LinkedHashSet<>(List.of(project)), Map.of(), Map.of()), "project");
         executor.execute("format/java/required");
 
         assertThat(coordinates("java"))
@@ -64,7 +63,7 @@ public class InferredSourceFormattingModuleTest {
 
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
-        executor.addModule("format", new InferredSourceFormattingModule(ProjectConfiguration.of(project), Map.of(), Map.of()), "project");
+        executor.addModule("format", new InferredSourceFormattingModule(new LinkedHashSet<>(List.of(project)), Map.of(), Map.of()), "project");
         executor.execute("format/java/required");
 
         assertThat(coordinates("java"))
@@ -78,7 +77,7 @@ public class InferredSourceFormattingModuleTest {
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
         executor.addModule("format",
-                new InferredSourceFormattingModule(ProjectConfiguration.of(project), Map.of(), Map.of()).java(false),
+                new InferredSourceFormattingModule(new LinkedHashSet<>(List.of(project)), Map.of(), Map.of()).java(false),
                 "project");
         executor.execute();
 
@@ -94,7 +93,7 @@ public class InferredSourceFormattingModuleTest {
 
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
-        executor.addModule("format", new InferredSourceFormattingModule(ProjectConfiguration.of(project), Map.of(), Map.of()), "project");
+        executor.addModule("format", new InferredSourceFormattingModule(new LinkedHashSet<>(List.of(project)), Map.of(), Map.of()), "project");
         executor.execute();
 
         assertThat(root.resolve("format").resolve("java"))
@@ -106,7 +105,7 @@ public class InferredSourceFormattingModuleTest {
     public void does_not_wire_ktlint_format_when_editorconfig_is_absent() throws IOException {
         BuildExecutor executor = newExecutor();
         executor.addSource("project", project);
-        executor.addModule("format", new InferredSourceFormattingModule(ProjectConfiguration.of(project), Map.of(), Map.of()), "project");
+        executor.addModule("format", new InferredSourceFormattingModule(new LinkedHashSet<>(List.of(project)), Map.of(), Map.of()), "project");
         executor.execute();
 
         assertThat(root.resolve("format").resolve("ktlint")).doesNotExist();

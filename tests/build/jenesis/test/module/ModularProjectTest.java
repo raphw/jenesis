@@ -326,8 +326,14 @@ public class ModularProjectTest {
                 false,
                 (descriptor, _, _) -> {
                     switch (descriptor.name()) {
-                        case "module-foo" -> assertThat(descriptor.dependencies()).isEmpty();
-                        case "module-bar" -> assertThat(descriptor.dependencies()).containsExactly("module-foo");
+                        case "module-foo" -> {
+                            assertThat(descriptor.dependencies()).isEmpty();
+                            assertThat(descriptor.location()).isEqualTo(project.resolve("foo"));
+                        }
+                        case "module-bar" -> {
+                            assertThat(descriptor.dependencies()).containsExactly("module-foo");
+                            assertThat(descriptor.location()).isEqualTo(project.resolve("bar"));
+                        }
                         default -> fail("Unexpected module: " + descriptor.name());
                     }
                     return new AssemblyDescriptor((buildExecutor, inherited) -> {

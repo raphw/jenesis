@@ -115,7 +115,7 @@ public record InferredMultiProjectAssembler(String packaging,
                             .pinning(descriptor.pinning())),
                     descriptor.sources());
             Sbom sbom = Boolean.parseBoolean(System.getProperty("jenesis.sbom.cyclonedx", "true"))
-                    ? Sbom.configured(descriptor.configuration().locate("sbom.properties"))
+                    ? Sbom.configured(BuildStep.locate(descriptor.configuration(), "sbom.properties"))
                     : null;
             if (sbom != null) {
                 sub.addStep("sbom", sbom,

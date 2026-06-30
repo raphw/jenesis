@@ -22,7 +22,6 @@ import build.jenesis.project.Ide;
 import build.jenesis.project.InferredMultiProjectAssembler;
 import build.jenesis.project.MultiProjectAssembler;
 import build.jenesis.project.MultiProjectModule;
-import build.jenesis.project.ProjectConfiguration;
 import build.jenesis.project.ProjectModuleDescriptor;
 import build.jenesis.project.ProjectWatch;
 import build.jenesis.step.Bind;
@@ -70,8 +69,25 @@ public record Project(
                                        MultiProjectAssembler<? super ProjectModuleDescriptor> assembler,
                                        boolean printDependencies) throws IOException;
 
-        private static Path buildJenesisFolder(Path location) {
+        private static Path mavenConfigurationFolder(Path location) {
+            return location == null ? null : location.resolve("build.jenesis");
+        }
+
+        private static Path modularConfigurationFolder(Path location) {
             return location == null ? null : location.resolve("META-INF").resolve("build.jenesis");
+        }
+
+        static SequencedSet<Path> configurations(Path... folders) {
+            LinkedHashSet<Path> ordered = new LinkedHashSet<>();
+            for (Path folder : folders) {
+                if (folder != null) {
+                    Path absolute = folder.toAbsolutePath().normalize();
+                    if (Files.isDirectory(absolute)) {
+                        ordered.add(absolute);
+                    }
+                }
+            }
+            return Collections.unmodifiableSequencedSet(ordered);
         }
 
         Layout MAVEN = (executor, project, assembler, printDependencies) -> {
@@ -99,7 +115,7 @@ public record Project(
                                 printDependencies,
                                 (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
                                         new ProjectModuleDescriptor(descriptor,
-                                                ProjectConfiguration.of(descriptor.location(), project.configuration()),
+                                                configurations(mavenConfigurationFolder(descriptor.location()), project.configuration()),
                                                 project.tests(),
                                                 project.sources(),
                                                 project.documentation(),
@@ -163,8 +179,8 @@ public record Project(
                                 printDependencies,
                                 (descriptor, mergedRepos, mergedResolvers) -> assembler.apply(
                                         new ProjectModuleDescriptor(descriptor,
-                                                ProjectConfiguration.of(
-                                                        buildJenesisFolder(descriptor.location()),
+                                                configurations(
+                                                        modularConfigurationFolder(descriptor.location()),
                                                         project.configuration()),
                                                 project.tests(),
                                                 project.sources(),
@@ -238,7 +254,7 @@ public record Project(
                                 printDependencies,
                                 (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
                                         new ProjectModuleDescriptor(descriptor,
-                                                ProjectConfiguration.of(buildJenesisFolder(descriptor.location()), project.configuration()),
+                                                configurations(modularConfigurationFolder(descriptor.location()), project.configuration()),
                                                 project.tests(),
                                                 project.sources(),
                                                 project.documentation(),
@@ -414,6 +430,7 @@ public record Project(
                       %{name}layout%{reset}                           auto, maven, modular, or modular_to_maven
                       %{name}sources%{reset}, %{name}documentation%{reset}           Assemble source/javadoc jars
                       %{name}metadata%{reset}                         Path-separated list of extra metadata files
+                      %{name}configuration%{reset}                    Directory the inferred tools search for config files (default: root; empty skips it)
                       %{name}version%{reset}                          Project version
                       %{name}digest%{reset}                           Algorithm for pin and dependency checksums (default: SHA-256)
                       %{name}watch%{reset}                            Rebuild the selected target whenever a source file changes (Ctrl+C to stop)
@@ -777,6 +794,10 @@ public record Project(
                       sources, documentation      Assemble sources / javadoc jars.
                       metadata                    Path-separated list of extra
                                                   metadata files.
+                      configuration               Directory searched for the
+                                                  inferred tools' config files
+                                                  (default root; empty uses only
+                                                  each module's build.jenesis/).
                       version                     Stamp version onto every
                                                   produced artifact.
                       digest                      Algorithm for pin and
@@ -1128,6 +1149,8 @@ public record Project(
         String configurationOverride = System.getProperty("jenesis.project.configuration");
         Path resolvedConfiguration = configurationOverride == null
                 ? resolvedRoot
+                : configurationOverride.isEmpty()
+                ? null
                 : resolvedRoot.resolve(Path.of(configurationOverride));
         Path resolvedTarget = Path.of("target");
         String targetOverride = System.getProperty("jenesis.project.target");

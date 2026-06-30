@@ -4,6 +4,7 @@ import module java.base;
 import build.jenesis.Pinning;
 import build.jenesis.BuildExecutor;
 import build.jenesis.BuildExecutorModule;
+import build.jenesis.BuildStep;
 import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.step.Bind;
@@ -14,7 +15,7 @@ public class InferredSourceFormattingModule implements BuildExecutorModule {
             KTLINT = "ktlint",
             SCALAFMT = "scalafmt";
 
-    private final ProjectConfiguration configuration;
+    private final SequencedSet<Path> configuration;
     private final Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
     private final Pinning pinning;
@@ -23,7 +24,7 @@ public class InferredSourceFormattingModule implements BuildExecutorModule {
     private final boolean ktlint;
     private final boolean scalafmt;
 
-    public InferredSourceFormattingModule(ProjectConfiguration configuration,
+    public InferredSourceFormattingModule(SequencedSet<Path> configuration,
                                           Map<String, Repository> repositories,
                                           Map<String, Resolver> resolvers) {
         this(configuration, repositories, resolvers, null,
@@ -33,7 +34,7 @@ public class InferredSourceFormattingModule implements BuildExecutorModule {
                 Boolean.parseBoolean(System.getProperty("jenesis.format.scalafmt", "true")));
     }
 
-    private InferredSourceFormattingModule(ProjectConfiguration configuration,
+    private InferredSourceFormattingModule(SequencedSet<Path> configuration,
                                            Map<String, Repository> repositories,
                                            Map<String, Resolver> resolvers,
                                            Pinning pinning,
@@ -74,7 +75,7 @@ public class InferredSourceFormattingModule implements BuildExecutorModule {
     @Override
     public void accept(BuildExecutor buildExecutor, SequencedMap<String, Path> inherited) throws IOException {
         Bind.configuredByProperties(buildExecutor, inherited.sequencedKeySet(), JAVA, java,
-                configuration.locate("javaformat.properties"),
+                BuildStep.locate(configuration, "javaformat.properties"),
                 properties -> switch (properties.getProperty("formatter")) {
                     case "google" -> new GoogleJavaFormatModule(repositories, resolvers).pinning(pinning).verify(verify);
                     case "palantir" -> new PalantirJavaFormatModule(repositories, resolvers).pinning(pinning).verify(verify);

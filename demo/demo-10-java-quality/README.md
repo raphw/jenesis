@@ -75,6 +75,26 @@ discovery alone decides; the property is an opt-out:
 For example `-Djenesis.source.checkstyle=false` keeps `checkstyle.xml` in place
 but skips Checkstyle, while PMD and SpotBugs still run.
 
+Per-module configuration
+------------------------
+
+The configuration directory above is the project-wide default. In a multi-module
+project each module may also carry its own configuration, which takes precedence
+over the project-wide one for that module:
+
+  - in the MAVEN layout, in a `build.jenesis/` folder next to the module's `pom.xml`;
+  - in the MODULAR and MODULAR_TO_MAVEN layouts (this demo uses the latter), under
+    the module's `META-INF/build.jenesis/` folder, which the compilers keep out of
+    the packaged jar.
+
+A configuration file is looked up in the module's own location first and in the
+project-wide configuration directory second, so a module overrides a shared
+default by placing its own `checkstyle.xml` (and so on) next to its sources. The
+lookup folders are always absolute, and the module and project-wide folders are
+de-duplicated when they coincide. Set `-Djenesis.project.configuration=` to an
+empty value to drop the project-wide directory entirely and configure every
+module purely from its own location.
+
 Where the tools run and what they produce
 -----------------------------------------
 

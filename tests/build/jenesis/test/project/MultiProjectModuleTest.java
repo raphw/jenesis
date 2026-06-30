@@ -467,4 +467,30 @@ public class MultiProjectModuleTest {
                 .hasMessageContaining("2");
     }
 
+    @Test
+    public void resolves_module_location_from_manifests_path() throws IOException {
+        SequencedProperties properties = new SequencedProperties();
+        properties.setProperty("path", "nested/module");
+        properties.store(module1.resolve(BuildStep.MODULE));
+        SequencedMap<String, Path> arguments = new LinkedHashMap<>();
+        arguments.put("../foo/sources", source1);
+        arguments.put("../foo/manifests", module1);
+        assertThat(MultiProjectModule.location(root, arguments)).isEqualTo(root.resolve("nested/module"));
+    }
+
+    @Test
+    public void resolves_no_location_without_manifests() throws IOException {
+        SequencedMap<String, Path> arguments = new LinkedHashMap<>();
+        arguments.put("../foo/sources", source1);
+        assertThat(MultiProjectModule.location(root, arguments)).isNull();
+    }
+
+    @Test
+    public void resolves_no_location_without_path_property() throws IOException {
+        new SequencedProperties().store(module1.resolve(BuildStep.MODULE));
+        SequencedMap<String, Path> arguments = new LinkedHashMap<>();
+        arguments.put("../foo/manifests", module1);
+        assertThat(MultiProjectModule.location(root, arguments)).isNull();
+    }
+
 }

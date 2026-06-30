@@ -47,8 +47,8 @@ public class ScalafmtFormatModule implements BuildExecutorModule {
         this.verify = verify;
     }
 
-    public static Path configurationFile(ProjectConfiguration configuration) {
-        return configuration.locate(".scalafmt.conf");
+    public static Path configurationFile(SequencedSet<Path> configuration) {
+        return BuildStep.locate(configuration, ".scalafmt.conf");
     }
 
     public ScalafmtFormatModule pinning(Pinning pinning) {

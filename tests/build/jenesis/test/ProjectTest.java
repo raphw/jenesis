@@ -28,6 +28,7 @@ public class ProjectTest {
         System.clearProperty("jenesis.project.layout");
         System.clearProperty("jenesis.test.skip");
         System.clearProperty("jenesis.project.root");
+        System.clearProperty("jenesis.project.configuration");
         System.clearProperty("jenesis.project.target");
         System.clearProperty("jenesis.project.artifacts");
         System.clearProperty("jenesis.project.cache");
@@ -134,6 +135,31 @@ public class ProjectTest {
     @Test
     public void default_target_is_build() {
         assertThat(new Project().defaultTarget()).containsExactly("build");
+    }
+
+    @Test
+    public void configuration_defaults_to_the_root() {
+        assertThat(new Project().configuration()).isEqualTo(Path.of("."));
+    }
+
+    @Test
+    public void empty_configuration_property_skips_the_global_configuration() {
+        System.setProperty("jenesis.project.configuration", "");
+        assertThat(new Project().configuration()).isNull();
+    }
+
+    @Test
+    public void configuration_folders_are_absolute_deduplicated_and_must_exist() throws IOException {
+        Path existing = Files.createDirectories(root.resolve("module").resolve("config"));
+        SequencedSet<Path> folders = Project.Layout.configurations(
+                root.resolve("module").resolve("config"),
+                root.resolve("module/config"),
+                root.resolve("missing"),
+                null);
+        assertThat(folders).hasSize(1);
+        Path only = folders.getFirst();
+        assertThat(only.isAbsolute()).isTrue();
+        assertThat(only).isEqualTo(existing.toAbsolutePath().normalize());
     }
 
     @Test
