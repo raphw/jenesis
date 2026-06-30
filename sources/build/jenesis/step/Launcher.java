@@ -1,6 +1,7 @@
 package build.jenesis.step;
 
 import module java.base;
+import java.util.jar.Attributes;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
@@ -89,8 +90,8 @@ public class Launcher implements BuildStep {
         Path descriptor = context.supplement().resolve("application.properties");
         application.store(descriptor);
         Manifest manifest = new Manifest();
-        manifest.getMainAttributes().put(java.util.jar.Attributes.Name.MANIFEST_VERSION, "1.0");
-        manifest.getMainAttributes().put(java.util.jar.Attributes.Name.MAIN_CLASS, MAIN_CLASS);
+        manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+        manifest.getMainAttributes().put(Attributes.Name.MAIN_CLASS, MAIN_CLASS);
         Path jar = Files.createDirectory(context.next().resolve(LAUNCHER))
                 .resolve((name == null ? "application" : name) + ".jar");
         try (JarOutputStream out = new JarOutputStream(Files.newOutputStream(jar), manifest)) {

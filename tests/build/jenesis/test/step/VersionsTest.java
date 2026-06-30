@@ -300,6 +300,21 @@ public class VersionsTest {
                 .content().contains("Multi-Release: true");
     }
 
+    @Test
+    public void merges_manifests_from_multiple_inputs() throws IOException {
+        Path classesDir = Files.createDirectory(classesInput.resolve(BuildStep.CLASSES));
+        Files.write(classesDir.resolve("Sample.class"), new byte[] { 0x01 });
+        Files.writeString(classesInput.resolve("manifest.mf"), "Manifest-Version: 1.0\r\nMulti-Release: true\r\n");
+        Files.writeString(requiresInput.resolve("manifest.mf"), "Manifest-Version: 1.0\r\nSbom-Format: CycloneDX\r\n");
+        writeRequires(Map.of());
+        runStep();
+        assertThat(next.resolve("manifest.mf"))
+                .exists()
+                .content()
+                .contains("Multi-Release: true")
+                .contains("Sbom-Format: CycloneDX");
+    }
+
     private static ModuleRequireInfo require(String name) {
         return ModuleRequireInfo.of(ModuleDesc.of(name), 0, null);
     }

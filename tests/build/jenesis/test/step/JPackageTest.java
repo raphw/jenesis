@@ -1,6 +1,7 @@
 package build.jenesis.test.step;
 
 import module java.base;
+import java.util.jar.Attributes;
 import module org.junit.jupiter.api;
 import module org.junit.jupiter.params;
 import build.jenesis.BuildStep;
@@ -38,8 +39,8 @@ public class JPackageTest {
     public void can_execute_jpackage(boolean process) throws IOException {
         Path artifacts = Files.createDirectory(bundle.resolve(BuildStep.ARTIFACTS));
         Manifest manifest = new Manifest();
-        manifest.getMainAttributes().put(java.util.jar.Attributes.Name.MANIFEST_VERSION, "1.0");
-        manifest.getMainAttributes().put(java.util.jar.Attributes.Name.MAIN_CLASS, "sample.Sample");
+        manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+        manifest.getMainAttributes().put(Attributes.Name.MAIN_CLASS, "sample.Sample");
         try (JarOutputStream jar = new JarOutputStream(Files.newOutputStream(artifacts.resolve("app.jar")), manifest)) {
             jar.putNextEntry(new JarEntry("sample/Sample.class"));
             try (InputStream in = Sample.class.getResourceAsStream("Sample.class")) {

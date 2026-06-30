@@ -1,6 +1,7 @@
 package build.jenesis.step;
 
 import module java.base;
+import java.util.jar.Attributes;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
@@ -42,8 +43,8 @@ public class Jar extends JdkProcessBuildStep {
                     current = new Manifest(in);
                 }
                 mergeAttributes(merged.getMainAttributes(), current.getMainAttributes(), path);
-                for (Map.Entry<String, java.util.jar.Attributes> entry : current.getEntries().entrySet()) {
-                    java.util.jar.Attributes target = merged.getEntries().computeIfAbsent(entry.getKey(), _ -> new java.util.jar.Attributes());
+                for (Map.Entry<String, Attributes> entry : current.getEntries().entrySet()) {
+                    Attributes target = merged.getEntries().computeIfAbsent(entry.getKey(), _ -> new Attributes());
                     mergeAttributes(target, entry.getValue(), path);
                 }
             }
@@ -67,7 +68,7 @@ public class Jar extends JdkProcessBuildStep {
         return CompletableFuture.completedStage(commands);
     }
 
-    private static void mergeAttributes(java.util.jar.Attributes target, java.util.jar.Attributes source, Path file) {
+    private static void mergeAttributes(Attributes target, Attributes source, Path file) {
         for (Map.Entry<Object, Object> entry : source.entrySet()) {
             Object key = entry.getKey(), value = entry.getValue(), existing = target.get(key);
             if (existing == null) {

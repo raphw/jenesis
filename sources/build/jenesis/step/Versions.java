@@ -1,6 +1,7 @@
 package build.jenesis.step;
 
 import module java.base;
+import java.util.jar.Attributes;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
@@ -44,10 +45,29 @@ public class Versions implements BuildStep {
             }
         }
         Path target = Files.createDirectory(context.next().resolve(CLASSES));
+        List<Path> manifests = new ArrayList<>();
         for (BuildStepArgument argument : arguments.values()) {
             Path manifest = argument.folder().resolve("manifest.mf");
             if (Files.exists(manifest)) {
-                BuildStep.linkOrCopy(context.next().resolve("manifest.mf"), manifest);
+                manifests.add(manifest);
+            }
+        }
+        if (!manifests.isEmpty()) {
+            Manifest merged = new Manifest();
+            for (Path manifest : manifests) {
+                Manifest current;
+                try (InputStream in = Files.newInputStream(manifest)) {
+                    current = new Manifest(in);
+                }
+                mergeAttributes(merged.getMainAttributes(), current.getMainAttributes(), manifest);
+                for (Map.Entry<String, Attributes> entry : current.getEntries().entrySet()) {
+                    Attributes attributes = merged.getEntries()
+                            .computeIfAbsent(entry.getKey(), _ -> new Attributes());
+                    mergeAttributes(attributes, entry.getValue(), manifest);
+                }
+            }
+            try (OutputStream out = Files.newOutputStream(context.next().resolve("manifest.mf"))) {
+                merged.write(out);
             }
         }
         boolean requiresChanged = arguments.values().stream().anyMatch(arg -> {
@@ -115,5 +135,17 @@ public class Versions implements BuildStep {
             });
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
+    }
+
+    private static void mergeAttributes(Attributes target, Attributes source, Path file) {
+        for (Map.Entry<Object, Object> entry : source.entrySet()) {
+            Object key = entry.getKey(), value = entry.getValue(), existing = target.get(key);
+            if (existing == null) {
+                target.put(key, value);
+            } else if (!existing.equals(value)) {
+                throw new IllegalStateException("Conflicting manifest attribute '"
+                        + key + "' in " + file + ": '" + existing + "' vs '" + value + "'");
+            }
+        }
     }
 }

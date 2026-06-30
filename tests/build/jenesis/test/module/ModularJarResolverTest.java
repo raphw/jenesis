@@ -1,6 +1,7 @@
 package build.jenesis.test.module;
 
 import module java.base;
+import java.util.jar.Attributes;
 import build.jenesis.DependencyScope;
 import module org.junit.jupiter.api;
 import build.jenesis.RepositoryItem;
@@ -746,7 +747,7 @@ public class ModularJarResolverTest {
                                              String rootVersion,
                                              Map<Integer, String> versions) throws IOException {
         Manifest manifest = new Manifest();
-        manifest.getMainAttributes().put(java.util.jar.Attributes.Name.MANIFEST_VERSION, "1.0");
+        manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
         manifest.getMainAttributes().putValue("Multi-Release", "true");
         Path file = Files.createTempFile(jars, module, ".jar");
         try (JarOutputStream jarOutputStream = new JarOutputStream(Files.newOutputStream(file), manifest)) {

@@ -1,6 +1,7 @@
 package build.jenesis.test.step;
 
 import module java.base;
+import java.util.jar.Attributes;
 import module org.junit.jupiter.api;
 import module org.junit.jupiter.params;
 import build.jenesis.BuildStep;
@@ -154,7 +155,7 @@ public class JarTest {
         assertThat(result.next()).isTrue();
         try (JarInputStream jarStream = new JarInputStream(Files.newInputStream(
                 next.resolve(BuildStep.ARTIFACTS + "classes.jar")))) {
-            java.util.jar.Attributes attributes = jarStream.getManifest().getMainAttributes();
+            Attributes attributes = jarStream.getManifest().getMainAttributes();
             assertThat(attributes.getValue("Multi-Release")).isEqualTo("true");
             assertThat(attributes.getValue("Main-Class")).isEqualTo("sample.Sample");
             assertThat(attributes.getValue("Implementation-Title")).isEqualTo("example");
