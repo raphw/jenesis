@@ -56,6 +56,12 @@ public interface BuildStep extends Serializable {
                 && path.getName(1).toString().equals("versions");
     }
 
+    static boolean underBuildJenesis(Path path) {
+        return path.getNameCount() >= 2
+                && path.getName(0).toString().equals("META-INF")
+                && path.getName(1).toString().equals("build.jenesis");
+    }
+
     static Path locate(SequencedSet<Path> folders, String fileName) {
         for (Path folder : folders) {
             Path candidate = folder.resolve(fileName);
