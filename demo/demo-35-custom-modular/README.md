@@ -52,7 +52,7 @@ How the convenience make is wired
     BuildExecutor root = BuildExecutor.of(Path.of("target"));
     root.addModule("modules", ModularProject.make(Path.of("."),
             (descriptor, repositories, resolvers) -> new InferredMultiProjectAssembler().apply(
-                    new ProjectModuleDescriptor(descriptor, Path.of("."), true, false, false, null, PathPlacement.MODULE_PATH),
+                    new ProjectModuleDescriptor(descriptor, new LinkedHashSet<>(List.of(Path.of("."))), true, false, false, null, PathPlacement.MODULE_PATH),
                     repositories,
                     resolvers)));
     root.execute(args);
