@@ -114,7 +114,9 @@ public record InferredMultiProjectAssembler(String packaging,
                     format.apply(new InferredSourceFormattingModule(descriptor.configuration(), repositories, resolvers)
                             .pinning(descriptor.pinning())),
                     descriptor.sources());
-            Sbom sbom = Sbom.configured(descriptor.configuration());
+            Sbom sbom = Boolean.parseBoolean(System.getProperty("jenesis.sbom.cyclonedx", "true"))
+                    ? Sbom.configured(descriptor.configuration())
+                    : null;
             if (sbom != null) {
                 sub.addStep("sbom", sbom,
                         Stream.concat(descriptor.manifests().stream(), descriptor.artifacts().stream()));

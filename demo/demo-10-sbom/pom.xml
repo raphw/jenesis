@@ -6,6 +6,29 @@
     <artifactId>sbom-demo</artifactId>
     <version>1.0.0</version>
 
+    <name>SBOM Demo</name>
+    <description>A demonstration module that ships a CycloneDX software bill of materials.</description>
+    <url>https://github.com/raphw/jenesis</url>
+
+    <licenses>
+        <license>
+            <name>Apache-2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>raphw</id>
+            <name>Rafael Winterhalter</name>
+            <email>rafael.wth@gmail.com</email>
+        </developer>
+    </developers>
+
+    <scm>
+        <url>https://github.com/raphw/jenesis</url>
+    </scm>
+
     <build>
         <sourceDirectory>sources</sourceDirectory>
     </build>

@@ -44,7 +44,14 @@ public class CycloneDxTest {
                 .contains("\"bom-ref\": \"org.foo/bar/1.2.3\"")
                 .contains("{ \"ref\": \"build.jenesis/demo/1.0.0\", \"dependsOn\": [\"org.foo/bar/1.2.3\"] }")
                 .contains("{ \"ref\": \"org.foo/bar/1.2.3\", \"dependsOn\": [\"org.baz/qux/4.5\"] }");
-        assertThat(json).doesNotContain("serialNumber").doesNotContain("timestamp");
+        assertThat(json)
+                .as("a deterministic serial number is derived from the document content, with no wall-clock timestamp")
+                .contains("\"serialNumber\": \"urn:uuid:")
+                .doesNotContain("timestamp");
+        assertThat(json)
+                .as("the 1.6 tools form is a components object, not the deprecated tool array")
+                .contains("{ \"type\": \"application\", \"name\": \"Jenesis\" }")
+                .doesNotContain("\"tools\": [");
     }
 
     @Test
@@ -53,11 +60,32 @@ public class CycloneDxTest {
         assertThat(xml)
                 .contains("<bom")
                 .contains("cyclonedx.org/schema/bom/1.6")
+                .contains("serialNumber=\"urn:uuid:")
                 .contains("<purl>pkg:maven/org.foo/bar@1.2.3</purl>")
                 .contains("<id>Apache-2.0</id>")
                 .contains("<name>Some Custom License</name>")
                 .contains("bom-ref=\"org.foo/bar/1.2.3\"")
                 .contains("<dependency ref=\"org.foo/bar/1.2.3\">");
+    }
+
+    @Test
+    public void omits_version_and_metadata_component_when_absent() {
+        CycloneDx.Component versionless = new CycloneDx.Component(
+                "org.foo/bar", "org.foo", "bar", null, "pkg:maven/org.foo/bar", null, List.of());
+        String json = emitter.emit(CycloneDx.Format.JSON, null, List.of(versionless), List.of());
+        assertThat(json)
+                .as("a valid bom is emitted even without a known subject component")
+                .contains("\"bomFormat\": \"CycloneDX\"")
+                .contains("\"name\": \"Jenesis\"")
+                .contains("\"name\": \"bar\"")
+                .as("the metadata carries no component when the subject is unknown")
+                .doesNotContain("\"component\":")
+                .as("no version is fabricated when one is not set")
+                .doesNotContain("\"version\": \"");
+        String xml = emitter.emit(CycloneDx.Format.XML, null, List.of(versionless), List.of());
+        assertThat(xml)
+                .contains("<name>bar</name>")
+                .doesNotContain("<version>");
     }
 
     @Test
@@ -69,5 +97,31 @@ public class CycloneDxTest {
         assertThat(reversed)
                 .as("components and dependencies are sorted, so input order does not change the output")
                 .isEqualTo(first);
+    }
+
+    @Test
+    public void emits_subject_description_authors_and_external_references() {
+        CycloneDx.Component subject = new CycloneDx.Component(
+                "build.jenesis/demo/1.0.0", "build.jenesis", "demo", "1.0.0", "pkg:maven/build.jenesis/demo@1.0.0", null,
+                List.of(),
+                "A demo project",
+                List.of(new CycloneDx.Author("Rafael Winterhalter", "rafael.wth@gmail.com")),
+                List.of(new CycloneDx.ExternalReference("website", "https://example.com/demo")));
+
+        String json = emitter.emit(CycloneDx.Format.JSON, subject, List.of(), List.of());
+        assertThat(json)
+                .contains("\"description\": \"A demo project\"")
+                .contains("\"authors\": [")
+                .contains("\"name\": \"Rafael Winterhalter\", \"email\": \"rafael.wth@gmail.com\"")
+                .contains("\"externalReferences\": [")
+                .contains("{ \"type\": \"website\", \"url\": \"https://example.com/demo\" }");
+
+        String xml = emitter.emit(CycloneDx.Format.XML, subject, List.of(), List.of());
+        assertThat(xml)
+                .contains("<description>A demo project</description>")
+                .contains("<author>")
+                .contains("<email>rafael.wth@gmail.com</email>")
+                .contains("<reference type=\"website\">")
+                .contains("<url>https://example.com/demo</url>");
     }
 }

@@ -2,10 +2,10 @@ Software bill of materials demo
 ===============================
 
 Emit a CycloneDX software bill of materials (SBOM) for a project. A small Maven
-project depends on one library; turning the SBOM on records every resolved
-component, its version, content hash, and declared license into a CycloneDX
-document. There is no build script and no SBOM plugin to configure: a single
-property selects the format.
+project depends on one library; every build records every resolved component, its
+version, content hash, and declared license into a CycloneDX document. There is no
+build script and no SBOM plugin to configure: the SBOM is emitted by default, and an
+optional `sbom.properties` file selects the format (or turns it off).
 
 This is a supply-chain counterpart to the dependency-graph view (the
 `dependencies` selector): where that prints the graph, this freezes it into a
@@ -18,17 +18,19 @@ From this directory:
 
     java build/jenesis/Project.java
 
-The project ships a `jenesis.properties` that sets `jenesis.sbom.cyclonedx=json`,
-so a plain build emits the SBOM. Pass `xml` for the XML form instead; any other
-value fails the build.
+A plain build emits the SBOM: it is on by default. The project ships an optional
+`sbom.properties` that sets `format=json`, which is also the default when no file is
+present. Set `format=xml` for the XML form instead, or `format=none` to turn the SBOM
+off; any other value fails the build. To suppress the SBOM without a file, pass
+`-Djenesis.sbom.cyclonedx=false` (a default-`true` boolean override).
 
 Layout
 ------
 
     demo/demo-10-sbom
     |-- build/jenesis              symlink to ../../../sources/build/jenesis
-    |-- pom.xml                    pins commons-lang3 (Apache-2.0)
-    |-- jenesis.properties         jenesis.sbom.cyclonedx=json
+    |-- pom.xml                    project metadata (name, license, developers, scm) + pins commons-lang3
+    |-- sbom.properties            format=json (also xml, or none to disable)
     `-- sources
         `-- sbom
             `-- Sample.java        uses commons-lang3
@@ -63,6 +65,18 @@ The document is CycloneDX 1.6. Because the project depends on `commons-lang3`,
 the SBOM lists it as a component carrying its `pkg:maven/...` package URL, its
 `SHA-256` hash, and its `Apache-2.0` license, with a `dependsOn` relationship
 back to the project.
+
+The `metadata.component` (the project itself) is described from the POM: its
+`description`, its `Apache-2.0` license, its developers (rendered as CycloneDX
+`authors`), and its homepage and source repository (rendered as `website` and
+`vcs` external references). Jenesis fills in only what the POM actually declares:
+an unset version (the `1-SNAPSHOT` placeholder) is omitted rather than fabricated,
+since a version is not required for a valid SBOM.
+
+The document also carries a `serialNumber` (`urn:uuid:...`) derived
+deterministically from the document's own content, so a reproducible build
+reproduces the exact same SBOM, serial number included. No creation `timestamp`
+is written, because that cannot be made deterministic.
 
 Pinning
 -------

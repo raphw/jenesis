@@ -5,7 +5,8 @@ Configure a build with *profiles*: property files that switch features on as a
 named set, instead of repeating long `-D` flag lists. A profile is just a
 `*.properties` file at the project root; selecting one turns on whatever
 properties it declares. This demo ships a `release` profile that, in one switch,
-attaches source jars and a software bill of materials.
+attaches source jars and chains to a `supply-chain` profile that enforces strict
+dependency pinning.
 
 There is no profile registry and no plugin: a profile is selected by naming it in
 `jenesis.project.properties`, and profiles compose by chaining to each other.
@@ -21,8 +22,9 @@ Select the `release` profile to build for publication:
 
     java -Djenesis.project.properties=release build/jenesis/Project.java stage
 
-The release build additionally stages a `-sources.jar` and a
-`-cyclonedx.json` SBOM next to the jar, ready for `export`.
+The release build additionally stages a `-sources.jar` next to the jar and enforces
+strict dependency pinning, ready for `export`. The CycloneDX SBOM is emitted
+automatically on every build (it is on by default), so the release jar carries it too.
 
 Layout
 ------
@@ -31,7 +33,7 @@ Layout
     |-- build/jenesis              symlink to ../../../sources/build/jenesis
     |-- pom.xml                    pins commons-lang3
     |-- release.properties         the release profile (sources + chains to supply-chain)
-    |-- supply-chain.properties    a profile that turns on the SBOM
+    |-- supply-chain.properties    a profile that enforces strict dependency pinning
     `-- sources
         `-- profiles
             `-- Sample.java
@@ -55,7 +57,7 @@ the build is configured, by the `main` launcher:
 
       release.properties        jenesis.project.sources=true
                                 jenesis.project.properties=supply-chain
-      supply-chain.properties   jenesis.sbom.cyclonedx=json
+      supply-chain.properties   jenesis.dependency.pin=strict
 
   so selecting `release` also applies `supply-chain`.
 - A user-global `jenesis.properties` is loaded for **every** project as the
@@ -74,8 +76,9 @@ What the release build produces
 -------------------------------
 
     target/stage/maven/output/.../profiles-demo/1.0.0/profiles-demo-1.0.0.jar
+    target/stage/maven/output/.../profiles-demo/1.0.0/profiles-demo-1.0.0-cyclonedx.json   (emitted by default)
     target/stage/maven/output/.../profiles-demo/1.0.0/profiles-demo-1.0.0-sources.jar      (release only)
-    target/stage/maven/output/.../profiles-demo/1.0.0/profiles-demo-1.0.0-cyclonedx.json   (release only)
 
-The plain build produces only the first; the `release` profile adds the other two
-without changing a single command-line flag beyond selecting the profile.
+The plain build produces the jar and its SBOM (the SBOM is on by default); the
+`release` profile adds the source jar and enforces strict dependency pinning, without
+changing a single command-line flag beyond selecting the profile.

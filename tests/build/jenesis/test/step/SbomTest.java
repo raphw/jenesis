@@ -50,9 +50,12 @@ public class SbomTest {
         metadata.setProperty("artifact", "demo");
         metadata.setProperty("version", "1.0.0");
         metadata.setProperty("name", "Demo");
+        metadata.setProperty("description", "A demo project");
         metadata.setProperty("url", "https://example.com/demo");
         metadata.setProperty("license.apache.name", "Apache-2.0");
         metadata.setProperty("license.apache.url", "https://www.apache.org/licenses/LICENSE-2.0.txt");
+        metadata.setProperty("developer.raphw.name", "Rafael Winterhalter");
+        metadata.setProperty("developer.raphw.email", "rafael.wth@gmail.com");
         metadata.store(argument.resolve(BuildStep.METADATA));
 
         BuildStepResult result = new Sbom().apply(Runnable::run,
@@ -78,6 +81,13 @@ public class SbomTest {
                 .as("the resolved dependency graph is emitted as CycloneDX relationships")
                 .contains("\"bom-ref\": \"org.example/lib/1.2.3\"")
                 .contains("{ \"ref\": \"build.jenesis/demo/1.0.0\", \"dependsOn\": [\"org.example/lib/1.2.3\"] }");
+        assertThat(sbom)
+                .as("the subject component carries the project's own description, developers and website")
+                .contains("\"description\": \"A demo project\"")
+                .contains("\"name\": \"Rafael Winterhalter\", \"email\": \"rafael.wth@gmail.com\"")
+                .contains("{ \"type\": \"website\", \"url\": \"https://example.com/demo\" }")
+                .as("a deterministic serial number is derived from the document content")
+                .contains("\"serialNumber\": \"urn:uuid:");
 
         SequencedProperties manifest = SequencedProperties.ofFiles(next.resolve("manifest.mf"));
         assertThat(manifest.getProperty("Sbom-Format")).isEqualTo("CycloneDX");
@@ -86,5 +96,35 @@ public class SbomTest {
         assertThat(next.resolve("resources").resolve("META-INF").resolve("NOTICE"))
                 .content().contains("Demo").contains("Apache-2.0");
         assertThat(next.resolve("reports").resolve("sbom").resolve("demo-1.0.0.cdx.json")).isNotEmptyFile();
+    }
+
+    @Test
+    public void omits_the_placeholder_snapshot_version_but_still_emits() throws Exception {
+        SequencedProperties metadata = new SequencedProperties();
+        metadata.setProperty("project", "build.jenesis");
+        metadata.setProperty("artifact", "demo");
+        metadata.setProperty("version", "1-SNAPSHOT");
+        metadata.store(argument.resolve(BuildStep.METADATA));
+
+        BuildStepResult result = new Sbom().apply(Runnable::run,
+                        new BuildStepContext(previous, next, supplement),
+                        new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
+                                argument,
+                                Map.of(Path.of(BuildStep.METADATA), Checksum.of(ChecksumStatus.ADDED))))))
+                .toCompletableFuture()
+                .join();
+        assertThat(result.next()).isTrue();
+
+        Path embedded = next.resolve("resources").resolve("META-INF").resolve("sbom").resolve("demo.cdx.json");
+        assertThat(embedded).isNotEmptyFile();
+        assertThat(Files.readString(embedded))
+                .as("the unset 1-SNAPSHOT placeholder is not fabricated into the sbom")
+                .doesNotContain("1-SNAPSHOT")
+                .doesNotContain("\"version\": \"")
+                .as("the subject purl carries no version when none is set")
+                .contains("\"purl\": \"pkg:maven/build.jenesis/demo\"");
+        assertThat(next.resolve("reports").resolve("sbom").resolve("demo.cdx.json"))
+                .as("the standalone report is named without a version suffix")
+                .isNotEmptyFile();
     }
 }

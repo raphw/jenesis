@@ -64,10 +64,10 @@ Quick index
 | 7  | [`java-multi-release`](demo-07-java-multi-release/README.md) | A modular multi-release JAR: Java 21 baseline plus a Java 25 override of one utility, selected by the runtime | `java build/jenesis/Execute.java`  |
 | 8  | [`annotations`](demo-08-annotations/README.md)              | Run a Java annotation processor declared with `@jenesis.plugin`; the same jar on the module path stays dormant unless declared | `java build/jenesis/Project.java`  |
 | 9  | [`java-quality`](demo-09-java-quality/README.md)             | Inferred code quality for Java: Checkstyle, PMD, SpotBugs, and a verifying `google-java-format`, each turned on by its config file | `java build/jenesis/Project.java`  |
-| 10 | [`sbom`](demo-10-sbom/README.md)                             | Emit a CycloneDX SBOM (embedded in the jar, staged as a report, and attached to the Maven repo for publication) with `-Djenesis.sbom.cyclonedx=json` | `java build/jenesis/Project.java`  |
+| 10 | [`sbom`](demo-10-sbom/README.md)                             | Emit a CycloneDX SBOM (embedded in the jar, staged as a report, and attached to the Maven repo for publication), on by default; an optional `sbom.properties` selects the format (`json`, `xml`, or `none` to disable) | `java build/jenesis/Project.java`  |
 | 11 | [`compliance`](demo-11-compliance/README.md)               | License gate over the resolved dependencies: each declared license is SPDX-normalized and checked against an allow/deny policy in `licensing.properties`; ships a GPL dependency rejected by a permissive-only policy | `java build/Demo.java`             |
 | 12 | [`vulnerabilities`](demo-12-vulnerabilities/README.md)     | Known-vulnerability gate: a `vulnerability.properties` file queries OSV.dev for the resolved coordinates and fails at or above a severity threshold; ships a deliberately vulnerable `log4j-core` 2.14.1 (Log4Shell) | `java build/Demo.java`             |
-| 13 | [`profiles`](demo-13-profiles/README.md)                     | Build profiles: a `release` profile selected with `-Djenesis.project.properties=release` turns on source jars and chains to a `supply-chain` profile that adds an SBOM | `java build/jenesis/Project.java`  |
+| 13 | [`profiles`](demo-13-profiles/README.md)                     | Build profiles: a `release` profile selected with `-Djenesis.project.properties=release` turns on source jars and chains to a `supply-chain` profile that enforces strict dependency pinning (the SBOM is emitted automatically) | `java build/jenesis/Project.java`  |
 | 14 | [`kotlin`](demo-14-kotlin/README.md)                         | Java + Kotlin in one module; exports a pure-Kotlin package            | `java build/jenesis/Project.java`  |
 | 15 | [`kotlin-quality`](demo-15-kotlin-quality/README.md)         | Inferred code quality for Kotlin: detekt and ktlint, with ktlint also verifying formatting | `java build/jenesis/Project.java`  |
 | 16 | [`kotlin-plugin`](demo-16-kotlin-plugin/README.md)           | Run a Kotlin compiler plugin (kotlinx.serialization) declared with `@jenesis.plugin kotlinc <repo>/<coord>`, passed to the compiler as `-Xplugin=` | `java build/jenesis/Project.java`  |
@@ -95,6 +95,7 @@ Quick index
 | 38 | [`publishing`](demo-38-publishing/README.md)                 | Assemble a Maven Central ready bundle (POM metadata + sources/javadoc jars) and resolve it back | `java build/Demo.java`             |
 | 39 | [`native-image`](demo-39-native-image/README.md)             | Compile a modular app ahead of time into a standalone GraalVM native binary with `-Djenesis.java.native=true` (needs GraalVM `native-image`; local-only) | `java build/jenesis/Project.java`  |
 | 40 | [`build-cache`](demo-40-build-cache/README.md)               | A content-addressed build cache serving step outputs across builds - project-local (`-Djenesis.project.cache`), shared via a URI (`-Djenesis.cache.uri=`), or local layered in front of a remote; shown by bootstrapping it then serving a full `-Djenesis.executor.rebuild=true` from it | `java build/jenesis/Project.java`  |
+| 41 | [`bundle`](demo-41-bundle/README.md)                       | Ship a modular app as a `bundle.zip` of just its jars (split into `modulepath/`/`classpath/` plus an `application.properties`) for a stock JRE base, then unpack and run it - `-Djenesis.java.bundle=true` | `java build/Demo.java`             |
 
 ## 1. A single Maven project - [`java-pom`](demo-01-java-pom/README.md)
 
@@ -217,10 +218,11 @@ Two more outputs round out the packaging menu, both opt-in flags shown on
 `java-modular-executable`. `-Djenesis.java.jmod=true -Djenesis.java.jlink=true` builds
 the lower-level pieces `jpackage` uses internally: a `.jmod` staged beside the modular
 jar, and a `jlink` runtime image trimmed to the module graph under `stage/runtime`,
-runnable from its own `bin/java -m` - the foundation `custom-jmod` (section 16) later
+runnable from its own `bin/java -m` - the foundation [`custom-jmod`](demo-30-custom-jmod/README.md) later
 builds on. And two no-runtime forms: `-Djenesis.java.bundle=true` writes a `bundle.zip` of just the
-jars plus an `application.properties` to unzip onto an off-the-shelf JRE base (also used
-to ship the app as a container image in `docker-isolation`), while
+jars plus an `application.properties` to unzip onto an off-the-shelf JRE base (its own
+[`bundle`](demo-41-bundle/README.md) demo unpacks the zip and runs it on a stock JRE; also
+used to ship the app as a container image in `docker-isolation`), while
 `-Djenesis.java.launcher=true` shades the published `build.jenesis.launcher` into a
 **single executable jar** you run with `java -jar foo.jar` - dependencies exploded into
 per-dependency subfolders so the module graph is reconstructed at run time rather than
@@ -300,11 +302,13 @@ rewrite the sources in place.
 
 ## 8. Software bill of materials - [`sbom`](demo-10-sbom/README.md)
 
-`sbom` turns on a CycloneDX software bill of materials with a single property,
-`-Djenesis.sbom.cyclonedx=json` (or `xml`). The default Java assembler runs an
-`Sbom` step before the jar is sealed, reading the module's resolved dependency
-graph, content hashes, and captured licenses, and emits the document in-process
-(no external tool). It lands three ways: embedded in the jar at `META-INF/sbom/`,
+`sbom` emits a CycloneDX software bill of materials on every build: it is on by
+default. An optional `sbom.properties` selects the format (`format=json`, the default,
+`format=xml`, or `format=none` to turn it off), and `-Djenesis.sbom.cyclonedx=false`
+suppresses it without a file. The default Java assembler runs an `Sbom` step before
+the jar is sealed, reading the module's resolved dependency graph, content hashes, and
+captured licenses, and emits the document in-process (no external tool). It lands
+three ways: embedded in the jar at `META-INF/sbom/`,
 collected on `stage` into `target/stage/reports/sbom/`, and - when a Maven
 repository is staged - attached as `<artifact>-<version>-cyclonedx.json` next to
 the pom so `export` publishes it to Maven Central.
@@ -345,9 +349,10 @@ profile is a `*.properties` file at the project root; `jenesis.project.propertie
 selects one (or a comma-separated list, the `.properties` suffix optional), loaded
 before the build is configured. Profiles compose by chaining - a loaded file may
 set `jenesis.project.properties` itself to pull in more. The demo's `release`
-profile turns on source jars and chains to a `supply-chain` profile that adds the
-SBOM from section 8, so `-Djenesis.project.properties=release` produces a
-publication build in one switch. Every property a profile sets is a default, so the
+profile turns on source jars and chains to a `supply-chain` profile that enforces
+strict dependency pinning, so `-Djenesis.project.properties=release` produces a
+hardened publication build in one switch (the SBOM from section 8 is emitted
+automatically either way). Every property a profile sets is a default, so the
 command line always wins. The always-loaded base is `jenesis.properties` (optional).
 
 ## 11. Kotlin - [`kotlin`](demo-14-kotlin/README.md), [`kotlin-quality`](demo-15-kotlin-quality/README.md), [`kotlin-plugin`](demo-16-kotlin-plugin/README.md)
@@ -426,7 +431,7 @@ file attaches the **GraalVM native-image tracing agent** (with `jenesis.observe.
 defaulting to `true` as a suppress override), which records the reflection,
 JNI, resource and proxy use the tests exercise and stages it as reachability
 metadata under `nativeimage/` (a build-internal capture, deliberately not a `reports/`
-report). The ahead-of-time `native-image` build (section 25) picks that capture up
+report). The ahead-of-time `native-image` build (section 26) picks that capture up
 automatically - routed from the test module to the image it tests through the build's
 inventory - so it resolves dynamic access its closed-world analysis cannot see on its
 own, with no committed file in between. It needs a GraalVM JDK (the agent ships in the

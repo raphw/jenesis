@@ -36,7 +36,7 @@ which defaults to the root and can be moved with
     |-- checkstyle.xml             activates Checkstyle (lints sources)
     |-- pmd.xml                    activates PMD (lints sources)
     |-- spotbugs-exclude.xml       activates SpotBugs (analyses classes)
-    |-- jenesis.properties         selects the Java formatter (google)
+    |-- javaformat.properties      selects the Java formatter (google)
     `-- sources
         |-- module-info.java
         `-- sample

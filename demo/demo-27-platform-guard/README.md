@@ -6,6 +6,9 @@ commits one classified variant explicitly, this demo declares several pin lines 
 the same module and lets the build pick one: each line may end with a bracketed
 **guard**, and the line whose guard matches the active platform wins.
 
+The module is built under Jenesis's pure `MODULAR` layout, selected by the
+`jenesis.properties` (`jenesis.project.layout=modular`) in this directory.
+
 Build and run it
 ----------------
 

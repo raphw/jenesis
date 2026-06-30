@@ -50,7 +50,19 @@ public class CycloneDx {
             Map.entry("common development and distribution license 1.0", "CDDL-1.0"),
             Map.entry("cddl-1.0", "CDDL-1.0"));
 
-    public record Component(String bomRef, String group, String name, String version, String purl, String sha256, List<License> licenses) {
+    public record Component(String bomRef, String group, String name, String version, String purl, String sha256,
+                            List<License> licenses, String description, List<Author> authors,
+                            List<ExternalReference> externalReferences) {
+
+        public Component(String bomRef, String group, String name, String version, String purl, String sha256, List<License> licenses) {
+            this(bomRef, group, name, version, purl, sha256, licenses, null, List.of(), List.of());
+        }
+    }
+
+    public record Author(String name, String email) {
+    }
+
+    public record ExternalReference(String type, String url) {
     }
 
     public record Dependency(String ref, List<String> dependsOn) {
@@ -68,21 +80,30 @@ public class CycloneDx {
             sortedDependencies.add(new Dependency(dependency.ref(), dependsOn));
         }
         sortedDependencies.sort(Comparator.comparing(Dependency::ref));
+        String serialLess = format == Format.XML
+                ? emitXml(null, metadata, sortedComponents, sortedDependencies)
+                : emitJson(null, metadata, sortedComponents, sortedDependencies);
+        String serialNumber = "urn:uuid:" + UUID.nameUUIDFromBytes(serialLess.getBytes(StandardCharsets.UTF_8));
         return format == Format.XML
-                ? emitXml(metadata, sortedComponents, sortedDependencies)
-                : emitJson(metadata, sortedComponents, sortedDependencies);
+                ? emitXml(serialNumber, metadata, sortedComponents, sortedDependencies)
+                : emitJson(serialNumber, metadata, sortedComponents, sortedDependencies);
     }
 
-    private String emitJson(Component metadata, List<Component> components, List<Dependency> dependencies) {
+    private String emitJson(String serialNumber, Component metadata, List<Component> components, List<Dependency> dependencies) {
         StringBuilder builder = new StringBuilder();
         builder.append("{\n");
         builder.append("  \"bomFormat\": \"CycloneDX\",\n");
         builder.append("  \"specVersion\": \"").append(SPEC_VERSION).append("\",\n");
+        if (serialNumber != null) {
+            builder.append("  \"serialNumber\": \"").append(escapeJson(serialNumber)).append("\",\n");
+        }
         builder.append("  \"version\": 1,\n");
         builder.append("  \"metadata\": {\n");
-        builder.append("    \"tools\": [\n      { \"name\": \"Jenesis\" }\n    ],\n");
-        builder.append("    \"component\": ");
-        appendJsonComponent(builder, metadata, 4);
+        builder.append("    \"tools\": {\n      \"components\": [\n        { \"type\": \"application\", \"name\": \"Jenesis\" }\n      ]\n    }");
+        if (metadata != null) {
+            builder.append(",\n    \"component\": ");
+            appendJsonComponent(builder, metadata, 4);
+        }
         builder.append("\n  }");
         if (!components.isEmpty()) {
             builder.append(",\n  \"components\": [\n");
@@ -124,8 +145,29 @@ public class CycloneDx {
         if (component.group() != null) {
             builder.append(pad).append("  \"group\": \"").append(escapeJson(component.group())).append("\",\n");
         }
-        builder.append(pad).append("  \"name\": \"").append(escapeJson(component.name())).append("\",\n");
-        builder.append(pad).append("  \"version\": \"").append(escapeJson(component.version())).append("\"");
+        builder.append(pad).append("  \"name\": \"").append(escapeJson(component.name())).append("\"");
+        if (component.version() != null) {
+            builder.append(",\n").append(pad).append("  \"version\": \"").append(escapeJson(component.version())).append("\"");
+        }
+        if (component.description() != null) {
+            builder.append(",\n").append(pad).append("  \"description\": \"").append(escapeJson(component.description())).append("\"");
+        }
+        if (component.authors() != null && !component.authors().isEmpty()) {
+            builder.append(",\n").append(pad).append("  \"authors\": [\n");
+            for (int index = 0; index < component.authors().size(); index++) {
+                Author author = component.authors().get(index);
+                builder.append(pad).append("    {");
+                if (author.name() != null) {
+                    builder.append(" \"name\": \"").append(escapeJson(author.name())).append("\"");
+                }
+                if (author.email() != null) {
+                    builder.append(author.name() != null ? "," : "")
+                            .append(" \"email\": \"").append(escapeJson(author.email())).append("\"");
+                }
+                builder.append(" }").append(index + 1 < component.authors().size() ? ",\n" : "\n");
+            }
+            builder.append(pad).append("  ]");
+        }
         if (component.sha256() != null) {
             builder.append(",\n").append(pad).append("  \"hashes\": [\n");
             builder.append(pad).append("    { \"alg\": \"SHA-256\", \"content\": \"")
@@ -153,10 +195,20 @@ public class CycloneDx {
         if (component.purl() != null) {
             builder.append(",\n").append(pad).append("  \"purl\": \"").append(escapeJson(component.purl())).append("\"");
         }
+        if (component.externalReferences() != null && !component.externalReferences().isEmpty()) {
+            builder.append(",\n").append(pad).append("  \"externalReferences\": [\n");
+            for (int index = 0; index < component.externalReferences().size(); index++) {
+                ExternalReference reference = component.externalReferences().get(index);
+                builder.append(pad).append("    { \"type\": \"").append(escapeJson(reference.type()))
+                        .append("\", \"url\": \"").append(escapeJson(reference.url())).append("\" }")
+                        .append(index + 1 < component.externalReferences().size() ? ",\n" : "\n");
+            }
+            builder.append(pad).append("  ]");
+        }
         builder.append("\n").append(pad).append("}");
     }
 
-    private String emitXml(Component metadata, List<Component> components, List<Dependency> dependencies) {
+    private String emitXml(String serialNumber, Component metadata, List<Component> components, List<Dependency> dependencies) {
         Document document;
         try {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
@@ -167,11 +219,18 @@ public class CycloneDx {
         }
         Element bom = (Element) document.appendChild(document.createElementNS(NAMESPACE, "bom"));
         bom.setAttribute("version", "1");
+        if (serialNumber != null) {
+            bom.setAttribute("serialNumber", serialNumber);
+        }
         Element meta = (Element) bom.appendChild(document.createElementNS(NAMESPACE, "metadata"));
         Element tools = (Element) meta.appendChild(document.createElementNS(NAMESPACE, "tools"));
-        Element tool = (Element) tools.appendChild(document.createElementNS(NAMESPACE, "tool"));
+        Element toolComponents = (Element) tools.appendChild(document.createElementNS(NAMESPACE, "components"));
+        Element tool = (Element) toolComponents.appendChild(document.createElementNS(NAMESPACE, "component"));
+        tool.setAttribute("type", "application");
         appendXmlText(document, tool, "name", "Jenesis");
-        appendXmlComponent(document, meta, metadata);
+        if (metadata != null) {
+            appendXmlComponent(document, meta, metadata);
+        }
         if (!components.isEmpty()) {
             Element wrapper = (Element) bom.appendChild(document.createElementNS(NAMESPACE, "components"));
             for (Component component : components) {
@@ -212,11 +271,28 @@ public class CycloneDx {
         if (component.bomRef() != null) {
             node.setAttribute("bom-ref", component.bomRef());
         }
+        if (component.authors() != null && !component.authors().isEmpty()) {
+            Element authors = (Element) node.appendChild(document.createElementNS(NAMESPACE, "authors"));
+            for (Author author : component.authors()) {
+                Element entry = (Element) authors.appendChild(document.createElementNS(NAMESPACE, "author"));
+                if (author.name() != null) {
+                    appendXmlText(document, entry, "name", author.name());
+                }
+                if (author.email() != null) {
+                    appendXmlText(document, entry, "email", author.email());
+                }
+            }
+        }
         if (component.group() != null) {
             appendXmlText(document, node, "group", component.group());
         }
         appendXmlText(document, node, "name", component.name());
-        appendXmlText(document, node, "version", component.version());
+        if (component.version() != null) {
+            appendXmlText(document, node, "version", component.version());
+        }
+        if (component.description() != null) {
+            appendXmlText(document, node, "description", component.description());
+        }
         if (component.sha256() != null) {
             Element hashes = (Element) node.appendChild(document.createElementNS(NAMESPACE, "hashes"));
             Element hash = (Element) hashes.appendChild(document.createElementNS(NAMESPACE, "hash"));
@@ -240,6 +316,14 @@ public class CycloneDx {
         }
         if (component.purl() != null) {
             appendXmlText(document, node, "purl", component.purl());
+        }
+        if (component.externalReferences() != null && !component.externalReferences().isEmpty()) {
+            Element references = (Element) node.appendChild(document.createElementNS(NAMESPACE, "externalReferences"));
+            for (ExternalReference reference : component.externalReferences()) {
+                Element entry = (Element) references.appendChild(document.createElementNS(NAMESPACE, "reference"));
+                entry.setAttribute("type", reference.type());
+                appendXmlText(document, entry, "url", reference.url());
+            }
         }
     }
 
