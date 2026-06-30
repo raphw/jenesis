@@ -62,7 +62,7 @@ Quick index
 | 4  | [`java-modular-multi`](demo-04-java-modular-multi/README.md) | The multi-module project as Java modules                              | `java build/jenesis/Project.java`  |
 | 5  | [`java-pom-executable`](demo-05-java-pom-executable/README.md)       | A runnable Maven project: a `<mainClass>` entry point + dependency, packaged into a native app image with `jpackage` | `java build/Demo.java`              |
 | 6  | [`java-modular-executable`](demo-06-java-modular-executable/README.md) | The same as a Java module: entry point via `@jenesis.main` + dependency, packaged with `jpackage` (and a plain `.jmod` + `jlink` runtime, and a `bundle` zip) | `java build/Demo.java`              |
-| 7  | [`bundle`](demo-07-bundle/README.md)                       | Ship a modular app as a `bundle.zip` of just its jars (split into `modulepath/`/`classpath/` plus an `application.properties`) for a stock JRE base, then unpack and run it - `-Djenesis.java.bundle=true` | `java build/Demo.java`             |
+| 7  | [`bundle`](demo-07-bundle/README.md)                       | Ship a modular app as a `bundle.zip` of just its jars (split into `modulepath/`/`classpath/` plus an `application.properties`) for a stock JRE base, then unpack and run it - selected by a `packaging.properties` with `bundle=true` | `java build/Demo.java`             |
 | 8  | [`java-multi-release`](demo-08-java-multi-release/README.md) | A modular multi-release JAR: Java 21 baseline plus a Java 25 override of one utility, selected by the runtime | `java build/jenesis/Execute.java`  |
 | 9  | [`annotations`](demo-09-annotations/README.md)              | Run a Java annotation processor declared with `@jenesis.plugin`; the same jar on the module path stays dormant unless declared | `java build/jenesis/Project.java`  |
 | 10 | [`java-quality`](demo-10-java-quality/README.md)             | Inferred code quality for Java: Checkstyle, PMD, SpotBugs, and a verifying `google-java-format`, each turned on by its config file | `java build/jenesis/Project.java`  |
@@ -95,7 +95,7 @@ Quick index
 | 37 | [`docker-isolation`](demo-37-docker-isolation/README.md)     | A standard build whose test and artifact `main` both grab host secrets, and how Docker confines them | `java build/jenesis/Project.java`  |
 | 38 | [`supply-chain-security`](demo-38-supply-chain-security/README.md) | Two modules that must *not* build: an unpinned dependency rejected by strict pinning, and a wrong checksum rejected always | `java build/Demo.java`             |
 | 39 | [`publishing`](demo-39-publishing/README.md)                 | Assemble a Maven Central ready bundle (POM metadata + sources/javadoc jars) and resolve it back | `java build/Demo.java`             |
-| 40 | [`native-image`](demo-40-native-image/README.md)             | Compile a modular app ahead of time into a standalone GraalVM native binary with `-Djenesis.java.native=true` (needs GraalVM `native-image`; local-only) | `java build/jenesis/Project.java`  |
+| 40 | [`native-image`](demo-40-native-image/README.md)             | Compile a modular app ahead of time into a standalone GraalVM native binary, selected by a `packaging.properties` with `native=true` (needs GraalVM `native-image`; local-only) | `java build/jenesis/Project.java`  |
 | 41 | [`build-cache`](demo-41-build-cache/README.md)               | A content-addressed build cache serving step outputs across builds - project-local (`-Djenesis.project.cache`), shared via a URI (`-Djenesis.cache.uri=`), or local layered in front of a remote; shown by bootstrapping it then serving a full `-Djenesis.executor.rebuild=true` from it | `java build/jenesis/Project.java`  |
 
 ## 1. A single Maven project - [`java-pom`](demo-01-java-pom/README.md)
@@ -193,18 +193,24 @@ The entry point is declared the same way the launcher already reads it: an
 module's `module.properties`, and that single field is what marks the module as
 packageable - modules without it are skipped.
 
-Packaging is opt-in through one property, `-Djenesis.java.jpackage` (its value is the
-`jpackage --type`; a bare flag means `app-image`). When set, the assembler wires a
+Packaging is opt-in through a `packaging.properties` file placed in a configuration
+location: the same place the inferred linters, formatters, and SBOM read their config
+files, namely a module's `META-INF/build.jenesis/` folder (modular layouts) or
+`build.jenesis/` folder (Maven layout), falling back to the project-wide configuration
+directory (the project root by default). Its `jpackage` key takes the `jpackage --type`
+value explicitly (`app-image`, `deb`, `rpm`, `dmg`, `pkg`, `exe`, `msi`); an absent or
+empty value means no jpackage step. When set, the assembler wires a
 per-module `package` step that runs `jpackage` over the produced jar plus its runtime
 dependency jars, so the image bundles the whole closure - `commons-lang3` in the Maven
 demo, `slf4j-api` in the modular one. Each image is then collected by the `STAGE`
 module's `packages` step into `stage/packages/`, the staging analogue of `stage/maven`
 and `stage/modular`.
 
-Rather than set that property on the command line, `build/Demo.java` configures it
-**explicitly on the assembler** - `new InferredMultiProjectAssembler().packaging("app-image")`,
-no `System.setProperty` - then builds the fixed `stage` target and launches the produced
-image, forwarding its own arguments to the packaged app's `main`:
+Rather than pass anything on the command line, each demo ships a committed
+`packaging.properties` with `jpackage=app-image`, which the stock
+`new InferredMultiProjectAssembler()` reads; `build/Demo.java` then builds the fixed
+`stage` target and launches the produced image, forwarding its own arguments to the
+packaged app's `main`:
 
     java build/Demo.java ada lovelace
 
@@ -215,16 +221,16 @@ a directory you launch in place. It reports the produced package instead of runn
 and needs the platform's packaging tooling on the PATH, so it is a local exercise rather
 than a CI one.
 
-Two more outputs round out the packaging menu, both opt-in flags shown on
-`java-modular-executable`. `-Djenesis.java.jmod=true -Djenesis.java.jlink=true` builds
+Two more outputs round out the packaging menu, both opt-in `packaging.properties` keys
+shown on `java-modular-executable`. `jmod=true` and `jlink=true` build
 the lower-level pieces `jpackage` uses internally: a `.jmod` staged beside the modular
 jar, and a `jlink` runtime image trimmed to the module graph under `stage/runtime`,
 runnable from its own `bin/java -m` - the foundation [`custom-jmod`](demo-31-custom-jmod/README.md) later
-builds on. And two no-runtime forms: `-Djenesis.java.bundle=true` writes a `bundle.zip` of just the
+builds on. And two no-runtime forms: `bundle=true` writes a `bundle.zip` of just the
 jars plus an `application.properties` to unzip onto an off-the-shelf JRE base (its own
 [`bundle`](demo-07-bundle/README.md) demo unpacks the zip and runs it on a stock JRE; also
 used to ship the app as a container image in `docker-isolation`), while
-`-Djenesis.java.launcher=true` shades the published `build.jenesis.launcher` into a
+`launcher=true` shades the published `build.jenesis.launcher` into a
 **single executable jar** you run with `java -jar foo.jar` - dependencies exploded into
 per-dependency subfolders so the module graph is reconstructed at run time rather than
 flattened into a fat jar.
@@ -582,7 +588,8 @@ same shape. This demo is launched with `java build/Demo.java`.
 
 [`custom-jmod`](demo-31-custom-jmod/README.md) is a sibling example of the same wrapping technique, applied to a
 different extension point. It enables the stock `jmod`, `jlink`, and `jpackage`
-steps (`new InferredMultiProjectAssembler().jmod(true).jlink(true).packaging("app-image")`)
+steps (a committed `packaging.properties` with `jmod=true`, `jlink=true`, and
+`jpackage=app-image`, read by the stock `new InferredMultiProjectAssembler()`)
 and only *contributes an extra input*: a `config` step that emits a `jmodconfig/`
 directory, declared as the module's `content` with `descriptor.content("config")`.
 The stock `jmod` step depends on every step named in `content`, routes
@@ -726,7 +733,7 @@ megabytes. The project is the same minimal modular shape as `java-modular`, and 
 entry point is the same `@jenesis.main` field jpackage keyed off; only the back end
 differs.
 
-It is opt-in through one boolean, `-Djenesis.java.native=true`, which wires a
+It is opt-in through one boolean `packaging.properties` key, `native=true`, which wires a
 per-module `native-image` step (skipping modules with no main class). The step
 reuses the launcher coordinates the build already derived - the produced module
 path and `--module <module>/<main-class>` - and runs `native-image --no-fallback`
@@ -803,15 +810,16 @@ declares an entry point (`@jenesis.main` in `module-info.java`, or `<mainClass>`
 in `pom.xml`) can also be launched from its built artifacts with the `Execute`
 launcher (`java build/jenesis/Execute.java`, which builds then runs that entry
 point; `-Djenesis.execute.module=<module>` / `-Djenesis.execute.mainClass=<fqcn>`
-pick which module and main to launch in a multi-module build), packaged into a
-native application image with `-Djenesis.java.jpackage` (the value is the `jpackage
---type`; the image is collected under `stage/packages/` next to `stage/maven` and
-`stage/modular`; see section 4), packed into a `.jmod` and linked into a trimmed
-`jlink` runtime image (`-Djenesis.java.jmod` / `-Djenesis.java.jlink`, staged under
-`stage/runtime`), zipped jars-only for a JRE base (`-Djenesis.java.bundle`), shaded with
-the `build.jenesis.launcher` into a single `java -jar`-able executable jar that keeps the
-module graph (`-Djenesis.java.launcher`), or compiled ahead of time into a standalone
-GraalVM native binary with `-Djenesis.java.native=true` (see section 23).
+pick which module and main to launch in a multi-module build), or packaged through a
+`packaging.properties` file in the configuration location (a module's
+`META-INF/build.jenesis/` or `build.jenesis/` folder, falling back to the project-wide
+configuration directory): a `jpackage` key whose value is the `jpackage --type` builds
+a native application image (collected under `stage/packages/` next to `stage/maven` and
+`stage/modular`; see section 4), `jmod=true` / `jlink=true` pack a `.jmod` and link it
+into a trimmed `jlink` runtime image (staged under `stage/runtime`), `bundle=true` zips
+jars-only for a JRE base, `launcher=true` shades the `build.jenesis.launcher` into a
+single `java -jar`-able executable jar that keeps the module graph, and `native=true`
+compiles ahead of time into a standalone GraalVM native binary (see section 23).
 
 **Pinning, checksums, and scopes.** Pins live in source: a POM's
 `<dependencyManagement>` (with `<!--Checksum/...-->` comments) or a

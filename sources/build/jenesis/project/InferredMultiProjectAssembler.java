@@ -1,6 +1,7 @@
 package build.jenesis.project;
 
 import module java.base;
+import build.jenesis.BuildExecutorModule;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
@@ -20,87 +21,56 @@ import build.jenesis.step.ProcessBuildStep;
 import build.jenesis.step.ProcessHandler;
 import build.jenesis.step.Sbom;
 
-public record InferredMultiProjectAssembler(String packaging,
-                                            boolean jmod,
-                                            boolean jlink,
-                                            boolean bundle,
-                                            boolean launcher,
-                                            boolean nativeImage,
-                                            UnaryOperator<InferredSourceCodeQualityModule> check,
-                                            UnaryOperator<InferredSourceFormattingModule> format,
-                                            UnaryOperator<InferredByteCodeQualityModule> validate,
-                                            UnaryOperator<InferredTestObservationModule> observe,
-                                            UnaryOperator<TestModule> test,
-                                            UnaryOperator<InferredComplianceModule> compliance) implements MultiProjectAssembler<ProjectModuleDescriptor> {
+public record InferredMultiProjectAssembler(Function<InferredSourceCodeQualityModule, BuildExecutorModule> check,
+                                            Function<InferredSourceFormattingModule, BuildExecutorModule> format,
+                                            Function<InferredByteCodeQualityModule, BuildExecutorModule> validate,
+                                            Function<InferredTestObservationModule, BuildExecutorModule> observe,
+                                            Function<TestModule, BuildExecutorModule> test,
+                                            Function<InferredComplianceModule, BuildExecutorModule> compliance) implements MultiProjectAssembler<ProjectModuleDescriptor> {
 
     public InferredMultiProjectAssembler() {
-        String packagingOverride = System.getProperty("jenesis.java.jpackage");
-        this(packagingOverride == null ? null : (packagingOverride.isEmpty() ? "app-image" : packagingOverride),
-                Boolean.getBoolean("jenesis.java.jmod"),
-                Boolean.getBoolean("jenesis.java.jlink"),
-                Boolean.getBoolean("jenesis.java.bundle"),
-                Boolean.getBoolean("jenesis.java.launcher"),
-                Boolean.getBoolean("jenesis.java.native"),
-                UnaryOperator.identity(),
-                UnaryOperator.identity(),
-                UnaryOperator.identity(),
-                UnaryOperator.identity(),
-                UnaryOperator.identity(),
-                UnaryOperator.identity());
+        this(module -> module,
+                module -> module,
+                module -> module,
+                module -> module,
+                module -> module,
+                module -> module);
     }
 
-    public InferredMultiProjectAssembler packaging(String packaging) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, check, format, validate, observe, test, compliance);
+    public InferredMultiProjectAssembler check(Function<InferredSourceCodeQualityModule, BuildExecutorModule> check) {
+        return new InferredMultiProjectAssembler(check, format, validate, observe, test, compliance);
     }
 
-    public InferredMultiProjectAssembler jmod(boolean jmod) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, check, format, validate, observe, test, compliance);
+    public InferredMultiProjectAssembler format(Function<InferredSourceFormattingModule, BuildExecutorModule> format) {
+        return new InferredMultiProjectAssembler(check, format, validate, observe, test, compliance);
     }
 
-    public InferredMultiProjectAssembler jlink(boolean jlink) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, check, format, validate, observe, test, compliance);
+    public InferredMultiProjectAssembler validate(Function<InferredByteCodeQualityModule, BuildExecutorModule> validate) {
+        return new InferredMultiProjectAssembler(check, format, validate, observe, test, compliance);
     }
 
-    public InferredMultiProjectAssembler bundle(boolean bundle) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, check, format, validate, observe, test, compliance);
+    public InferredMultiProjectAssembler observe(Function<InferredTestObservationModule, BuildExecutorModule> observe) {
+        return new InferredMultiProjectAssembler(check, format, validate, observe, test, compliance);
     }
 
-    public InferredMultiProjectAssembler launcher(boolean launcher) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, check, format, validate, observe, test, compliance);
+    public InferredMultiProjectAssembler test(Function<TestModule, BuildExecutorModule> test) {
+        return new InferredMultiProjectAssembler(check, format, validate, observe, test, compliance);
     }
 
-    public InferredMultiProjectAssembler nativeImage(boolean nativeImage) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, check, format, validate, observe, test, compliance);
-    }
-
-    public InferredMultiProjectAssembler check(UnaryOperator<InferredSourceCodeQualityModule> check) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, check, format, validate, observe, test, compliance);
-    }
-
-    public InferredMultiProjectAssembler format(UnaryOperator<InferredSourceFormattingModule> format) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, check, format, validate, observe, test, compliance);
-    }
-
-    public InferredMultiProjectAssembler validate(UnaryOperator<InferredByteCodeQualityModule> validate) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, check, format, validate, observe, test, compliance);
-    }
-
-    public InferredMultiProjectAssembler observe(UnaryOperator<InferredTestObservationModule> observe) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, check, format, validate, observe, test, compliance);
-    }
-
-    public InferredMultiProjectAssembler test(UnaryOperator<TestModule> test) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, check, format, validate, observe, test, compliance);
-    }
-
-    public InferredMultiProjectAssembler compliance(UnaryOperator<InferredComplianceModule> compliance) {
-        return new InferredMultiProjectAssembler(packaging, jmod, jlink, bundle, launcher, nativeImage, check, format, validate, observe, test, compliance);
+    public InferredMultiProjectAssembler compliance(Function<InferredComplianceModule, BuildExecutorModule> compliance) {
+        return new InferredMultiProjectAssembler(check, format, validate, observe, test, compliance);
     }
 
     @Override
     public AssemblyDescriptor apply(ProjectModuleDescriptor descriptor,
                                     Map<String, Repository> repositories,
                                     Map<String, Resolver> resolvers) {
+        Packaging packaging;
+        try {
+            packaging = Packaging.configured(BuildStep.locate(descriptor.configuration(), "packaging.properties"));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
         ProcessHandler.Factory factory = ProcessHandler.Factory.of();
         AssemblyDescriptor assembly = new AssemblyDescriptor((sub, outerInherited) -> {
             sub.addStep("prepare",
@@ -179,36 +149,36 @@ public record InferredMultiProjectAssembler(String packaging,
                             "generate");
                 }, Stream.concat(Stream.of("binary"), inputs(descriptor)));
             }
-            if (jmod) {
+            if (packaging.jmod()) {
                 sub.addStep("jmod",
                         new JMod(factory),
                         Stream.concat(Stream.of("binary"), descriptor.content().stream()));
             }
         });
-        if (jlink || packaging != null || bundle || launcher || nativeImage) {
+        if (packaging.jlink() || packaging.jpackage() != null || packaging.bundle() || packaging.launcher() || packaging.nativeImage()) {
             assembly = assembly.then("package", (sub, inherited) -> {
                 SequencedSet<String> images = new LinkedHashSet<>();
-                if (jlink) {
+                if (packaging.jlink()) {
                     sub.addStep("jlink", new JLink(factory), inherited.sequencedKeySet().stream());
                     images.add("jlink");
                 }
-                if (packaging != null) {
-                    sub.addStep("jpackage", new JPackage(factory, packaging), jlink
+                if (packaging.jpackage() != null) {
+                    sub.addStep("jpackage", new JPackage(factory, packaging.jpackage()), packaging.jlink()
                             ? Stream.concat(Stream.of("jlink"), inherited.sequencedKeySet().stream())
                             : inherited.sequencedKeySet().stream());
                     images.add("jpackage");
                 }
-                if (bundle) {
+                if (packaging.bundle()) {
                     sub.addStep("bundle", new Bundle(), inherited.sequencedKeySet().stream());
                 }
-                if (launcher) {
+                if (packaging.launcher()) {
                     sub.addModule("launcher",
                             new LauncherModule(repositories, resolvers)
                                     .pinning(descriptor.pinning())
                                     .pathPlacement(descriptor.pathPlacement()),
                             inherited.sequencedKeySet().stream());
                 }
-                if (nativeImage) {
+                if (packaging.nativeImage()) {
                     sub.addStep("reachability", new NativeImageMetadata(), inherited.sequencedKeySet().stream());
                     sub.addStep("native-image", new NativeImage(descriptor.pathPlacement()),
                             Stream.concat(inherited.sequencedKeySet().stream(), Stream.of("reachability")));
@@ -220,6 +190,39 @@ public record InferredMultiProjectAssembler(String packaging,
             });
         }
         return assembly;
+    }
+
+    private record Packaging(boolean jmod,
+                            boolean jlink,
+                            boolean bundle,
+                            boolean launcher,
+                            boolean nativeImage,
+                            String jpackage) {
+
+        private static Packaging configured(Path properties) throws IOException {
+            if (properties == null) {
+                return new Packaging(false, false, false, false, false, null);
+            }
+            SequencedProperties configuration = SequencedProperties.ofFiles(properties);
+            String jpackage = configuration.getProperty("jpackage");
+            if (jpackage != null) {
+                jpackage = jpackage.trim();
+                if (jpackage.isEmpty()) {
+                    jpackage = null;
+                }
+            }
+            return new Packaging(flag(configuration, "jmod"),
+                    flag(configuration, "jlink"),
+                    flag(configuration, "bundle"),
+                    flag(configuration, "launcher"),
+                    flag(configuration, "native"),
+                    jpackage);
+        }
+
+        private static boolean flag(SequencedProperties configuration, String key) {
+            String value = configuration.getProperty(key);
+            return value != null && Boolean.parseBoolean(value.trim());
+        }
     }
 
     private static Stream<String> inputs(ProjectModuleDescriptor descriptor) {

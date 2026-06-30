@@ -217,9 +217,11 @@ Shipping the app as a container image with `bundle`
 
 The flags above run the *build* in Docker; the inverse is shipping the *built
 application* as a container image, and `bundle` makes that a short Dockerfile
-without `jpackage`, `jlink`, or `native-image`. Build a portable bundle:
+without `jpackage`, `jlink`, or `native-image`. A `packaging.properties` with
+`bundle=true` in the configuration location selects the bundle; build a portable
+bundle:
 
-    java -Djenesis.java.bundle=true build/jenesis/Project.java
+    java build/jenesis/Project.java
 
 That stages a `bundle.zip` under `target/` carrying everything the app needs to
 launch, with no assumptions about the host:

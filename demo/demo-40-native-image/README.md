@@ -25,17 +25,18 @@ Build the native image
 
 A single build captures the metadata and compiles the image in one pass. The demo
 ships a `graal.properties` file, whose presence attaches GraalVM's tracing agent to
-the test run, and the native compilation reads what it recorded (`-Djenesis.java.native=true`).
+the test run, and a `packaging.properties` with `native=true` in the configuration
+location, which the native compilation reads.
 `native-image` is located the same way every external tool is - `GRAALVM_HOME` first,
 then the running JDK's own `bin/` (`java.home`), then `PATH` - so either run the build
 with a GraalVM JDK:
 
-    ~/.sdkman/candidates/java/25.0.3-graal/bin/java -Djenesis.java.native=true build/jenesis/Project.java stage
+    ~/.sdkman/candidates/java/25.0.3-graal/bin/java build/jenesis/Project.java stage
 
 or keep your usual JDK 25 and point `GRAALVM_HOME` at a GraalVM install (here one
 managed by [SDKMAN](https://sdkman.io/), `sdk install java 25.0.3-graal`):
 
-    GRAALVM_HOME=~/.sdkman/candidates/java/25.0.3-graal java -Djenesis.java.native=true build/jenesis/Project.java stage
+    GRAALVM_HOME=~/.sdkman/candidates/java/25.0.3-graal java build/jenesis/Project.java stage
 
 The build compiles the modules, runs the test under the agent, then runs
 `native-image` over the produced module path. The image build is the slow step (a
@@ -52,7 +53,7 @@ Run it directly - there is no `java` in the command, because there is no JVM:
 The result is a ~15 MB ELF executable (`.exe` on Windows, a Mach-O binary on macOS)
 that links `java.base` statically and starts without a runtime. The greeting comes
 back through reflection - which only works because the test capture told native-image
-to keep `sample.Greeter`. Build with `-Djenesis.java.native=true` but suppress the
+to keep `sample.Greeter`. Keep `native=true` in `packaging.properties` but suppress the
 capture with `-Djenesis.observe.native=false` (so nothing records the reflection) and
 the binary fails at run time with `ClassNotFoundException: sample.Greeter`: the closed-world
 analysis dropped the class it never saw referenced.
@@ -97,8 +98,8 @@ no such file; the single build feeds the metadata straight through.
 How the native-image step fits the build
 -----------------------------------------
 
-Native compilation is opt-in through a single boolean property,
-`-Djenesis.java.native=true`. When it is set, `InferredMultiProjectAssembler` wires a
+Native compilation is opt-in through a single boolean `packaging.properties` key,
+`native=true`. When it is set, `InferredMultiProjectAssembler` wires a
 `native-image` step in the package phase that runs for every module declaring a main
 class - exactly the `@jenesis.main` field that `../demo-06-java-modular-executable`
 uses for `jpackage`, read from the same `module.properties`. Modules without a main

@@ -20,11 +20,11 @@ import build.jenesis.project.InferredMultiProjectAssembler;
 public class Demo {
 
     static void main(String[] args) throws Exception {
-        // Enable the bundle target on the assembler (the in-code equivalent of
-        // -Djenesis.java.bundle=true) and run the default build, which writes a
-        // bundle/bundle.zip for every module that declares a main class.
+        // The bundle target is selected by the committed packaging.properties in this
+        // directory (bundle=true), which Jenesis reads from the configuration location, so
+        // the default build writes a bundle/bundle.zip for every module with a main class.
         Project project = new Project()
-                .assembler(new InferredMultiProjectAssembler().bundle(true));
+                .assembler(new InferredMultiProjectAssembler());
         project.build("build");
 
         // The bundle step writes the archive under .../package/bundle/output/bundle/bundle.zip.

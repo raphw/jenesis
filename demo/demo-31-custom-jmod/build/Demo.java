@@ -37,11 +37,11 @@ import build.jenesis.step.JMod;
 public class Demo {
 
     static void main(String[] args) throws Exception {
+        // jmod, jlink and jpackage are selected by the committed packaging.properties in this
+        // directory (jmod=true / jlink=true / jpackage=app-image), which Jenesis reads from
+        // the configuration location, so the wrapped stock assembler needs no extra wiring.
         Project project = new Project()
-                .assembler(new ConfigJmodAssembler(new InferredMultiProjectAssembler()
-                        .jmod(true)
-                        .jlink(true)
-                        .packaging("app-image")));
+                .assembler(new ConfigJmodAssembler(new InferredMultiProjectAssembler()));
 
         SequencedMap<String, Path> outputs = project.build("stage");
         Path output = outputs.get("stage/packages");

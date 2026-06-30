@@ -8,7 +8,7 @@ import build.jenesis.project.InferredMultiProjectAssembler;
  * Builds this project with the launcher target enabled, then runs the produced
  * executable jar with {@code java -jar}, forwarding this program's own arguments.
  *
- * The launcher target (the in-code equivalent of {@code -Djenesis.java.launcher=true})
+ * The launcher target (selected by a {@code launcher=true} packaging.properties)
  * resolves {@code build.jenesis:build.jenesis.launcher} from Maven Central and shades
  * it into an executable jar: the launcher's classes sit in the jar root as its
  * {@code Main-Class}, every dependency is exploded into its own {@code classpath/<name>/}
@@ -21,8 +21,14 @@ import build.jenesis.project.InferredMultiProjectAssembler;
 public class DemoLauncher {
 
     static void main(String[] args) throws Exception {
+        // Select the launcher target through a packaging.properties (launcher=true) written
+        // to a configuration location of its own, the same key a project would commit; the
+        // stock assembler then wires the launcher module with no extra configuration.
+        Path configuration = Files.createTempDirectory("packaging-");
+        Files.writeString(configuration.resolve("packaging.properties"), "launcher=true\n");
         Project project = new Project()
-                .assembler(new InferredMultiProjectAssembler().launcher(true));
+                .configuration(configuration)
+                .assembler(new InferredMultiProjectAssembler());
         project.build("build");
 
         // The launcher step writes the executable jar under

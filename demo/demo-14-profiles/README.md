@@ -2,9 +2,9 @@ Build profiles demo
 ===================
 
 Configure a build with *profiles*: property files that switch features on as a
-named set, instead of repeating long `-D` flag lists. A profile is just a
-`*.properties` file at the project root; selecting one turns on whatever
-properties it declares. This demo ships a `release` profile that, in one switch,
+named set, instead of repeating long `-D` flag lists. A profile named `<name>`
+lives in a `jenesis-<name>.properties` file at the project root; selecting one
+turns on whatever properties it declares. This demo ships a `release` profile that, in one switch,
 attaches source jars and chains to a `supply-chain` profile that enforces strict
 dependency pinning.
 
@@ -31,9 +31,9 @@ Layout
 
     demo/demo-14-profiles
     |-- build/jenesis              symlink to ../../../sources/build/jenesis
-    |-- pom.xml                    pins commons-lang3
-    |-- release.properties         the release profile (sources + chains to supply-chain)
-    |-- supply-chain.properties    a profile that enforces strict dependency pinning
+    |-- pom.xml                          pins commons-lang3
+    |-- jenesis-release.properties       the release profile (sources + chains to supply-chain)
+    |-- jenesis-supply-chain.properties  a profile that enforces strict dependency pinning
     `-- sources
         `-- profiles
             `-- Sample.java
@@ -47,17 +47,18 @@ the build is configured, by the `main` launcher:
 
 - `jenesis.properties` at the project root is the **base file**. It is always
   loaded when present, and it is optional - this demo ships none.
-- `jenesis.project.properties` is a **comma-separated list of profiles** to load,
-  resolved relative to the folder of the file that names them. The `.properties`
-  suffix is optional, so `release` and `release.properties` are equivalent. A
-  listed profile that does not exist is an error (only the base files are optional).
+- `jenesis.project.properties` is a **comma-separated list of profile names** to
+  load. Each name `<name>` resolves to a `jenesis-<name>.properties` file relative
+  to the folder of the file that names it (a `.properties` suffix on the name is
+  ignored, so `release` and `release.properties` both name the `jenesis-release.properties`
+  file). A listed profile that does not exist is an error (only the base files are optional).
 - Profiles **chain**: any loaded file may itself set `jenesis.project.properties`
   to pull in more, transitively, until everything is loaded. Here `release`
   chains to `supply-chain`:
 
-      release.properties        jenesis.project.sources=true
-                                jenesis.project.properties=supply-chain
-      supply-chain.properties   jenesis.dependency.pin=strict
+      jenesis-release.properties        jenesis.project.sources=true
+                                        jenesis.project.properties=supply-chain
+      jenesis-supply-chain.properties   jenesis.dependency.pin=strict
 
   so selecting `release` also applies `supply-chain`.
 - A user-global `jenesis.properties` is loaded for **every** project as the

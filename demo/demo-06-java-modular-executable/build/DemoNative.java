@@ -29,8 +29,9 @@ public class DemoNative {
 
     static void main(String[] args) throws Exception {
         // Pick the native installer type jpackage produces for this platform - the
-        // counterpart to Demo's fixed "app-image". Configure it explicitly on the
-        // assembler, exactly as Demo configures "app-image".
+        // counterpart to Demo's committed "jpackage=app-image". Because the value is
+        // computed at run time, write it into a packaging.properties of its own and point the
+        // build's configuration location there, instead of relying on a committed file.
         String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
         String type;
         if (os.contains("win")) {
@@ -40,8 +41,11 @@ public class DemoNative {
         } else {
             type = "deb";
         }
+        Path configuration = Files.createTempDirectory("packaging-");
+        Files.writeString(configuration.resolve("packaging.properties"), "jpackage=" + type + "\n");
         Project project = new Project()
-                .assembler(new InferredMultiProjectAssembler().packaging(type));
+                .configuration(configuration)
+                .assembler(new InferredMultiProjectAssembler());
 
         // Same fixed target as Demo: building `stage` returns a map keyed by the steps that
         // ran, and `stage/packages` holds whatever jpackage produced - here a single native

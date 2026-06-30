@@ -268,6 +268,23 @@ public class InferredMultiProjectAssemblerTest {
         Files.writeString(manifests.resolve(BuildStep.MODULE), moduleProperties);
         Path sources = Files.createDirectory(root.resolve("sources"));
         Path artifacts = Files.createDirectory(root.resolve("artifacts"));
+        Path configuration = Files.createDirectory(root.resolve("configuration"));
+        StringBuilder packaging = new StringBuilder();
+        if (jmod) {
+            packaging.append("jmod=true\n");
+        }
+        if (jlink) {
+            packaging.append("jlink=true\n");
+        }
+        if (nativeImage) {
+            packaging.append("native=true\n");
+        }
+        if (packageType != null) {
+            packaging.append("jpackage=").append(packageType).append("\n");
+        }
+        if (!packaging.isEmpty()) {
+            Files.writeString(configuration.resolve("packaging.properties"), packaging.toString());
+        }
         Path build = Files.createDirectory(root.resolve("build"));
         ProjectModule base = new ProjectModule() {
             @Override
@@ -305,9 +322,8 @@ public class InferredMultiProjectAssemblerTest {
                 return new LinkedHashSet<>(List.of(BuildExecutorModule.PREVIOUS + "artifacts"));
             }
         };
-        ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, new LinkedHashSet<>(List.of(sources)), tests, source, documentation, null, PathPlacement.INFERRED);
-        AssemblyDescriptor assembled = new InferredMultiProjectAssembler()
-                .packaging(packageType).jmod(jmod).jlink(jlink).nativeImage(nativeImage).apply(descriptor, Map.of(), Map.of());
+        ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, new LinkedHashSet<>(List.of(configuration)), tests, source, documentation, null, PathPlacement.INFERRED);
+        AssemblyDescriptor assembled = new InferredMultiProjectAssembler().apply(descriptor, Map.of(), Map.of());
         BuildExecutor executor = BuildExecutor.of(build,
                 Duration.ZERO,
                 new HashDigestFunction("MD5"),
@@ -341,10 +357,10 @@ public class InferredMultiProjectAssemblerTest {
         assertThat(assembler.test().apply(null)).as("test configurator defaults to identity").isNull();
         assertThat(assembler.compliance().apply(null)).as("compliance configurator defaults to identity").isNull();
 
-        UnaryOperator<TestModule> custom = test -> test.requireEngine(false);
+        Function<TestModule, BuildExecutorModule> custom = test -> test.requireEngine(false);
         assertThat(assembler.test(custom).test()).as("the test wither stores the configurator").isSameAs(custom);
 
-        UnaryOperator<InferredComplianceModule> customCompliance = compliance -> compliance;
+        Function<InferredComplianceModule, BuildExecutorModule> customCompliance = compliance -> compliance;
         assertThat(assembler.compliance(customCompliance).compliance())
                 .as("the compliance wither stores the configurator").isSameAs(customCompliance);
     }

@@ -17,20 +17,21 @@ receive on its command line:
 
     java build/Demo.java Ada Lovelace
 
-`Demo.java` configures packaging directly on the assembler -
-`new InferredMultiProjectAssembler().packaging("app-image")`, the in-code equivalent of
-`-Djenesis.java.jpackage=app-image` with no system property - builds the `stage` goal,
-then reads the image folder from the `stage/packages` entry of the map that
-`build("stage")` returns (a fixed build target) and launches the produced platform
-launcher with your arguments. The packaged app prints:
+`Demo.java` builds the `stage` goal with the stock
+`new Project().assembler(new InferredMultiProjectAssembler())` - packaging is
+selected by the committed `packaging.properties` at this demo's root, which sets
+`jpackage=app-image` - then reads the image folder from the `stage/packages` entry
+of the map that `build("stage")` returns (a fixed build target) and launches the
+produced platform launcher with your arguments. The packaged app prints:
 
     Hello, Ada Lovelace, from a packaged Java module built by Jenesis!
 
 (Because no SLF4J backend is bundled, SLF4J prints a one-time "no providers" notice
 and uses a no-op logger - the `slf4j-api` jar is still bundled and on the app's
 classpath.) With no arguments it greets `world`. Building the plain
-`java build/jenesis/Project.java` (no `package` property) compiles and jars the
-module exactly as `../demo-02-java-modular` does, without producing an image.
+`java build/jenesis/Project.java` (the default `build` target, which stops before the
+package phase) compiles and jars the module exactly as `../demo-02-java-modular`
+does, without producing an image.
 
 Declaring the entry point with `@jenesis.main`
 ----------------------------------------------
@@ -76,14 +77,22 @@ runtime closure, not just your own code.
 How packaging fits the build
 ----------------------------
 
-Packaging is opt-in through a single system property, `-Djenesis.java.jpackage`.
-When it is set, `InferredMultiProjectAssembler` wires a `jpackage` step into the
-package phase - the cross-module level that runs after every module's build - which
-produces an application image for every module declaring a main class (modules
-without one are skipped). The property's value is the `jpackage --type`; a bare flag defaults to
-`app-image`, a self-contained launcher plus bundled runtime that needs no
-platform-native tooling. `--name` / `--main-jar` / `--main-class` are derived
-automatically (the name from the module's coordinate, here `demo.modular.executable`).
+Packaging is opt-in through a `packaging.properties` file. Jenesis reads it from the
+same configuration location the inferred linters, formatters, and SBOM use: a
+module's `META-INF/build.jenesis/` folder (or `build.jenesis/` in a Maven layout),
+falling back to the project-wide configuration directory (the project root by
+default). The first match wins, so a module-local file selects packaging for one
+module while a project-wide one selects it for all modules at once. When its
+`jpackage` key is set, `InferredMultiProjectAssembler` wires a `jpackage` step into
+the package phase - the cross-module level that runs after every module's build -
+which produces an application image for every module declaring a main class (modules
+without one are skipped). The `jpackage` value is the `jpackage --type` (`app-image`,
+`deb`, `rpm`, `dmg`, `pkg`, `exe`, `msi`); an absent or empty value means no jpackage
+step, so the type is always explicit - this demo commits a `packaging.properties` at
+its root with `jpackage=app-image`, a self-contained launcher plus bundled runtime
+that needs no platform-native tooling. `--name` / `--main-jar` / `--main-class` are
+derived automatically (the name from the module's coordinate, here
+`demo.modular.executable`).
 
 Each produced image is then collected by the `STAGE` module's `packages` step
 into `stage/packages/`, the staging analogue of `stage/maven` and `stage/modular`:
@@ -127,13 +136,14 @@ Stage a `.jmod` and a `jlink` runtime image
 
 `jpackage` produces that app-image by running `jlink` internally over the module
 graph. You can also produce the lower-level artifacts on their own - the `.jmod`
-and the linked runtime image - with two boolean properties. Both are modular-only:
-a `.jmod` and a custom runtime are built from *modules*, so a classpath project
-(`../demo-05-java-pom-executable`) has nothing to pack or link.
+and the linked runtime image - with two boolean keys in `packaging.properties`. Both
+are modular-only: a `.jmod` and a custom runtime are built from *modules*, so a
+classpath project (`../demo-05-java-pom-executable`) has nothing to pack or link.
+With `jmod=true` and `jlink=true` in `packaging.properties`, run:
 
-    java -Djenesis.java.jmod=true -Djenesis.java.jlink=true build/jenesis/Project.java stage
+    java build/jenesis/Project.java stage
 
-`-Djenesis.java.jmod=true` wires a `jmod` step that packs the module into a `.jmod`,
+`jmod=true` wires a `jmod` step that packs the module into a `.jmod`,
 the modular-package format that - unlike a jar - can also carry native libraries,
 legal files, and `bin/`/`conf/` content. It is staged beside the modular jar in the
 module-repository layout:
@@ -142,7 +152,7 @@ module-repository layout:
     |-- demo.modular.executable.jar
     `-- demo.modular.executable.jmod
 
-`-Djenesis.java.jlink=true` wires a `jlink` step that links a **custom runtime
+`jlink=true` wires a `jlink` step that links a **custom runtime
 image** holding only the modules this app needs, staged under `stage/runtime` (the
 analogue of `stage/packages`):
 
@@ -169,11 +179,11 @@ Bundle the jars for a JRE-based image
 
 `jpackage` bundles a trimmed runtime into the image. The lighter alternative is to
 ship only your jars onto an off-the-shelf JRE base (the shared-base trade discussed
-at the end of this page). For that, `-Djenesis.java.bundle=true` wires a per-module
-`bundle` step that writes a single `bundle/bundle.zip` for every module with a main
-class:
+at the end of this page). For that, a `bundle=true` line in `packaging.properties`
+wires a per-module `bundle` step that writes a single `bundle/bundle.zip` for every
+module with a main class:
 
-    java -Djenesis.java.bundle=true build/jenesis/Project.java
+    java build/jenesis/Project.java
 
     bundle.zip
     |-- application.properties     mainClass=sample.Sample, mainModule=demo.modular.executable, selfContainedModuleGraph=true
@@ -203,13 +213,13 @@ with just `mainClass`, launched with `java -cp 'classpath/*' sample.Sample` (see
 A single executable jar with the launcher
 -----------------------------------------
 
-The `bundle.zip` still needs a launch command. `-Djenesis.java.launcher=true` goes one
-step further and produces a **single executable jar** you run with `java -jar foo.jar` -
-without flattening the dependencies into a fat jar, so modularity survives. The target
-resolves the published `build.jenesis:build.jenesis.launcher` from Maven Central and
-shades it into the jar:
+The `bundle.zip` still needs a launch command. A `launcher=true` line in
+`packaging.properties` goes one step further and produces a **single executable jar**
+you run with `java -jar foo.jar` - without flattening the dependencies into a fat
+jar, so modularity survives. The target resolves the published
+`build.jenesis:build.jenesis.launcher` from Maven Central and shades it into the jar:
 
-    java -Djenesis.java.launcher=true build/jenesis/Project.java
+    java build/jenesis/Project.java
 
     demo.modular.executable.jar
     |-- META-INF/MANIFEST.MF                  Main-Class: build.jenesis.launcher.Launcher
@@ -244,9 +254,12 @@ Fully bundled native installer
 
 `Demo.java` builds an `app-image` - a directory you launch in place. Its sibling
 `build/DemoNative.java` instead builds the platform's **native installer**: the single
-artifact you hand to a user to install. It follows the same shape as `Demo.java` - the
-packaging type set explicitly on the assembler, the fixed `stage` target built, the
-result read from the fixed `stage/packages` key - and only the last step differs: a
+artifact you hand to a user to install. It follows the same shape as `Demo.java` - a
+`packaging.properties` selects the packaging type, the fixed `stage` target is built,
+the result is read from the fixed `stage/packages` key - and two things differ: the
+type is computed for the host and written to a `packaging.properties` in a throwaway
+temp directory that `DemoNative.java` points the build at with
+`Project.configuration(...)` (rather than the committed `jpackage=app-image`), and a
 native installer is a deliverable to install, not a program to launch in place, so it
 reports the produced package rather than running it.
 

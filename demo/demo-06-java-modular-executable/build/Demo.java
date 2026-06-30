@@ -21,12 +21,11 @@ import build.jenesis.project.InferredMultiProjectAssembler;
 public class Demo {
 
     static void main(String[] args) throws Exception {
-        // Configure packaging explicitly on the assembler instead of through the
-        // -Djenesis.java.jpackage system property: hand the Project a stock
-        // InferredMultiProjectAssembler with its packaging type set, via the wither, to a
-        // self-contained app-image.
+        // Packaging is selected by the committed packaging.properties in this directory
+        // (jpackage=app-image), which Jenesis reads from the configuration location for
+        // every module - so the stock InferredMultiProjectAssembler needs no extra wiring.
         Project project = new Project()
-                .assembler(new InferredMultiProjectAssembler().packaging("app-image"));
+                .assembler(new InferredMultiProjectAssembler());
 
         // `stage/packages` is a fixed build target: building `stage` returns a map keyed
         // by the steps that ran, so the image folder is read straight from that map under

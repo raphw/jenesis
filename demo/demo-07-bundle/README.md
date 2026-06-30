@@ -17,11 +17,11 @@ From this directory, pass the arguments you want the app to receive:
 
     java build/Demo.java Ada Lovelace
 
-`Demo.java` enables the bundle target directly on the assembler -
-`new InferredMultiProjectAssembler().bundle(true)`, the in-code equivalent of
-`-Djenesis.java.bundle=true` with no system property - runs the build, then unpacks
-the produced `bundle.zip` and launches the app out of it on this JDK's own `java`,
-exactly as a JRE-based deployment would. It prints:
+`Demo.java` runs the build with the stock
+`new Project().assembler(new InferredMultiProjectAssembler())` - the bundle target is
+selected by the committed `packaging.properties` at this demo's root, which sets
+`bundle=true` - then unpacks the produced `bundle.zip` and launches the app out of it
+on this JDK's own `java`, exactly as a JRE-based deployment would. It prints:
 
     Hello, Ada Lovelace, from a Jenesis bundle.zip on a stock JRE!
 
@@ -60,8 +60,11 @@ the `Dockerfile` below bakes in.
 How it is wired
 ---------------
 
-Bundling is opt-in through a single boolean, `-Djenesis.java.bundle` (or the
-`.bundle(true)` wither this demo uses). When set, `InferredMultiProjectAssembler`
+Bundling is opt-in through a `bundle` key in a `packaging.properties` file, read from
+the configuration location (a module's `META-INF/build.jenesis/` folder - or
+`build.jenesis/` in a Maven layout - falling back to the project-wide configuration
+directory, the project root by default; the first match wins, so a module-local file
+overrides a project-wide one). When `bundle=true`, `InferredMultiProjectAssembler`
 wires a `bundle` step into the package phase - the cross-module level that runs after
 every module's build - producing a `bundle.zip` for every module declaring a main
 class (a `@jenesis.main` Javadoc tag, or a `<mainClass>` POM property); modules
@@ -102,6 +105,6 @@ is the classic shared-base one: an app-image bundles its own `jlink`-trimmed run
 while a JRE-base bundle is tiny (only your jars) and shares one content-addressed JVM
 layer across every image built on it - leaner in aggregate when you run many distinct
 services, at the cost of coupling to that base's JVM version. A single executable jar
-(`-Djenesis.java.launcher=true`, see `../demo-06-java-modular-executable`) is a third
-point: the same split closure plus a shaded launcher, so it runs with a bare
-`java -jar` and no launch command at all.
+(selected with `launcher=true` in `packaging.properties`, see
+`../demo-06-java-modular-executable`) is a third point: the same split closure plus a
+shaded launcher, so it runs with a bare `java -jar` and no launch command at all.

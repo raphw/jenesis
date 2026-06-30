@@ -32,7 +32,7 @@ import build.jenesis.step.Tree;
 
 public record Project(
         Path root,
-        Path configuration,
+        SequencedSet<Path> configuration,
         Path target,
         Path artifacts,
         BuildExecutorCache cache,
@@ -42,7 +42,7 @@ public record Project(
         boolean sources,
         boolean documentation,
         Pinning pinning,
-        List<Path> metadata,
+        SequencedSet<Path> metadata,
         String version,
         SequencedSet<String> defaultTarget,
         MultiProjectAssembler<? super ProjectModuleDescriptor> assembler,
@@ -77,16 +77,13 @@ public record Project(
             return location == null ? null : location.resolve("META-INF").resolve("build.jenesis");
         }
 
-        static SequencedSet<Path> configurations(Path... folders) {
+        static SequencedSet<Path> configurations(Path local, SequencedSet<Path> folders) {
             LinkedHashSet<Path> ordered = new LinkedHashSet<>();
-            for (Path folder : folders) {
-                if (folder != null) {
-                    Path absolute = folder.toAbsolutePath().normalize();
-                    if (Files.isDirectory(absolute)) {
-                        ordered.add(absolute);
-                    }
-                }
-            }
+            Stream.concat(Stream.of(local), folders.stream())
+                    .filter(folder -> folder != null)
+                    .map(folder -> folder.toAbsolutePath().normalize())
+                    .filter(Files::isDirectory)
+                    .forEach(ordered::add);
             return Collections.unmodifiableSequencedSet(ordered);
         }
 
@@ -1147,11 +1144,19 @@ public record Project(
             }
         }
         String configurationOverride = System.getProperty("jenesis.project.configuration");
-        Path resolvedConfiguration = configurationOverride == null
-                ? resolvedRoot
-                : configurationOverride.isEmpty()
-                ? null
-                : resolvedRoot.resolve(Path.of(configurationOverride));
+        SequencedSet<Path> resolvedConfiguration;
+        if (configurationOverride == null) {
+            resolvedConfiguration = new LinkedHashSet<>(List.of(resolvedRoot));
+        } else if (configurationOverride.isEmpty()) {
+            resolvedConfiguration = Collections.emptyNavigableSet();
+        } else {
+            Path configurationRoot = resolvedRoot;
+            resolvedConfiguration = Arrays.stream(configurationOverride.split(Pattern.quote(File.pathSeparator)))
+                    .map(String::trim)
+                    .filter(value -> !value.isEmpty())
+                    .map(value -> configurationRoot.resolve(Path.of(value)))
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+        }
         Path resolvedTarget = Path.of("target");
         String targetOverride = System.getProperty("jenesis.project.target");
         if (targetOverride != null) {
@@ -1182,12 +1187,13 @@ public record Project(
                     "Unknown layout: " + layoutOverride + " (expected auto, maven, modular, or modular_to_maven)");
         };
         String metadataOverride = System.getProperty("jenesis.project.metadata");
-        List<Path> resolvedMetadata = metadataOverride == null ? List.of() : Arrays.stream(
-                        metadataOverride.split(Pattern.quote(File.pathSeparator)))
+        SequencedSet<Path> resolvedMetadata = metadataOverride == null
+                ? Collections.emptyNavigableSet()
+                : Arrays.stream(metadataOverride.split(Pattern.quote(File.pathSeparator)))
                 .map(String::trim)
                 .filter(value -> !value.isEmpty())
                 .map(Path::of)
-                .toList();
+                .collect(Collectors.toCollection(LinkedHashSet::new));
         this(resolvedRoot,
                 resolvedConfiguration,
                 resolvedTarget,
@@ -1211,6 +1217,27 @@ public record Project(
     public Project root(Path root) {
         return new Project(root,
                 configuration,
+                target,
+                artifacts,
+                cache,
+                hashFunction,
+                layout,
+                tests,
+                sources,
+                documentation,
+                pinning,
+                metadata,
+                version,
+                defaultTarget,
+                assembler,
+                repositories,
+                resolvers,
+                configurator);
+    }
+
+    public Project configuration(Path... configuration) {
+        return new Project(root,
+                new LinkedHashSet<>(List.of(configuration)),
                 target,
                 artifacts,
                 cache,
@@ -1430,7 +1457,7 @@ public record Project(
                 sources,
                 documentation,
                 pinning,
-                List.of(metadata),
+                new LinkedHashSet<>(List.of(metadata)),
                 version,
                 defaultTarget,
                 assembler,
@@ -1663,8 +1690,11 @@ public record Project(
         }
         for (String name : list.split(",")) {
             String trimmed = name.trim();
+            if (trimmed.endsWith(".properties")) {
+                trimmed = trimmed.substring(0, trimmed.length() - ".properties".length());
+            }
             if (!trimmed.isEmpty()) {
-                pending.add(base.resolve(trimmed.endsWith(".properties") ? trimmed : trimmed + ".properties"));
+                pending.add(base.resolve("jenesis-" + trimmed + ".properties"));
             }
         }
     }

@@ -139,13 +139,13 @@ public class ProjectTest {
 
     @Test
     public void configuration_defaults_to_the_root() {
-        assertThat(new Project().configuration()).isEqualTo(Path.of("."));
+        assertThat(new Project().configuration()).containsExactly(Path.of("."));
     }
 
     @Test
     public void empty_configuration_property_skips_the_global_configuration() {
         System.setProperty("jenesis.project.configuration", "");
-        assertThat(new Project().configuration()).isNull();
+        assertThat(new Project().configuration()).isEmpty();
     }
 
     @Test
@@ -153,9 +153,10 @@ public class ProjectTest {
         Path existing = Files.createDirectories(root.resolve("module").resolve("config"));
         SequencedSet<Path> folders = Project.Layout.configurations(
                 root.resolve("module").resolve("config"),
-                root.resolve("module/config"),
-                root.resolve("missing"),
-                null);
+                new LinkedHashSet<>(Arrays.asList(
+                        root.resolve("module/config"),
+                        root.resolve("missing"),
+                        null)));
         assertThat(folders).hasSize(1);
         Path only = folders.getFirst();
         assertThat(only.isAbsolute()).isTrue();
@@ -443,10 +444,10 @@ public class ProjectTest {
     public void load_jenesis_properties_chains_profile_files() throws IOException {
         Files.writeString(root.resolve("jenesis.properties"),
                 "jenesis.project.properties=profile-a, profile-b\njenesis.test.sample.a=fromBase\n");
-        Files.writeString(root.resolve("profile-a.properties"),
+        Files.writeString(root.resolve("jenesis-profile-a.properties"),
                 "jenesis.project.properties=profile-c\njenesis.test.sample.b=fromA\n");
-        Files.writeString(root.resolve("profile-b.properties"), "jenesis.test.sample.c=fromB\n");
-        Files.writeString(root.resolve("profile-c.properties"), "jenesis.test.sample.d=fromC\n");
+        Files.writeString(root.resolve("jenesis-profile-b.properties"), "jenesis.test.sample.c=fromB\n");
+        Files.writeString(root.resolve("jenesis-profile-c.properties"), "jenesis.test.sample.d=fromC\n");
         Project.loadJenesisProperties(root);
         assertThat(System.getProperty("jenesis.test.sample.a")).isEqualTo("fromBase");
         assertThat(System.getProperty("jenesis.test.sample.b")).isEqualTo("fromA");
@@ -459,6 +460,6 @@ public class ProjectTest {
         Files.writeString(root.resolve("jenesis.properties"), "jenesis.project.properties=absent\n");
         assertThatThrownBy(() -> Project.loadJenesisProperties(root))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("absent.properties");
+                .hasMessageContaining("jenesis-absent.properties");
     }
 }

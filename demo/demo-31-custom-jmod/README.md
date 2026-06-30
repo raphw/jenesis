@@ -81,12 +81,17 @@ How the wrapping works
 ----------------------
 
 `Demo.java` hands `Project` a `ConfigJmodAssembler` that wraps a stock
-`InferredMultiProjectAssembler` with `jmod`, `jlink`, and packaging enabled:
+`InferredMultiProjectAssembler`; `jmod`, `jlink`, and packaging are selected by the
+committed `packaging.properties` in this directory, which Jenesis reads from the
+configuration location:
 
-    new ConfigJmodAssembler(new InferredMultiProjectAssembler()
-            .jmod(true).jlink(true).packaging("app-image"))
+    new ConfigJmodAssembler(new InferredMultiProjectAssembler())
 
-With those flags the stock assembler already adds the `jmod`, `jlink`, and
+    packaging.properties:  jmod=true
+                         jlink=true
+                         jpackage=app-image
+
+With those keys the stock assembler already adds the `jmod`, `jlink`, and
 `jpackage` steps, wires `jlink` to read the `.jmod`, and wires `jpackage` to bundle
 the `jlink` runtime via `--runtime-image`. The wrapper does not duplicate any of
 that. It adds exactly one thing, the extra input, and lets the stock pipeline
