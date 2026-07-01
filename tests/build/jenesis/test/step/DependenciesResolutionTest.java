@@ -104,7 +104,7 @@ public class DependenciesResolutionTest {
                     descriptors.sequencedKeySet().forEach(descriptor -> resolved.put(prefix + "/" + descriptor, ""));
                     SequencedMap<String, Resolver.Vertex> vertices = new LinkedHashMap<>();
                     vertices.put(prefix + "/qux", new Resolver.Vertex(null, null, false,
-                            List.of(new License("Apache-2.0", "https://www.apache.org/licenses/LICENSE-2.0.txt"))));
+                            List.of(new License(null, null, "Apache License 2.0", "https://www.apache.org/licenses/LICENSE-2.0.txt"))));
                     return new Resolver.Resolution(
                             Resolver.materializeAll(executor, repositories, prefix, resolved),
                             List.of(),
@@ -118,8 +118,53 @@ public class DependenciesResolutionTest {
                 .toCompletableFuture().join();
         assertThat(result.next()).isTrue();
         SequencedProperties licenses = SequencedProperties.ofFiles(next.resolve("licenses.properties"));
-        assertThat(licenses.getProperty("foo/qux#0#name")).isEqualTo("Apache-2.0");
+        assertThat(licenses.getProperty("foo/qux#0#name"))
+                .as("the declared name is captured verbatim")
+                .isEqualTo("Apache License 2.0");
         assertThat(licenses.getProperty("foo/qux#0#url")).isEqualTo("https://www.apache.org/licenses/LICENSE-2.0.txt");
+        assertThat(licenses.getProperty("foo/qux#0#id"))
+                .as("the declared name is normalized to its SPDX identifier at extraction")
+                .isEqualTo("Apache-2.0");
+        assertThat(licenses.getProperty("foo/qux#0#category"))
+                .as("the SPDX identifier is classified")
+                .isEqualTo("permissive");
+    }
+
+    @Test
+    public void appends_license_aliases_and_categories_from_input_files() throws IOException {
+        SequencedProperties properties = new SequencedProperties();
+        properties.setProperty("main/compile/foo/qux", "");
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
+        Path licenses = Files.createDirectory(root.resolve("license-config"));
+        Files.writeString(licenses.resolve(Dependencies.SPDX),
+                "alias/acme-license=Acme-1.0\ncategory/Acme-1.0=permissive\n");
+        BuildStepResult result = new Dependencies(Map.of("foo", files(Map.of())),
+                Map.of("foo", (executor, prefix, repositories, descriptors, bom, scope) -> {
+                    SequencedMap<String, String> resolved = new LinkedHashMap<>();
+                    descriptors.sequencedKeySet().forEach(descriptor -> resolved.put(prefix + "/" + descriptor, ""));
+                    SequencedMap<String, Resolver.Vertex> vertices = new LinkedHashMap<>();
+                    vertices.put(prefix + "/qux", new Resolver.Vertex(null, null, false,
+                            List.of(new License(null, null, "Acme-License", null))));
+                    return new Resolver.Resolution(
+                            Resolver.materializeAll(executor, repositories, prefix, resolved),
+                            List.of(),
+                            vertices);
+                }))
+                .apply(Runnable::run,
+                        new BuildStepContext(previous, next, supplement),
+                        new LinkedHashMap<>(Map.of(
+                                "dependencies", new BuildStepArgument(dependencies,
+                                        Map.of(Path.of(BuildStep.REQUIRES), Checksum.of(ChecksumStatus.ADDED))),
+                                "licenses", new BuildStepArgument(licenses, Map.of()))))
+                .toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        SequencedProperties sidecar = SequencedProperties.ofFiles(next.resolve("licenses.properties"));
+        assertThat(sidecar.getProperty("foo/qux#0#id"))
+                .as("a supplied license-aliases.properties file extends the built-in alias table")
+                .isEqualTo("Acme-1.0");
+        assertThat(sidecar.getProperty("foo/qux#0#category"))
+                .as("a supplied license-categories.properties file extends the built-in category table")
+                .isEqualTo("permissive");
     }
 
     @Test

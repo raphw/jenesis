@@ -17,4 +17,6 @@ public interface ProjectModule {
     SequencedSet<String> coordinates();
 
     SequencedSet<String> artifacts();
+
+    SequencedSet<String> spdx();
 }

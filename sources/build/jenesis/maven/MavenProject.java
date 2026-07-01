@@ -25,6 +25,7 @@ import build.jenesis.step.Inventory;
 import build.jenesis.step.Javac;
 
 import static build.jenesis.BuildStep.IDENTITY;
+import static build.jenesis.project.MultiProjectModule.ARTIFACTS;
 import static build.jenesis.project.MultiProjectModule.ASSIGN;
 import static build.jenesis.project.MultiProjectModule.COORDINATES;
 import static build.jenesis.project.MultiProjectModule.DEPENDENCIES;
@@ -83,7 +84,7 @@ public class MavenProject implements BuildExecutorModule {
                 Map.of("maven", new MavenDefaultRepository()),
                 Map.of("maven", new MavenPomResolver()),
                 null,
-                false,
+                Collections.emptyNavigableSet(),
                 assembler);
     }
 
@@ -93,7 +94,7 @@ public class MavenProject implements BuildExecutorModule {
                                            Map<String, Repository> repositories,
                                            Map<String, Resolver> resolvers,
                                            Pinning pinning,
-                                           boolean printDependencies,
+                                           SequencedSet<Path> spdx,
                                            MultiProjectAssembler<? super MavenModuleDescriptor> assembler) {
         MavenRepository repository = MavenRepository.of(requireNonNull(repositories.get(prefix)));
         MavenResolver resolver = MavenResolver.of(resolvers.get(prefix));
@@ -101,8 +102,12 @@ public class MavenProject implements BuildExecutorModule {
                 identifier -> Optional.of(identifier.substring(0, identifier.indexOf('/'))),
                 _ -> (name, dependencies, arguments) -> {
                     Path location = MultiProjectModule.location(root, arguments);
+                    SequencedSet<String> spdxInherited = new LinkedHashSet<>();
+                    for (int index = 0; index < spdx.size(); index++) {
+                        spdxInherited.add(BuildExecutorModule.PREVIOUS + MultiProjectModule.SPDX + "-" + index);
+                    }
                     AssemblyDescriptor packaging = assembler.apply(
-                            new MavenModuleDescriptor(name, dependencies.sequencedKeySet(), Collections.emptyNavigableSet(), location),
+                            new MavenModuleDescriptor(name, dependencies.sequencedKeySet(), Collections.emptyNavigableSet(), spdxInherited, location),
                             repositories,
                             resolvers);
                     AssemblyDescriptor assembly = new AssemblyDescriptor((buildExecutor, inherited) -> {
@@ -117,15 +122,33 @@ public class MavenProject implements BuildExecutorModule {
                                             .toList(),
                                     (folder, file) -> folder.resolve(file).normalize().toUri(),
                                     null));
+                    SequencedSet<String> spdxSources = new LinkedHashSet<>();
+                    int spdxIndex = 0;
+                    for (Path file : spdx) {
+                        String source = MultiProjectModule.SPDX + "-" + spdxIndex++;
+                        buildExecutor.addSource(source,
+                                new Bind(Map.of(Path.of(""), Path.of(Dependencies.SPDX))), file);
+                        spdxSources.add(source);
+                    }
+                    SequencedMap<String, String> dependencyDeps = new LinkedHashMap<>();
+                    for (String key : inherited.sequencedKeySet()) {
+                        dependencyDeps.put(key, key);
+                    }
+                    for (String source : spdxSources) {
+                        dependencyDeps.put(source, source);
+                    }
                     buildExecutor.addModule(DEPENDENCIES, (depExec, depInherited) -> {
                         depExec.addStep(PREPARE,
                                 new MultiProjectDependencies(
                                         identifier -> identifier.contains("/" + MultiProjectModule.IDENTIFIER + "/" + name + "/")),
-                                depInherited.sequencedKeySet());
-                        depExec.addStep(Dependencies.ARTIFACTS,
-                                new Dependencies(mergedRepositories, resolvers).pinning(pinning).printing(printDependencies),
-                                PREPARE);
-                    }, inherited.sequencedKeySet());
+                                depInherited.sequencedKeySet().stream().filter(key -> !spdxSources.contains(key)));
+                        SequencedSet<String> artifactInputs = new LinkedHashSet<>();
+                        artifactInputs.add(PREPARE);
+                        artifactInputs.addAll(spdxSources);
+                        depExec.addStep(ARTIFACTS,
+                                new Dependencies(mergedRepositories, resolvers).pinning(pinning),
+                                artifactInputs);
+                    }, dependencyDeps);
                     SequencedMap<String, String> produceDeps = new LinkedHashMap<>();
                     produceDeps.put(MultiProjectModule.IDENTIFIER_PATH + name + "/" + SOURCES, SOURCES);
                     produceDeps.put(MultiProjectModule.IDENTIFIER_PATH + name + "/" + MANIFESTS, MANIFESTS);
@@ -139,12 +162,15 @@ public class MavenProject implements BuildExecutorModule {
                             resources.add(BuildExecutorModule.PREVIOUS + synonym);
                         }
                     }
-                    produceDeps.put(DEPENDENCIES + "/" + Dependencies.ARTIFACTS, DEPENDENCIES + "/" + Dependencies.ARTIFACTS);
+                    produceDeps.put(DEPENDENCIES + "/" + ARTIFACTS, DEPENDENCIES + "/" + ARTIFACTS);
+                    for (String source : spdxSources) {
+                        produceDeps.put(source, source);
+                    }
                     for (String key : inherited.sequencedKeySet()) {
                         produceDeps.putIfAbsent(key, key);
                     }
                     buildExecutor.addModule(PRODUCE,
-                            assembler.apply(new MavenModuleDescriptor(name, dependencies.sequencedKeySet(), resources, location),
+                            assembler.apply(new MavenModuleDescriptor(name, dependencies.sequencedKeySet(), resources, spdxInherited, location),
                                     mergedRepositories,
                                     resolvers).build(),
                             produceDeps);
@@ -157,7 +183,7 @@ public class MavenProject implements BuildExecutorModule {
                             MultiProjectModule.IDENTIFIER_PATH + name + "/" + MANIFESTS,
                             ASSIGN,
                             PRODUCE,
-                            DEPENDENCIES + "/" + Dependencies.ARTIFACTS);
+                            DEPENDENCIES + "/" + ARTIFACTS);
                     });
                     for (Map.Entry<String, BuildExecutorModule> phase : packaging.tail().entrySet()) {
                         assembly = assembly.then(phase.getKey(), phase.getValue());
@@ -635,6 +661,7 @@ public class MavenProject implements BuildExecutorModule {
     public record MavenModuleDescriptor(String name,
                                         SequencedSet<String> dependencies,
                                         SequencedSet<String> resources,
+                                        SequencedSet<String> spdx,
                                         Path location) implements ProjectModule {
 
         @Override
@@ -654,7 +681,7 @@ public class MavenProject implements BuildExecutorModule {
 
         @Override
         public SequencedSet<String> artifacts() {
-            return of(BuildExecutorModule.PREVIOUS + DEPENDENCIES + "/" + Dependencies.ARTIFACTS);
+            return of(BuildExecutorModule.PREVIOUS + DEPENDENCIES + "/" + ARTIFACTS);
         }
 
         private static SequencedSet<String> of(String value) {

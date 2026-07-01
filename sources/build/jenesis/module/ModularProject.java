@@ -23,6 +23,7 @@ import build.jenesis.step.Dependencies;
 import build.jenesis.step.Inventory;
 import build.jenesis.step.Javac;
 
+import static build.jenesis.project.MultiProjectModule.ARTIFACTS;
 import static build.jenesis.project.MultiProjectModule.ASSIGN;
 import static build.jenesis.project.MultiProjectModule.COORDINATES;
 import static build.jenesis.project.MultiProjectModule.DEPENDENCIES;
@@ -85,7 +86,7 @@ public class ModularProject implements BuildExecutorModule {
                 Map.of("module", new ModularJarResolver(false)),
                 null,
                 true,
-                false,
+                Collections.emptyNavigableSet(),
                 assembler);
     }
 
@@ -97,14 +98,18 @@ public class ModularProject implements BuildExecutorModule {
                                            Map<String, Resolver> resolvers,
                                            Pinning pinning,
                                            boolean modular,
-                                           boolean printDependencies,
+                                           SequencedSet<Path> spdx,
                                            MultiProjectAssembler<? super ModularModuleDescriptor> assembler) {
         return new MultiProjectModule(new ModularProject(prefix, root).group(group).filter(filter).modular(modular),
                 identity -> Optional.of(identity.substring(0, identity.indexOf('/'))),
                 _ -> (name, dependencies, arguments) -> {
                     Path location = MultiProjectModule.location(root, arguments);
+                    SequencedSet<String> spdxInherited = new LinkedHashSet<>();
+                    for (int index = 0; index < spdx.size(); index++) {
+                        spdxInherited.add(BuildExecutorModule.PREVIOUS + MultiProjectModule.SPDX + "-" + index);
+                    }
                     AssemblyDescriptor packaging = assembler.apply(
-                            new ModularModuleDescriptor(name, dependencies.sequencedKeySet(), location),
+                            new ModularModuleDescriptor(name, dependencies.sequencedKeySet(), spdxInherited, location),
                             repositories,
                             resolvers);
                     AssemblyDescriptor assembly = new AssemblyDescriptor((buildExecutor, inherited) -> {
@@ -119,25 +124,46 @@ public class ModularProject implements BuildExecutorModule {
                                     (folder, file) -> folder.resolve(file).normalize().toUri(),
                                     (BiFunction<URI, String, Optional<URI>> & Serializable) (base, _) -> Optional.of(base),
                                     null));
+                    SequencedSet<String> spdxSources = new LinkedHashSet<>();
+                    int spdxIndex = 0;
+                    for (Path file : spdx) {
+                        String source = MultiProjectModule.SPDX + "-" + spdxIndex++;
+                        buildExecutor.addSource(source,
+                                new Bind(Map.of(Path.of(""), Path.of(Dependencies.SPDX))), file);
+                        spdxSources.add(source);
+                    }
+                    SequencedMap<String, String> dependencyDeps = new LinkedHashMap<>();
+                    for (String key : inherited.sequencedKeySet()) {
+                        dependencyDeps.put(key, key);
+                    }
+                    for (String source : spdxSources) {
+                        dependencyDeps.put(source, source);
+                    }
                     buildExecutor.addModule(DEPENDENCIES, (depExec, depInherited) -> {
                         depExec.addStep(PREPARE,
                                 new MultiProjectDependencies(
                                         identifier -> identifier.contains("/" + MultiProjectModule.IDENTIFIER + "/" + name + "/")),
-                                depInherited.sequencedKeySet());
-                        depExec.addStep(Dependencies.ARTIFACTS,
-                                new Dependencies(mergedRepositories, resolvers).pinning(pinning).printing(printDependencies),
-                                PREPARE);
-                    }, inherited.sequencedKeySet());
+                                depInherited.sequencedKeySet().stream().filter(key -> !spdxSources.contains(key)));
+                        SequencedSet<String> artifactInputs = new LinkedHashSet<>();
+                        artifactInputs.add(PREPARE);
+                        artifactInputs.addAll(spdxSources);
+                        depExec.addStep(ARTIFACTS,
+                                new Dependencies(mergedRepositories, resolvers).pinning(pinning),
+                                artifactInputs);
+                    }, dependencyDeps);
                     SequencedMap<String, String> produceDeps = new LinkedHashMap<>();
                     produceDeps.put(MultiProjectModule.IDENTIFIER_PATH + name + "/" + SOURCES, SOURCES);
                     produceDeps.put(MultiProjectModule.IDENTIFIER_PATH + name + "/" + MANIFESTS, MANIFESTS);
                     produceDeps.put(MultiProjectModule.IDENTIFIER_PATH + name + "/" + COORDINATES, COORDINATES);
-                    produceDeps.put(DEPENDENCIES + "/" + Dependencies.ARTIFACTS, DEPENDENCIES + "/" + Dependencies.ARTIFACTS);
+                    produceDeps.put(DEPENDENCIES + "/" + ARTIFACTS, DEPENDENCIES + "/" + ARTIFACTS);
+                    for (String source : spdxSources) {
+                        produceDeps.put(source, source);
+                    }
                     for (String key : inherited.sequencedKeySet()) {
                         produceDeps.putIfAbsent(key, key);
                     }
                     buildExecutor.addModule(PRODUCE,
-                            assembler.apply(new ModularModuleDescriptor(name, dependencies.sequencedKeySet(), location),
+                            assembler.apply(new ModularModuleDescriptor(name, dependencies.sequencedKeySet(), spdxInherited, location),
                                     mergedRepositories,
                                     resolvers).build(),
                             produceDeps);
@@ -150,7 +176,7 @@ public class ModularProject implements BuildExecutorModule {
                             MultiProjectModule.IDENTIFIER_PATH + name + "/" + MANIFESTS,
                             ASSIGN,
                             PRODUCE,
-                            DEPENDENCIES + "/" + Dependencies.ARTIFACTS);
+                            DEPENDENCIES + "/" + ARTIFACTS);
                     });
                     for (Map.Entry<String, BuildExecutorModule> phase : packaging.tail().entrySet()) {
                         assembly = assembly.then(phase.getKey(), phase.getValue());
@@ -297,7 +323,7 @@ public class ModularProject implements BuildExecutorModule {
         }
     }
 
-    public record ModularModuleDescriptor(String name, SequencedSet<String> dependencies, Path location) implements ProjectModule {
+    public record ModularModuleDescriptor(String name, SequencedSet<String> dependencies, SequencedSet<String> spdx, Path location) implements ProjectModule {
 
         @Override
         public SequencedSet<String> sources() {
@@ -321,7 +347,7 @@ public class ModularProject implements BuildExecutorModule {
 
         @Override
         public SequencedSet<String> artifacts() {
-            return of(BuildExecutorModule.PREVIOUS + DEPENDENCIES + "/" + Dependencies.ARTIFACTS);
+            return of(BuildExecutorModule.PREVIOUS + DEPENDENCIES + "/" + ARTIFACTS);
         }
 
         private static SequencedSet<String> of(String value) {

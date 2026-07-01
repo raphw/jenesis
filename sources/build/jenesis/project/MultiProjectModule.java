@@ -26,7 +26,9 @@ public record MultiProjectModule(BuildExecutorModule identifier,
             PRODUCE = "produce",
             ASSIGN = "assign",
             INVENTORY = "inventory",
-            DEPENDENCIES = "dependencies";
+            DEPENDENCIES = "dependencies",
+            ARTIFACTS = "artifacts",
+            SPDX = "spdx";
 
     private static final String GROUP = "group";
 

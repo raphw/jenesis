@@ -23,32 +23,29 @@ public class CycloneDx {
     private static final String SPEC_VERSION = "1.6";
     private static final String NAMESPACE = "http://cyclonedx.org/schema/bom/" + SPEC_VERSION;
 
-    private static final Map<String, String> SPDX = Map.ofEntries(
-            Map.entry("apache license, version 2.0", "Apache-2.0"),
-            Map.entry("the apache software license, version 2.0", "Apache-2.0"),
-            Map.entry("apache 2.0", "Apache-2.0"),
-            Map.entry("apache-2.0", "Apache-2.0"),
-            Map.entry("apache license 2.0", "Apache-2.0"),
-            Map.entry("mit license", "MIT"),
-            Map.entry("the mit license", "MIT"),
-            Map.entry("mit", "MIT"),
-            Map.entry("bsd license", "BSD-2-Clause"),
-            Map.entry("the bsd license", "BSD-2-Clause"),
-            Map.entry("bsd-2-clause", "BSD-2-Clause"),
-            Map.entry("bsd 3-clause", "BSD-3-Clause"),
-            Map.entry("the bsd 3-clause license", "BSD-3-Clause"),
-            Map.entry("bsd-3-clause", "BSD-3-Clause"),
-            Map.entry("eclipse public license - v 1.0", "EPL-1.0"),
-            Map.entry("eclipse public license 1.0", "EPL-1.0"),
-            Map.entry("epl-1.0", "EPL-1.0"),
-            Map.entry("eclipse public license - v 2.0", "EPL-2.0"),
-            Map.entry("eclipse public license 2.0", "EPL-2.0"),
-            Map.entry("epl-2.0", "EPL-2.0"),
-            Map.entry("gnu lesser general public license", "LGPL-2.1-or-later"),
-            Map.entry("lgpl-2.1", "LGPL-2.1-only"),
-            Map.entry("gnu general public license, version 2", "GPL-2.0-only"),
-            Map.entry("common development and distribution license 1.0", "CDDL-1.0"),
-            Map.entry("cddl-1.0", "CDDL-1.0"));
+    private static final Set<String> DEFAULT_IDENTIFIERS = Set.of(
+            "Apache-2.0", "MIT", "MIT-0",
+            "BSD-2-Clause", "BSD-3-Clause", "ISC", "BSL-1.0", "Zlib", "PSF-2.0",
+            "Unlicense", "CC0-1.0", "WTFPL",
+            "EPL-1.0", "EPL-2.0", "MPL-1.1", "MPL-2.0", "CDDL-1.0", "CDDL-1.1",
+            "LGPL-2.1-only", "LGPL-2.1-or-later", "LGPL-3.0-only", "LGPL-3.0-or-later",
+            "GPL-2.0-with-classpath-exception",
+            "GPL-2.0-only", "GPL-2.0-or-later", "GPL-3.0-only", "GPL-3.0-or-later",
+            "AGPL-3.0-only", "AGPL-3.0-or-later");
+
+    private final Set<String> identifiers;
+
+    public CycloneDx() {
+        this(DEFAULT_IDENTIFIERS);
+    }
+
+    private CycloneDx(Set<String> identifiers) {
+        this.identifiers = identifiers;
+    }
+
+    public CycloneDx identifiers(Set<String> identifiers) {
+        return new CycloneDx(identifiers);
+    }
 
     public record Component(String bomRef, String group, String name, String version, String purl, String sha256,
                             List<License> licenses, String description, List<Author> authors,
@@ -178,12 +175,12 @@ public class CycloneDx {
             builder.append(",\n").append(pad).append("  \"licenses\": [\n");
             for (int index = 0; index < component.licenses().size(); index++) {
                 License license = component.licenses().get(index);
-                String spdx = spdx(license.name());
                 builder.append(pad).append("    { \"license\": { ");
-                if (spdx != null) {
-                    builder.append("\"id\": \"").append(escapeJson(spdx)).append("\"");
+                if (license.id() != null && identifiers.contains(license.id())) {
+                    builder.append("\"id\": \"").append(escapeJson(license.id())).append("\"");
                 } else {
-                    builder.append("\"name\": \"").append(escapeJson(license.name() == null ? "" : license.name())).append("\"");
+                    String name = license.id() != null ? license.id() : license.name();
+                    builder.append("\"name\": \"").append(escapeJson(name == null ? "" : name)).append("\"");
                     if (license.url() != null) {
                         builder.append(", \"url\": \"").append(escapeJson(license.url())).append("\"");
                     }
@@ -303,11 +300,11 @@ public class CycloneDx {
             Element licenses = (Element) node.appendChild(document.createElementNS(NAMESPACE, "licenses"));
             for (License license : component.licenses()) {
                 Element wrapper = (Element) licenses.appendChild(document.createElementNS(NAMESPACE, "license"));
-                String spdx = spdx(license.name());
-                if (spdx != null) {
-                    appendXmlText(document, wrapper, "id", spdx);
+                if (license.id() != null && identifiers.contains(license.id())) {
+                    appendXmlText(document, wrapper, "id", license.id());
                 } else {
-                    appendXmlText(document, wrapper, "name", license.name() == null ? "" : license.name());
+                    String name = license.id() != null ? license.id() : license.name();
+                    appendXmlText(document, wrapper, "name", name == null ? "" : name);
                     if (license.url() != null) {
                         appendXmlText(document, wrapper, "url", license.url());
                     }
@@ -329,10 +326,6 @@ public class CycloneDx {
 
     private static void appendXmlText(Document document, Node parent, String name, String text) {
         parent.appendChild(document.createElementNS(NAMESPACE, name)).setTextContent(text);
-    }
-
-    private static String spdx(String name) {
-        return name == null ? null : SPDX.get(name.toLowerCase(Locale.ROOT).trim());
     }
 
     private static String escapeJson(String text) {

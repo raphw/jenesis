@@ -79,11 +79,11 @@ public record InferredMultiProjectAssembler(Function<InferredSourceCodeQualityMo
             sub.addModule("check",
                     check.apply(new InferredSourceCodeQualityModule(descriptor.configuration(), repositories, resolvers)
                             .pinning(descriptor.pinning())),
-                    descriptor.sources());
+                    Stream.concat(descriptor.sources().stream(), descriptor.spdx().stream()));
             sub.addModule("format",
                     format.apply(new InferredSourceFormattingModule(descriptor.configuration(), repositories, resolvers)
                             .pinning(descriptor.pinning())),
-                    descriptor.sources());
+                    Stream.concat(descriptor.sources().stream(), descriptor.spdx().stream()));
             Sbom sbom = Boolean.parseBoolean(System.getProperty("jenesis.sbom.cyclonedx", "true"))
                     ? Sbom.configured(BuildStep.locate(descriptor.configuration(), "sbom.properties"))
                     : null;
@@ -228,7 +228,8 @@ public record InferredMultiProjectAssembler(Function<InferredSourceCodeQualityMo
     private static Stream<String> inputs(ProjectModuleDescriptor descriptor) {
         return Stream.of(descriptor.sources(),
                 descriptor.manifests(),
-                descriptor.artifacts()).flatMap(SequencedSet::stream);
+                descriptor.artifacts(),
+                descriptor.spdx()).flatMap(SequencedSet::stream);
     }
 
     private record Prepare(PathPlacement pathPlacement) implements BuildStep {

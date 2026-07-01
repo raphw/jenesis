@@ -236,14 +236,17 @@ public class Sbom implements BuildStep {
             } catch (NumberFormatException _) {
                 continue;
             }
-            String[] entry = byIndex.computeIfAbsent(index, _ -> new String[2]);
-            if (rest.substring(hash + 1).equals("name")) {
-                entry[0] = licenses.getProperty(key);
-            } else if (rest.substring(hash + 1).equals("url")) {
-                entry[1] = licenses.getProperty(key);
+            String[] entry = byIndex.computeIfAbsent(index, _ -> new String[4]);
+            switch (rest.substring(hash + 1)) {
+                case "id" -> entry[0] = licenses.getProperty(key);
+                case "category" -> entry[1] = licenses.getProperty(key);
+                case "name" -> entry[2] = licenses.getProperty(key);
+                case "url" -> entry[3] = licenses.getProperty(key);
+                default -> {
+                }
             }
         }
-        return byIndex.values().stream().map(entry -> new License(entry[0], entry[1])).toList();
+        return byIndex.values().stream().map(entry -> new License(entry[0], entry[1], entry[2], entry[3])).toList();
     }
 
     private static List<License> ownLicenses(SequencedProperties metadata) {
@@ -264,7 +267,7 @@ public class Sbom implements BuildStep {
                 entry[1] = metadata.getProperty(key);
             }
         }
-        return byId.values().stream().map(entry -> new License(entry[0], entry[1])).toList();
+        return byId.values().stream().map(entry -> new License(null, null, entry[0], entry[1])).toList();
     }
 
     private static List<CycloneDx.Author> developers(SequencedProperties metadata) {

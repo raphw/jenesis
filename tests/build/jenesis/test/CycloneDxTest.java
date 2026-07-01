@@ -13,13 +13,13 @@ public class CycloneDxTest {
 
     private static final CycloneDx.Component PROJECT = new CycloneDx.Component(
             "build.jenesis/demo/1.0.0", "build.jenesis", "demo", "1.0.0", "pkg:maven/build.jenesis/demo@1.0.0", null,
-            List.of(new License("Apache-2.0", "https://www.apache.org/licenses/LICENSE-2.0.txt")));
+            List.of(new License("Apache-2.0", "permissive", "Apache License 2.0", "https://www.apache.org/licenses/LICENSE-2.0.txt")));
 
     private static final List<CycloneDx.Component> COMPONENTS = List.of(
             new CycloneDx.Component("org.foo/bar/1.2.3", "org.foo", "bar", "1.2.3", "pkg:maven/org.foo/bar@1.2.3", "abc123",
-                    List.of(new License("The Apache Software License, Version 2.0", "https://apache.org/"))),
+                    List.of(new License("Apache-2.0", "permissive", "The Apache Software License, Version 2.0", "https://apache.org/"))),
             new CycloneDx.Component("org.baz/qux/4.5", "org.baz", "qux", "4.5", "pkg:maven/org.baz/qux@4.5", "def456",
-                    List.of(new License("Some Custom License", "https://example.com/license"))));
+                    List.of(new License(null, null, "Some Custom License", "https://example.com/license"))));
 
     private static final List<CycloneDx.Dependency> DEPENDENCIES = List.of(
             new CycloneDx.Dependency("build.jenesis/demo/1.0.0", List.of("org.foo/bar/1.2.3")),
@@ -34,9 +34,9 @@ public class CycloneDxTest {
                 .contains("\"specVersion\": \"1.6\"")
                 .contains("\"purl\": \"pkg:maven/org.foo/bar@1.2.3\"")
                 .contains("\"alg\": \"SHA-256\", \"content\": \"abc123\"")
-                .as("a recognized license name normalizes to its SPDX id")
+                .as("a license carrying a known SPDX identifier is emitted as an id")
                 .contains("\"id\": \"Apache-2.0\"")
-                .as("an unrecognized license falls back to name and url")
+                .as("a license with no recognized identifier falls back to name and url")
                 .contains("\"name\": \"Some Custom License\"")
                 .contains("\"url\": \"https://example.com/license\"");
         assertThat(json)
@@ -66,6 +66,20 @@ public class CycloneDxTest {
                 .contains("<name>Some Custom License</name>")
                 .contains("bom-ref=\"org.foo/bar/1.2.3\"")
                 .contains("<dependency ref=\"org.foo/bar/1.2.3\">");
+    }
+
+    @Test
+    public void unknown_identifier_is_a_name_unless_added_through_the_wither() {
+        CycloneDx.Component custom = new CycloneDx.Component(
+                "org.foo/bar/1", "org.foo", "bar", "1", "pkg:maven/org.foo/bar@1", null,
+                List.of(new License("Custom-1.0", "permissive", "Custom License 1.0", "https://example.com/custom")));
+        assertThat(emitter.emit(CycloneDx.Format.JSON, null, List.of(custom), List.of()))
+                .as("an identifier outside the known set is emitted as a name, not an id")
+                .contains("\"name\": \"Custom-1.0\"")
+                .doesNotContain("\"id\": \"Custom-1.0\"");
+        assertThat(emitter.identifiers(Set.of("Custom-1.0")).emit(CycloneDx.Format.JSON, null, List.of(custom), List.of()))
+                .as("the wither declares the identifier known, so it is emitted as an id")
+                .contains("\"id\": \"Custom-1.0\"");
     }
 
     @Test

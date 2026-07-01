@@ -15,6 +15,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
     private final SequencedSet<String> manifests;
     private final SequencedSet<String> coordinates;
     private final SequencedSet<String> artifacts;
+    private final SequencedSet<String> spdx;
     private final SequencedSet<String> content;
     private final boolean test;
     private final boolean source;
@@ -37,6 +38,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 immutable(base.manifests()),
                 immutable(base.coordinates()),
                 immutable(base.artifacts()),
+                immutable(base.spdx()),
                 Collections.emptyNavigableSet(),
                 test,
                 source,
@@ -52,6 +54,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                                     SequencedSet<String> manifests,
                                     SequencedSet<String> coordinates,
                                     SequencedSet<String> artifacts,
+                                    SequencedSet<String> spdx,
                                     SequencedSet<String> content,
                                     boolean test,
                                     boolean source,
@@ -66,6 +69,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
         this.manifests = manifests;
         this.coordinates = coordinates;
         this.artifacts = artifacts;
+        this.spdx = spdx;
         this.content = content;
         this.test = test;
         this.source = source;
@@ -87,6 +91,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 prefix(manifests),
                 prefix(coordinates),
                 prefix(artifacts),
+                prefix(spdx),
                 prefix(content),
                 test,
                 source,
@@ -108,6 +113,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 manifests,
                 coordinates,
                 artifacts,
+                spdx,
                 content,
                 test,
                 source,
@@ -130,6 +136,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 manifests,
                 coordinates,
                 artifacts,
+                spdx,
                 content,
                 test,
                 source,
@@ -156,6 +163,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 manifests,
                 coordinates,
                 artifacts,
+                spdx,
                 content,
                 test,
                 source,
@@ -182,6 +190,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 manifests,
                 coordinates,
                 artifacts,
+                spdx,
                 content,
                 test,
                 source,
@@ -208,6 +217,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 immutable(manifests),
                 coordinates,
                 artifacts,
+                spdx,
                 content,
                 test,
                 source,
@@ -234,6 +244,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 manifests,
                 immutable(coordinates),
                 artifacts,
+                spdx,
                 content,
                 test,
                 source,
@@ -251,6 +262,11 @@ public class ProjectModuleDescriptor implements ProjectModule {
         return artifacts;
     }
 
+    @Override
+    public SequencedSet<String> spdx() {
+        return spdx;
+    }
+
     public ProjectModuleDescriptor artifacts(SequencedSet<String> artifacts) {
         return new ProjectModuleDescriptor(name,
                 configuration,
@@ -260,6 +276,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 manifests,
                 coordinates,
                 immutable(artifacts),
+                spdx,
                 content,
                 test,
                 source,
@@ -285,6 +302,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 manifests,
                 coordinates,
                 artifacts,
+                spdx,
                 immutable(content),
                 test,
                 source,
@@ -310,6 +328,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 manifests,
                 coordinates,
                 artifacts,
+                spdx,
                 content,
                 test,
                 source,
@@ -331,6 +350,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 manifests,
                 coordinates,
                 artifacts,
+                spdx,
                 content,
                 test,
                 source,
@@ -352,6 +372,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 manifests,
                 coordinates,
                 artifacts,
+                spdx,
                 content,
                 test,
                 source,
@@ -373,6 +394,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 manifests,
                 coordinates,
                 artifacts,
+                spdx,
                 content,
                 test,
                 source,
@@ -394,6 +416,7 @@ public class ProjectModuleDescriptor implements ProjectModule {
                 manifests,
                 coordinates,
                 artifacts,
+                spdx,
                 content,
                 test,
                 source,

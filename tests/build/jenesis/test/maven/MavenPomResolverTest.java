@@ -4244,11 +4244,11 @@ public class MavenPomResolverTest {
                 DependencyScope.COMPILE);
 
         assertThat(resolution.vertices().get("maven/leafgroup/leaflib").licenses())
-                .as("a dependency inherits its parent POM's license")
-                .containsExactly(new License("Apache-2.0", "https://www.apache.org/licenses/LICENSE-2.0.txt"));
+                .as("a dependency inherits its parent POM's license, captured verbatim before classification")
+                .containsExactly(new License(null, null, "Apache-2.0", "https://www.apache.org/licenses/LICENSE-2.0.txt"));
         assertThat(resolution.vertices().get("maven/dirgroup/dirlib").licenses())
-                .as("a dependency's own declared license is captured")
-                .containsExactly(new License("MIT", "https://opensource.org/license/mit"));
+                .as("a dependency's own declared license is captured verbatim before classification")
+                .containsExactly(new License(null, null, "MIT", "https://opensource.org/license/mit"));
     }
 
     private void addToRepository(String groupId, String artifactId, String version, String pom) throws IOException {

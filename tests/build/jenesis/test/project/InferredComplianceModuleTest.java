@@ -34,15 +34,6 @@ public class InferredComplianceModuleTest {
     }
 
     @Test
-    public void license_check_is_omitted_when_disabled() throws Exception {
-        Path configuration = Files.createDirectories(root.resolve("configuration"));
-        Files.writeString(configuration.resolve("licensing.properties"), "allowed=Apache\n");
-        assertThatThrownBy(() -> execute(new InferredComplianceModule(new LinkedHashSet<>(List.of(configuration))).license(false), "compliance/license/check"))
-                .rootCause()
-                .hasMessageContaining("license");
-    }
-
-    @Test
     public void vulnerability_check_is_wired_when_a_vulnerability_properties_file_exists() throws Exception {
         Path configuration = Files.createDirectories(root.resolve("configuration"));
         Files.writeString(configuration.resolve("vulnerability.properties"), "severity=high\n");
@@ -51,10 +42,15 @@ public class InferredComplianceModuleTest {
     }
 
     @Test
-    public void vulnerability_check_is_omitted_when_disabled() throws Exception {
+    public void checks_are_omitted_when_compliance_is_disabled() throws Exception {
         Path configuration = Files.createDirectories(root.resolve("configuration"));
+        Files.writeString(configuration.resolve("licensing.properties"), "allowed=Apache\n");
         Files.writeString(configuration.resolve("vulnerability.properties"), "severity=high\n");
-        assertThatThrownBy(() -> execute(new InferredComplianceModule(new LinkedHashSet<>(List.of(configuration))).vulnerability(false), "compliance/vulnerability/check"))
+        InferredComplianceModule disabled = new InferredComplianceModule(new LinkedHashSet<>(List.of(configuration))).enabled(false);
+        assertThatThrownBy(() -> execute(disabled, "compliance/license/check"))
+                .rootCause()
+                .hasMessageContaining("license");
+        assertThatThrownBy(() -> execute(disabled, "compliance/vulnerability/check"))
                 .rootCause()
                 .hasMessageContaining("vulnerability");
     }

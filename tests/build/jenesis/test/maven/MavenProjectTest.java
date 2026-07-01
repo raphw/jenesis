@@ -516,7 +516,7 @@ public class MavenProjectTest {
                 Map.of("maven", new MavenDefaultRepository(repository.toUri(), null, Map.of(), _ -> {})),
                 Map.of("maven", new MavenPomResolver()),
                 null,
-                false,
+                Collections.emptyNavigableSet(),
                 (descriptor, _, _) -> {
                     switch (descriptor.name()) {
                         case "module-foo" -> {

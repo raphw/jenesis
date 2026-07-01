@@ -323,7 +323,7 @@ public class ModularProjectTest {
                 Map.of("module", new ModularJarResolver(false)),
                 null,
                 true,
-                false,
+                Collections.emptyNavigableSet(),
                 (descriptor, _, _) -> {
                     switch (descriptor.name()) {
                         case "module-foo" -> {

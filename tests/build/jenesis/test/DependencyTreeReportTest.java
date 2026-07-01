@@ -3,6 +3,7 @@ package build.jenesis.test;
 import module java.base;
 import module org.junit.jupiter.api;
 import build.jenesis.DependencyTreeReport;
+import build.jenesis.License;
 import build.jenesis.Resolver;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -91,6 +92,55 @@ public class DependencyTreeReportTest {
     @Test
     public void prints_nothing_when_no_dependencies_were_observed() {
         report.render(resolution(List.of(), new LinkedHashMap<>()));
+        assertThat(bytes.toString(StandardCharsets.UTF_8)).isEmpty();
+    }
+
+    @Test
+    public void summary_aggregates_licenses_permissiveness_and_module_kinds() {
+        SequencedMap<String, Resolver.Vertex> vertices = new LinkedHashMap<>();
+        vertices.put("maven/g/a", new Resolver.Vertex("1.0", "g.a", false,
+                List.of(new License("Apache-2.0", "permissive", "Apache License 2.0", null))));
+        vertices.put("maven/g/b", new Resolver.Vertex("1.0", "g.b", true,
+                List.of(new License("Apache-2.0", "permissive", "Apache License 2.0", null))));
+        vertices.put("maven/g/c", new Resolver.Vertex("1.0", null, false,
+                List.of(new License("GPL-3.0-only", "strong-copyleft", "GNU GPL v3", null))));
+        vertices.put("maven/g/d", new Resolver.Vertex("1.0", null, false, List.of()));
+        report.summary(vertices);
+        String text = output();
+        assertThat(text).contains("Licenses:");
+        assertThat(text).contains("Apache-2.0");
+        assertThat(text).contains("GPL-3.0-only");
+        assertThat(text).contains("unknown");
+        assertThat(text).contains("Permissiveness:");
+        assertThat(text).contains("permissive");
+        assertThat(text).contains("strong-copyleft");
+        assertThat(text).contains("Modules:");
+        assertThat(text).contains("named");
+        assertThat(text).contains("automatic");
+        assertThat(text).contains("non-modular");
+        assertThat(text).contains("2 ( 50%)");
+        assertThat(text).contains("2 licenses implied");
+    }
+
+    @Test
+    public void summary_picks_the_most_permissive_license_and_counts_multi_license_dependencies() {
+        SequencedMap<String, Resolver.Vertex> vertices = new LinkedHashMap<>();
+        vertices.put("maven/g/a", new Resolver.Vertex("1.0", null, false, List.of(
+                new License("GPL-3.0-only", "strong-copyleft", "GNU GPL v3", null),
+                new License("Apache-2.0", "permissive", "Apache License 2.0", null))));
+        vertices.put("maven/g/b", new Resolver.Vertex("1.0", null, false, List.of(
+                new License("MIT", "permissive", "MIT License", null))));
+        report.summary(vertices);
+        String text = output();
+        assertThat(text).contains("Apache-2.0");
+        assertThat(text).doesNotContain("GPL-3.0-only");
+        assertThat(text).contains("3 licenses implied");
+        assertThat(text).contains("1 dependency offers multiple");
+    }
+
+    @Test
+    public void summary_prints_nothing_without_dependencies() {
+        report.summary(new LinkedHashMap<>());
         assertThat(bytes.toString(StandardCharsets.UTF_8)).isEmpty();
     }
 }

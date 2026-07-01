@@ -321,6 +321,11 @@ public class InferredMultiProjectAssemblerTest {
             public SequencedSet<String> artifacts() {
                 return new LinkedHashSet<>(List.of(BuildExecutorModule.PREVIOUS + "artifacts"));
             }
+
+            @Override
+            public SequencedSet<String> spdx() {
+                return Collections.emptyNavigableSet();
+            }
         };
         ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, new LinkedHashSet<>(List.of(configuration)), tests, source, documentation, null, PathPlacement.INFERRED);
         AssemblyDescriptor assembled = new InferredMultiProjectAssembler().apply(descriptor, Map.of(), Map.of());

@@ -606,6 +606,8 @@ public class MavenPomResolver implements MavenResolver {
                         .limit(1)
                         .flatMap(node -> toChildren400(node, "license"))
                         .map(node -> new License(
+                                null,
+                                null,
                                 toTextChild400(node, "name").orElse(null),
                                 toTextChild400(node, "url").orElse(null)))
                         .toList();

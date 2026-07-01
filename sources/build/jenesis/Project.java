@@ -25,6 +25,7 @@ import build.jenesis.project.MultiProjectModule;
 import build.jenesis.project.ProjectModuleDescriptor;
 import build.jenesis.project.ProjectWatch;
 import build.jenesis.step.Bind;
+import build.jenesis.step.Dependencies;
 import build.jenesis.step.ImageStaging;
 import build.jenesis.step.Inventory;
 import build.jenesis.step.ReportStaging;
@@ -67,8 +68,7 @@ public record Project(
 
         Function<String, String> apply(BuildExecutor executor,
                                        Project project,
-                                       MultiProjectAssembler<? super ProjectModuleDescriptor> assembler,
-                                       boolean printDependencies) throws IOException;
+                                       MultiProjectAssembler<? super ProjectModuleDescriptor> assembler) throws IOException;
 
         private static Path mavenConfigurationFolder(Path location) {
             return location == null ? null : location.resolve("build.jenesis");
@@ -101,7 +101,18 @@ public record Project(
             return Collections.unmodifiableSequencedSet(ordered);
         }
 
-        Layout MAVEN = (executor, project, assembler, printDependencies) -> {
+        static SequencedSet<Path> licenseFiles(Project project, String file) {
+            SequencedSet<Path> located = new LinkedHashSet<>();
+            for (Path folder : configurations(null, project.configuration(), project.profiles())) {
+                Path candidate = folder.resolve(file);
+                if (Files.isRegularFile(candidate)) {
+                    located.add(candidate);
+                }
+            }
+            return Collections.unmodifiableSequencedSet(located);
+        }
+
+        Layout MAVEN = (executor, project, assembler) -> {
             executor.addModule(HELP, new HelpModule("maven", assembler.getClass().getName()));
             executor.addModule(SKILL, new SkillModule(project.target()));
             executor.addModule(METADATA, MetadataModule.toMetadataModule(project));
@@ -123,7 +134,7 @@ public record Project(
                                 Collections.unmodifiableMap(repositories),
                                 Collections.unmodifiableMap(resolvers),
                                 project.pinning(),
-                                printDependencies,
+                                Layout.licenseFiles(project, Dependencies.SPDX),
                                 (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
                                         new ProjectModuleDescriptor(descriptor,
                                                 configurations(mavenConfigurationFolder(descriptor.location()), project.configuration(), project.profiles()),
@@ -163,7 +174,7 @@ public record Project(
             };
         };
 
-        Layout MODULAR = (executor, project, assembler, printDependencies) -> {
+        Layout MODULAR = (executor, project, assembler) -> {
             executor.addModule(HELP, new HelpModule("modular", assembler.getClass().getName()));
             executor.addModule(SKILL, new SkillModule(project.target()));
             executor.addModule(METADATA, MetadataModule.toMetadataModule(project));
@@ -187,7 +198,7 @@ public record Project(
                                 Collections.unmodifiableMap(resolvers),
                                 project.pinning(),
                                 true,
-                                printDependencies,
+                                Layout.licenseFiles(project, Dependencies.SPDX),
                                 (descriptor, mergedRepos, mergedResolvers) -> assembler.apply(
                                         new ProjectModuleDescriptor(descriptor,
                                                 configurations(
@@ -230,7 +241,7 @@ public record Project(
             };
         };
 
-        Layout MODULAR_TO_MAVEN = (executor, project, assembler, printDependencies) -> {
+        Layout MODULAR_TO_MAVEN = (executor, project, assembler) -> {
             executor.addModule(HELP, new HelpModule("modular_to_maven", assembler.getClass().getName()));
             executor.addModule(SKILL, new SkillModule(project.target()));
             executor.addModule(METADATA, MetadataModule.toMetadataModule(project));
@@ -263,7 +274,7 @@ public record Project(
                                 Collections.unmodifiableMap(resolvers),
                                 project.pinning(),
                                 true,
-                                printDependencies,
+                                Layout.licenseFiles(project, Dependencies.SPDX),
                                 (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
                                         new ProjectModuleDescriptor(descriptor,
                                                 configurations(modularConfigurationFolder(descriptor.location()), project.configuration(), project.profiles()),
@@ -308,7 +319,7 @@ public record Project(
             };
         };
 
-        Layout AUTO = (executor, project, assembler, printDependencies) -> of(project.root()).apply(executor, project, assembler, printDependencies);
+        Layout AUTO = (executor, project, assembler) -> of(project.root()).apply(executor, project, assembler);
 
         static Layout of(Path root) throws IOException {
             if (Files.isRegularFile(root.resolve("pom.xml"))) {
@@ -344,7 +355,8 @@ public record Project(
         }
     }
 
-    private record MetadataModule(SequencedMap<String, Path> files, String version) implements BuildExecutorModule {
+    private record MetadataModule(SequencedMap<String, Path> files,
+                                  String version) implements BuildExecutorModule {
 
         static BuildExecutorModule toMetadataModule(Project project) {
             Path root = project.root().toAbsolutePath().normalize();
@@ -903,10 +915,7 @@ public record Project(
                                                         build/run is wrapped in
                                                         a container (default:
                                                         true).
-                      -Djenesis.print.dependencies=true   Print each module's
-                                                        dependency tree as it
-                                                        resolves.
-                    
+
                     Test execution (-Djenesis.test.<key>=<value>):
                       -Djenesis.test.skip=true            Skip test
                                                         execution.
@@ -1660,10 +1669,6 @@ public record Project(
     }
 
     public SequencedMap<String, Path> build(String... selectors) throws IOException {
-        return build(Boolean.getBoolean("jenesis.print.dependencies"), selectors);
-    }
-
-    public SequencedMap<String, Path> build(boolean printDependencies, String... selectors) throws IOException {
         BuildExecutor.Configuration configuration = configurator.get();
         if (cache != null) {
             BuildExecutorCache configured = configuration.cache();
@@ -1672,7 +1677,7 @@ public record Project(
                     : new BuildExecutorLayeredCache(cache, configured));
         }
         BuildExecutor executor = configuration.of(target);
-        Function<String, String> resolver = layout.apply(executor, this, assembler, printDependencies);
+        Function<String, String> resolver = layout.apply(executor, this, assembler);
         return executor.execute(Arrays.stream(selectors.length == 0 ? defaultTarget.toArray(String[]::new) : selectors)
                 .map(selector -> selector.startsWith("+") ? resolver.apply(selector.substring(1)) : selector)
                 .toArray(String[]::new));

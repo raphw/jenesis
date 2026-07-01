@@ -7,7 +7,6 @@ import build.jenesis.BuildStepArgument;
 import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.DependencyScope;
-import build.jenesis.DependencyTreeReport;
 import build.jenesis.License;
 import build.jenesis.Pinning;
 import build.jenesis.Repository;
@@ -19,33 +18,26 @@ import static java.util.Objects.requireNonNull;
 
 public class Dependencies implements BuildStep {
 
-    public static final String ARTIFACTS = "artifacts";
+    public static final String SPDX = "spdx.properties";
 
     private final transient Map<String, Repository> repositories;
     private final Map<String, Resolver> resolvers;
     private final Pinning pinning;
-    private final transient boolean printing;
 
     public Dependencies(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, null, false);
+        this(repositories, resolvers, null);
     }
 
     private Dependencies(Map<String, Repository> repositories,
                          Map<String, Resolver> resolvers,
-                         Pinning pinning,
-                         boolean printing) {
+                         Pinning pinning) {
         this.repositories = repositories;
         this.resolvers = new LinkedHashMap<>(resolvers);
         this.pinning = pinning;
-        this.printing = printing;
     }
 
     public Dependencies pinning(Pinning pinning) {
-        return new Dependencies(repositories, resolvers, pinning, printing);
-    }
-
-    public Dependencies printing(boolean printing) {
-        return new Dependencies(repositories, resolvers, pinning, printing);
+        return new Dependencies(repositories, resolvers, pinning);
     }
 
     @Override
@@ -53,7 +45,8 @@ public class Dependencies implements BuildStep {
         return arguments.values().stream().anyMatch(argument -> argument.hasChanged(
                 Path.of(REQUIRES),
                 Path.of(VERSIONS),
-                Path.of(EXCLUSIONS)));
+                Path.of(EXCLUSIONS),
+                Path.of(SPDX)));
     }
 
     @Override
@@ -62,6 +55,27 @@ public class Dependencies implements BuildStep {
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
         boolean pinned = pinning != Pinning.IGNORE;
+        Map<String, String> aliases = new LinkedHashMap<>(DEFAULT_ALIASES);
+        Map<String, String> categories = new LinkedHashMap<>(DEFAULT_CATEGORIES);
+        for (BuildStepArgument argument : arguments.values()) {
+            Path file = argument.folder().resolve(SPDX);
+            if (Files.isRegularFile(file)) {
+                SequencedProperties properties = SequencedProperties.ofFiles(file);
+                for (String key : properties.stringPropertyNames()) {
+                    if (key.startsWith("alias/")) {
+                        aliases.put(
+                                key.substring("alias/".length()).toLowerCase(Locale.ROOT).trim(),
+                                properties.getProperty(key).trim());
+                    } else if (key.startsWith("category/")) {
+                        categories.put(
+                                key.substring("category/".length()).trim(),
+                                properties.getProperty(key).trim());
+                    } else {
+                        throw new IllegalArgumentException("Expected key to be prefixed: " + key);
+                    }
+                }
+            }
+        }
         SequencedMap<String, SequencedMap<String, SequencedMap<String, SequencedMap<String, String>>>> requires = new LinkedHashMap<>();
         SequencedMap<String, SequencedMap<String, SequencedMap<String, String>>> versions = new LinkedHashMap<>();
         SequencedMap<String, SequencedMap<String, SequencedMap<String, SequencedMap<String, SequencedSet<String>>>>> exclusions = new LinkedHashMap<>();
@@ -183,9 +197,6 @@ public class Dependencies implements BuildStep {
                         }
                     }
                     Resolver.Resolution resolution = resolver.dependencies(executor, repo, wrapped, coordinates, bom, intent);
-                    if (printing) {
-                        new DependencyTreeReport().render(resolution);
-                    }
                     for (Map.Entry<String, Resolver.Resolved> entry : resolution.artifacts().entrySet()) {
                         String coordinate = entry.getKey().substring(entry.getKey().indexOf('/') + 1);
                         String declared = repoEntry.getValue().get(coordinate);
@@ -217,6 +228,20 @@ public class Dependencies implements BuildStep {
                                     : entry.getKey() + "/" + node.resolvedVersion();
                             for (int i = 0; i < node.licenses().size(); i++) {
                                 License license = node.licenses().get(i);
+                                String id = license.id();
+                                if (id == null && license.name() != null) {
+                                    id = aliases.get(license.name().toLowerCase(Locale.ROOT).trim());
+                                }
+                                String category = license.category();
+                                if (category == null && id != null) {
+                                    category = categories.get(id);
+                                }
+                                if (id != null) {
+                                    licenses.setProperty(licenseKey + "#" + i + "#id", id);
+                                }
+                                if (category != null) {
+                                    licenses.setProperty(licenseKey + "#" + i + "#category", category);
+                                }
                                 if (license.name() != null) {
                                     licenses.setProperty(licenseKey + "#" + i + "#name", license.name());
                                 }
@@ -331,6 +356,115 @@ public class Dependencies implements BuildStep {
         return new ArrayList<>(selected);
     }
 
+    private static final Map<String, String> DEFAULT_ALIASES = Map.ofEntries(
+            Map.entry("apache license 2.0", "Apache-2.0"),
+            Map.entry("apache license, version 2.0", "Apache-2.0"),
+            Map.entry("apache license version 2.0", "Apache-2.0"),
+            Map.entry("apache software license - version 2.0", "Apache-2.0"),
+            Map.entry("the apache software license, version 2.0", "Apache-2.0"),
+            Map.entry("the apache license, version 2.0", "Apache-2.0"),
+            Map.entry("apache 2.0", "Apache-2.0"),
+            Map.entry("apache-2.0", "Apache-2.0"),
+            Map.entry("asl 2.0", "Apache-2.0"),
+            Map.entry("apache license", "Apache-2.0"),
+            Map.entry("mit license", "MIT"),
+            Map.entry("the mit license", "MIT"),
+            Map.entry("mit", "MIT"),
+            Map.entry("mit-0", "MIT-0"),
+            Map.entry("bsd license", "BSD-2-Clause"),
+            Map.entry("the bsd license", "BSD-2-Clause"),
+            Map.entry("bsd-2-clause", "BSD-2-Clause"),
+            Map.entry("bsd 2-clause license", "BSD-2-Clause"),
+            Map.entry("bsd-3-clause", "BSD-3-Clause"),
+            Map.entry("bsd 3-clause license", "BSD-3-Clause"),
+            Map.entry("the bsd 3-clause license", "BSD-3-Clause"),
+            Map.entry("new bsd license", "BSD-3-Clause"),
+            Map.entry("revised bsd license", "BSD-3-Clause"),
+            Map.entry("eclipse distribution license - v 1.0", "BSD-3-Clause"),
+            Map.entry("eclipse distribution license (new bsd license)", "BSD-3-Clause"),
+            Map.entry("eclipse public license - v 1.0", "EPL-1.0"),
+            Map.entry("eclipse public license 1.0", "EPL-1.0"),
+            Map.entry("eclipse public license v1.0", "EPL-1.0"),
+            Map.entry("epl-1.0", "EPL-1.0"),
+            Map.entry("eclipse public license - v 2.0", "EPL-2.0"),
+            Map.entry("eclipse public license 2.0", "EPL-2.0"),
+            Map.entry("eclipse public license v2.0", "EPL-2.0"),
+            Map.entry("eclipse public license", "EPL-2.0"),
+            Map.entry("epl-2.0", "EPL-2.0"),
+            Map.entry("gnu lesser general public license", "LGPL-2.1-or-later"),
+            Map.entry("lesser general public license", "LGPL-2.1-or-later"),
+            Map.entry("gnu lesser general public license, version 2.1", "LGPL-2.1-only"),
+            Map.entry("lgpl-2.1", "LGPL-2.1-only"),
+            Map.entry("lgpl 2.1", "LGPL-2.1-only"),
+            Map.entry("lgpl-3.0", "LGPL-3.0-only"),
+            Map.entry("lgpl", "LGPL-2.1-or-later"),
+            Map.entry("gnu general public license, version 2", "GPL-2.0-only"),
+            Map.entry("gnu general public license v2.0", "GPL-2.0-only"),
+            Map.entry("gpl-2.0", "GPL-2.0-only"),
+            Map.entry("gnu general public license, version 2 with the classpath exception", "GPL-2.0-with-classpath-exception"),
+            Map.entry("gpl-2.0-with-classpath-exception", "GPL-2.0-with-classpath-exception"),
+            Map.entry("gnu general public license, version 3", "GPL-3.0-only"),
+            Map.entry("gpl-3.0", "GPL-3.0-only"),
+            Map.entry("gnu affero general public license", "AGPL-3.0-or-later"),
+            Map.entry("affero general public license", "AGPL-3.0-or-later"),
+            Map.entry("agpl-3.0", "AGPL-3.0-only"),
+            Map.entry("mozilla public license 2.0", "MPL-2.0"),
+            Map.entry("mozilla public license, version 2.0", "MPL-2.0"),
+            Map.entry("mpl 2.0", "MPL-2.0"),
+            Map.entry("mpl-2.0", "MPL-2.0"),
+            Map.entry("mozilla public license 1.1", "MPL-1.1"),
+            Map.entry("common development and distribution license 1.0", "CDDL-1.0"),
+            Map.entry("cddl 1.0", "CDDL-1.0"),
+            Map.entry("cddl-1.0", "CDDL-1.0"),
+            Map.entry("common development and distribution license 1.1", "CDDL-1.1"),
+            Map.entry("cddl 1.1", "CDDL-1.1"),
+            Map.entry("cddl-1.1", "CDDL-1.1"),
+            Map.entry("isc license", "ISC"),
+            Map.entry("isc", "ISC"),
+            Map.entry("boost software license 1.0", "BSL-1.0"),
+            Map.entry("boost software license", "BSL-1.0"),
+            Map.entry("bsl-1.0", "BSL-1.0"),
+            Map.entry("the unlicense", "Unlicense"),
+            Map.entry("unlicense", "Unlicense"),
+            Map.entry("cc0 1.0 universal", "CC0-1.0"),
+            Map.entry("cc0", "CC0-1.0"),
+            Map.entry("public domain", "CC0-1.0"),
+            Map.entry("the zlib/libpng license", "Zlib"),
+            Map.entry("zlib", "Zlib"),
+            Map.entry("python software foundation license", "PSF-2.0"),
+            Map.entry("wtfpl", "WTFPL"));
+
+    private static final Map<String, String> DEFAULT_CATEGORIES = Map.ofEntries(
+            Map.entry("Apache-2.0", "permissive"),
+            Map.entry("MIT", "permissive"),
+            Map.entry("MIT-0", "permissive"),
+            Map.entry("BSD-2-Clause", "permissive"),
+            Map.entry("BSD-3-Clause", "permissive"),
+            Map.entry("ISC", "permissive"),
+            Map.entry("BSL-1.0", "permissive"),
+            Map.entry("Zlib", "permissive"),
+            Map.entry("PSF-2.0", "permissive"),
+            Map.entry("Unlicense", "public-domain"),
+            Map.entry("CC0-1.0", "public-domain"),
+            Map.entry("WTFPL", "public-domain"),
+            Map.entry("EPL-1.0", "weak-copyleft"),
+            Map.entry("EPL-2.0", "weak-copyleft"),
+            Map.entry("MPL-1.1", "weak-copyleft"),
+            Map.entry("MPL-2.0", "weak-copyleft"),
+            Map.entry("CDDL-1.0", "weak-copyleft"),
+            Map.entry("CDDL-1.1", "weak-copyleft"),
+            Map.entry("LGPL-2.1-only", "weak-copyleft"),
+            Map.entry("LGPL-2.1-or-later", "weak-copyleft"),
+            Map.entry("LGPL-3.0-only", "weak-copyleft"),
+            Map.entry("LGPL-3.0-or-later", "weak-copyleft"),
+            Map.entry("GPL-2.0-with-classpath-exception", "weak-copyleft"),
+            Map.entry("GPL-2.0-only", "strong-copyleft"),
+            Map.entry("GPL-2.0-or-later", "strong-copyleft"),
+            Map.entry("GPL-3.0-only", "strong-copyleft"),
+            Map.entry("GPL-3.0-or-later", "strong-copyleft"),
+            Map.entry("AGPL-3.0-only", "network-copyleft"),
+            Map.entry("AGPL-3.0-or-later", "network-copyleft"));
+
     public static SequencedMap<String, Resolver.Resolution> graph(Iterable<Path> graphFiles,
                                                                   Iterable<Path> licenseFiles) throws IOException {
         SequencedMap<String, SequencedMap<Integer, String[]>> licenseEntries = new LinkedHashMap<>();
@@ -353,17 +487,20 @@ public class Dependencies implements BuildStep {
                 }
                 String[] entry = licenseEntries
                         .computeIfAbsent(key.substring(0, prior), _ -> new TreeMap<>())
-                        .computeIfAbsent(index, _ -> new String[2]);
-                if (key.substring(last + 1).equals("name")) {
-                    entry[0] = properties.getProperty(key);
-                } else if (key.substring(last + 1).equals("url")) {
-                    entry[1] = properties.getProperty(key);
+                        .computeIfAbsent(index, _ -> new String[4]);
+                switch (key.substring(last + 1)) {
+                    case "id" -> entry[0] = properties.getProperty(key);
+                    case "category" -> entry[1] = properties.getProperty(key);
+                    case "name" -> entry[2] = properties.getProperty(key);
+                    case "url" -> entry[3] = properties.getProperty(key);
+                    default -> {
+                    }
                 }
             }
         }
         SequencedMap<String, List<License>> licenses = new LinkedHashMap<>();
         licenseEntries.forEach((coordinate, byIndex) -> licenses.put(coordinate,
-                byIndex.values().stream().map(entry -> new License(entry[0], entry[1])).toList()));
+                byIndex.values().stream().map(entry -> new License(entry[0], entry[1], entry[2], entry[3])).toList()));
         SequencedMap<String, SequencedSet<Resolver.Edge>> edges = new LinkedHashMap<>();
         SequencedMap<String, SequencedMap<String, Resolver.Vertex>> vertices = new LinkedHashMap<>();
         for (Path file : graphFiles) {

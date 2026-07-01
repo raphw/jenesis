@@ -32,6 +32,7 @@ public class Tree implements BuildStep {
                                                   SequencedMap<String, BuildStepArgument> arguments)
             throws IOException {
         DependencyTreeReport report = new DependencyTreeReport(out);
+        SequencedMap<String, Resolver.Vertex> aggregated = new LinkedHashMap<>();
         for (BuildStepArgument argument : arguments.values()) {
             Path inventoryFile = argument.folder().resolve(Inventory.INVENTORY);
             if (!Files.isRegularFile(inventoryFile)) {
@@ -45,9 +46,12 @@ public class Tree implements BuildStep {
             List<Path> graphs = Inventory.paths(inventory, argument.folder(), prefix + ".graph");
             List<Path> licenses = Inventory.paths(inventory, argument.folder(), prefix + ".licenses");
             SequencedMap<String, Resolver.Resolution> resolutions = Dependencies.graph(graphs, licenses);
-            resolutions.forEach((groupScope, resolution) ->
-                    report.render(resolution, groupScope + " (" + prefix + ")"));
+            resolutions.forEach((groupScope, resolution) -> {
+                report.render(resolution, groupScope + " (" + prefix + ")");
+                aggregated.putAll(resolution.vertices());
+            });
         }
+        report.summary(aggregated);
         return CompletableFuture.completedStage(new BuildStepResult(true));
     }
 

@@ -13,7 +13,7 @@ public class ProjectModuleDescriptorTest {
 
     @Test
     public void carries_the_flags_unchanged() {
-        ProjectModule base = new MavenModuleDescriptor("module-foo", Collections.emptyNavigableSet(), Collections.emptyNavigableSet(), Path.of("."));
+        ProjectModule base = new MavenModuleDescriptor("module-foo", Collections.emptyNavigableSet(), Collections.emptyNavigableSet(), Collections.emptyNavigableSet(), Path.of("."));
         ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, new LinkedHashSet<>(List.of(Path.of("."))), true, false, true, null, PathPlacement.INFERRED);
         assertThat(descriptor.test()).isTrue();
         assertThat(descriptor.source()).isFalse();
@@ -23,7 +23,7 @@ public class ProjectModuleDescriptorTest {
     @Test
     public void delegates_module_descriptor_accessors_to_base() {
         LinkedHashSet<String> dependencies = new LinkedHashSet<>(List.of("module-bar"));
-        ProjectModule base = new MavenModuleDescriptor("module-foo", dependencies, Collections.emptyNavigableSet(), Path.of("."));
+        ProjectModule base = new MavenModuleDescriptor("module-foo", dependencies, Collections.emptyNavigableSet(), Collections.emptyNavigableSet(), Path.of("."));
         ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, new LinkedHashSet<>(List.of(Path.of("."))), false, false, false, null, PathPlacement.INFERRED);
         assertThat(descriptor.name()).isEqualTo(base.name());
         assertThat(descriptor.dependencies()).isEqualTo(base.dependencies());
@@ -31,11 +31,12 @@ public class ProjectModuleDescriptorTest {
         assertThat(descriptor.resources()).isEqualTo(base.resources());
         assertThat(descriptor.manifests()).isEqualTo(base.manifests());
         assertThat(descriptor.artifacts()).isEqualTo(base.artifacts());
+        assertThat(descriptor.spdx()).isEqualTo(base.spdx());
     }
 
     @Test
     public void to_inherited_prepends_one_parent_segment_per_call() {
-        ProjectModule base = new MavenModuleDescriptor("module-foo", Collections.emptyNavigableSet(), Collections.emptyNavigableSet(), Path.of("."));
+        ProjectModule base = new MavenModuleDescriptor("module-foo", Collections.emptyNavigableSet(), Collections.emptyNavigableSet(), Collections.emptyNavigableSet(), Path.of("."));
         ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, new LinkedHashSet<>(List.of(Path.of("."))), true, true, true, null, PathPlacement.INFERRED);
         ProjectModuleDescriptor inherited = descriptor.toInherited();
         assertThat(inherited.name()).isEqualTo(base.name());

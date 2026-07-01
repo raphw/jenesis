@@ -38,7 +38,9 @@ public class SbomTest {
         dependencies.setProperty("main/runtime/maven/org.example/lib/1.2.3", "resolved/lib.jar");
         dependencies.store(argument.resolve(BuildStep.DEPENDENCIES));
         SequencedProperties licenses = new SequencedProperties();
-        licenses.setProperty("maven/org.example/lib/1.2.3#0#name", "Apache-2.0");
+        licenses.setProperty("maven/org.example/lib/1.2.3#0#id", "Apache-2.0");
+        licenses.setProperty("maven/org.example/lib/1.2.3#0#category", "permissive");
+        licenses.setProperty("maven/org.example/lib/1.2.3#0#name", "Apache License 2.0");
         licenses.setProperty("maven/org.example/lib/1.2.3#0#url", "https://www.apache.org/licenses/LICENSE-2.0.txt");
         licenses.store(argument.resolve("licenses.properties"));
         SequencedProperties graph = new SequencedProperties();
