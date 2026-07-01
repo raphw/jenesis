@@ -139,6 +139,15 @@ location itself, so profile-specific tool config (`checkstyle.xml`, `packaging.p
 general config. The resolved search order is: each module-local profile folder, then each project-wide profile folder,
 then the module-local folder, then the project-wide folders - profile beats plain, module beats project-wide.
 
+A configuration location may also carry a `process-<command>.properties` file to pass extra arguments to any external
+tool the build runs under that name - mainly `javac`, `kotlinc`, and `scalac`, but equally `jar`, `jmod`, `jlink`,
+`jpackage`, or `native-image`. Each key is a flag and its value the flag's argument (an empty value emits a bare flag,
+a `\n`-separated value repeats the flag). The `prepare` step resolves each command's file by **first match** across the
+configuration locations - like `packaging.properties`, so a profile's file (or an empty one) shadows the general config
+and can switch inherited flags back off - then merges it into the `process/<command>.properties` the build already
+feeds to that tool step, where a configuration key overrides a build-generated one of the same name. This is the
+profile-aware way to, for instance, compile a single module with additional `javac` flags.
+
 **2. Custom entry point under `build/`.** When you want code-level control - a tailored assembler, an extra
 step on top of the default per-module pipeline - drop a `.java` file alongside `Project.java` and use the
 Builder there. Run it the same way (`java build/MyBuild.java`):

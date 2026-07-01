@@ -134,6 +134,47 @@ public class InferredMultiProjectAssemblerTest {
     }
 
     @Test
+    public void a_process_command_file_in_configuration_yields_tool_arguments() throws IOException {
+        Fixture fixture = setUp("main=\n", false, false, false);
+        Files.writeString(fixture.configuration().resolve("process-javac.properties"), "-g=\n-parameters=\n");
+        Path prepareOutput = fixture.execute("sub/prepare").get("sub/prepare");
+        SequencedProperties javacArguments = readProperties(prepareOutput.resolve(ProcessBuildStep.PROCESS).resolve("javac.properties"));
+        assertThat(javacArguments.getProperty("-g")).isEqualTo("");
+        assertThat(javacArguments.getProperty("-parameters")).isEqualTo("");
+    }
+
+    @Test
+    public void a_process_command_file_adds_to_and_overrides_generated_arguments() throws IOException {
+        Fixture fixture = setUp("main=\n", false, false, false);
+        Files.writeString(fixture.manifests().resolve(BuildStep.METADATA), "version=1.0\n");
+        Files.writeString(fixture.configuration().resolve("process-javac.properties"), "--module-version=9.9\n-g=\n");
+        Path prepareOutput = fixture.execute("sub/prepare").get("sub/prepare");
+        SequencedProperties javacArguments = readProperties(prepareOutput.resolve(ProcessBuildStep.PROCESS).resolve("javac.properties"));
+        assertThat(javacArguments.getProperty("--module-version"))
+                .as("a configuration key overrides the build-generated one")
+                .isEqualTo("9.9");
+        assertThat(javacArguments.getProperty("-g"))
+                .as("a configuration key without a build-generated counterpart is added")
+                .isEqualTo("");
+    }
+
+    @Test
+    public void an_empty_higher_precedence_process_command_file_shadows_a_lower_one() throws IOException {
+        Fixture fixture = setUp("main=\n", false, false, false);
+        Files.writeString(fixture.manifests().resolve(BuildStep.METADATA), "version=1.0\n");
+        Files.writeString(fixture.configuration().resolve("process-javac.properties"), "-g=\n");
+        Files.writeString(fixture.profile().resolve("process-javac.properties"), "");
+        Path prepareOutput = fixture.execute("sub/prepare").get("sub/prepare");
+        SequencedProperties javacArguments = readProperties(prepareOutput.resolve(ProcessBuildStep.PROCESS).resolve("javac.properties"));
+        assertThat(javacArguments.getProperty("--module-version"))
+                .as("the build-generated arguments remain")
+                .isEqualTo("1.0");
+        assertThat(javacArguments.getProperty("-g"))
+                .as("the first-discovered (empty) file wins, shadowing the lower location's arguments")
+                .isNull();
+    }
+
+    @Test
     public void jmod_flag_enabled_packages_a_module_archive() throws IOException {
         Fixture fixture = setUp("module=foo\n", false, false, false, null, true, false);
         Files.writeString(
@@ -269,6 +310,7 @@ public class InferredMultiProjectAssemblerTest {
         Path sources = Files.createDirectory(root.resolve("sources"));
         Path artifacts = Files.createDirectory(root.resolve("artifacts"));
         Path configuration = Files.createDirectory(root.resolve("configuration"));
+        Path profile = Files.createDirectory(root.resolve("profile"));
         StringBuilder packaging = new StringBuilder();
         if (jmod) {
             packaging.append("jmod=true\n");
@@ -327,7 +369,7 @@ public class InferredMultiProjectAssemblerTest {
                 return Collections.emptyNavigableSet();
             }
         };
-        ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, new LinkedHashSet<>(List.of(configuration)), tests, source, documentation, null, PathPlacement.INFERRED);
+        ProjectModuleDescriptor descriptor = new ProjectModuleDescriptor(base, new LinkedHashSet<>(List.of(profile, configuration)), tests, source, documentation, null, PathPlacement.INFERRED);
         AssemblyDescriptor assembled = new InferredMultiProjectAssembler().apply(descriptor, Map.of(), Map.of());
         BuildExecutor executor = BuildExecutor.of(build,
                 Duration.ZERO,
@@ -342,10 +384,10 @@ public class InferredMultiProjectAssemblerTest {
         for (Map.Entry<String, BuildExecutorModule> phase : assembled.tail().entrySet()) {
             executor.addModule(phase.getKey(), phase.getValue(), "sub");
         }
-        return new Fixture(executor, manifests, sources);
+        return new Fixture(executor, manifests, sources, configuration, profile);
     }
 
-    private record Fixture(BuildExecutor executor, Path manifests, Path sources) {
+    private record Fixture(BuildExecutor executor, Path manifests, Path sources, Path configuration, Path profile) {
 
         SequencedMap<String, Path> execute(String selector) {
             return executor.execute(Runnable::run, selector).toCompletableFuture().join();

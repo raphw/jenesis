@@ -74,7 +74,7 @@ public record InferredMultiProjectAssembler(Function<InferredSourceCodeQualityMo
         ProcessHandler.Factory factory = ProcessHandler.Factory.of();
         AssemblyDescriptor assembly = new AssemblyDescriptor((sub, outerInherited) -> {
             sub.addStep("prepare",
-                    new Prepare(descriptor.pathPlacement()),
+                    new Prepare(descriptor.pathPlacement(), descriptor.configuration()),
                     outerInherited.sequencedKeySet().stream());
             sub.addModule("check",
                     check.apply(new InferredSourceCodeQualityModule(descriptor.configuration(), repositories, resolvers)
@@ -232,7 +232,7 @@ public record InferredMultiProjectAssembler(Function<InferredSourceCodeQualityMo
                 descriptor.spdx()).flatMap(SequencedSet::stream);
     }
 
-    private record Prepare(PathPlacement pathPlacement) implements BuildStep {
+    private record Prepare(PathPlacement pathPlacement, SequencedSet<Path> configuration) implements BuildStep {
 
         @Override
         public CompletionStage<BuildStepResult> apply(Executor executor,
@@ -325,6 +325,34 @@ public record InferredMultiProjectAssembler(Function<InferredSourceCodeQualityMo
                 SequencedProperties javac = new SequencedProperties();
                 javac.setProperty("--module-version", version);
                 javac.store(processFolder.resolve("javac.properties"));
+            }
+            SequencedMap<String, SequencedProperties> overrides = new LinkedHashMap<>();
+            for (Path folder : configuration) {
+                if (!Files.isDirectory(folder)) {
+                    continue;
+                }
+                try (DirectoryStream<Path> files = Files.newDirectoryStream(folder, "process-*.properties")) {
+                    for (Path file : files) {
+                        String fileName = file.getFileName().toString();
+                        String command = fileName.substring("process-".length(), fileName.length() - ".properties".length());
+                        if (!overrides.containsKey(command)) {
+                            overrides.put(command, SequencedProperties.ofFiles(file));
+                        }
+                    }
+                }
+            }
+            if (!overrides.isEmpty() && processFolder == null) {
+                processFolder = Files.createDirectories(context.next().resolve(ProcessBuildStep.PROCESS));
+            }
+            for (Map.Entry<String, SequencedProperties> override : overrides.entrySet()) {
+                Path target = processFolder.resolve(override.getKey() + ".properties");
+                SequencedProperties merged = Files.isRegularFile(target)
+                        ? SequencedProperties.ofFiles(target)
+                        : new SequencedProperties();
+                for (String key : override.getValue().stringPropertyNames()) {
+                    merged.setProperty(key, override.getValue().getProperty(key));
+                }
+                merged.store(target);
             }
             return CompletableFuture.completedStage(new BuildStepResult(true));
         }
