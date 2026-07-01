@@ -62,14 +62,21 @@ public class Dependencies implements BuildStep {
             if (Files.isRegularFile(file)) {
                 SequencedProperties properties = SequencedProperties.ofFiles(file);
                 for (String key : properties.stringPropertyNames()) {
+                    String value = properties.getProperty(key).trim();
                     if (key.startsWith("alias/")) {
-                        aliases.put(
-                                key.substring("alias/".length()).toLowerCase(Locale.ROOT).trim(),
-                                properties.getProperty(key).trim());
+                        String name = key.substring("alias/".length()).toLowerCase(Locale.ROOT).trim();
+                        if (value.isEmpty()) {
+                            aliases.remove(name);
+                        } else {
+                            aliases.put(name, value);
+                        }
                     } else if (key.startsWith("category/")) {
-                        categories.put(
-                                key.substring("category/".length()).trim(),
-                                properties.getProperty(key).trim());
+                        String identifier = key.substring("category/".length()).trim();
+                        if (value.isEmpty()) {
+                            categories.remove(identifier);
+                        } else {
+                            categories.put(identifier, value);
+                        }
                     } else {
                         throw new IllegalArgumentException("Expected key to be prefixed: " + key);
                     }

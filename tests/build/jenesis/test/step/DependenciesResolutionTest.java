@@ -168,6 +168,67 @@ public class DependenciesResolutionTest {
     }
 
     @Test
+    public void an_empty_spdx_value_removes_the_matching_built_in_entry() throws IOException {
+        SequencedProperties properties = new SequencedProperties();
+        properties.setProperty("main/compile/foo/qux", "");
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
+        Path licenses = Files.createDirectory(root.resolve("license-config"));
+        Files.writeString(licenses.resolve(Dependencies.SPDX), "category/Apache-2.0=\n");
+        BuildStepResult result = new Dependencies(Map.of("foo", files(Map.of())),
+                Map.of("foo", (executor, prefix, repositories, descriptors, bom, scope) -> {
+                    SequencedMap<String, String> resolved = new LinkedHashMap<>();
+                    descriptors.sequencedKeySet().forEach(descriptor -> resolved.put(prefix + "/" + descriptor, ""));
+                    SequencedMap<String, Resolver.Vertex> vertices = new LinkedHashMap<>();
+                    vertices.put(prefix + "/qux", new Resolver.Vertex(null, null, false,
+                            List.of(new License("Apache-2.0", null, null, null))));
+                    return new Resolver.Resolution(
+                            Resolver.materializeAll(executor, repositories, prefix, resolved),
+                            List.of(),
+                            vertices);
+                }))
+                .apply(Runnable::run,
+                        new BuildStepContext(previous, next, supplement),
+                        new LinkedHashMap<>(Map.of(
+                                "dependencies", new BuildStepArgument(dependencies,
+                                        Map.of(Path.of(BuildStep.REQUIRES), Checksum.of(ChecksumStatus.ADDED))),
+                                "licenses", new BuildStepArgument(licenses, Map.of()))))
+                .toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        SequencedProperties sidecar = SequencedProperties.ofFiles(next.resolve("licenses.properties"));
+        assertThat(sidecar.getProperty("foo/qux#0#id")).isEqualTo("Apache-2.0");
+        assertThat(sidecar.getProperty("foo/qux#0#category"))
+                .as("an empty value removes the built-in Apache-2.0 classification")
+                .isNull();
+    }
+
+    @Test
+    public void an_unprefixed_spdx_key_fails_the_build() throws IOException {
+        SequencedProperties properties = new SequencedProperties();
+        properties.setProperty("main/compile/foo/qux", "");
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
+        Path licenses = Files.createDirectory(root.resolve("license-config"));
+        Files.writeString(licenses.resolve(Dependencies.SPDX), "bogus/apache=Apache-2.0\n");
+        Dependencies step = new Dependencies(Map.of("foo", files(Map.of())),
+                Map.of("foo", (executor, prefix, repositories, descriptors, bom, scope) -> {
+                    SequencedMap<String, String> resolved = new LinkedHashMap<>();
+                    descriptors.sequencedKeySet().forEach(descriptor -> resolved.put(prefix + "/" + descriptor, ""));
+                    return new Resolver.Resolution(
+                            Resolver.materializeAll(executor, repositories, prefix, resolved),
+                            List.of(),
+                            new LinkedHashMap<>());
+                }));
+        assertThatThrownBy(() -> step.apply(Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of(
+                        "dependencies", new BuildStepArgument(dependencies,
+                                Map.of(Path.of(BuildStep.REQUIRES), Checksum.of(ChecksumStatus.ADDED))),
+                        "licenses", new BuildStepArgument(licenses, Map.of())))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Expected key to be prefixed")
+                .hasMessageContaining("bogus/apache");
+    }
+
+    @Test
     public void writes_the_resolution_graph_to_a_sidecar() throws IOException {
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("main/compile/foo/qux", "");

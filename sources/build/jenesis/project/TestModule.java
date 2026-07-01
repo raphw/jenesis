@@ -14,6 +14,7 @@ import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Dependencies;
 import build.jenesis.step.Java;
+import build.jenesis.step.ProcessBuildStep;
 import build.jenesis.step.ProcessHandler;
 
 public class TestModule implements BuildExecutorModule {
@@ -37,6 +38,7 @@ public class TestModule implements BuildExecutorModule {
     private final boolean reporting;
     private final String group;
     private final List<ObservabilityEngine> observers;
+    private final Boolean printing;
 
     public TestModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
         List<Pattern> patterns = Stream.of(
@@ -69,7 +71,8 @@ public class TestModule implements BuildExecutorModule {
                 Boolean.getBoolean("jenesis.test.parallel"),
                 Boolean.getBoolean("jenesis.test.reporting"),
                 "main",
-                List.of());
+                List.of(),
+                null);
     }
 
     private TestModule(TestEngine engine,
@@ -87,7 +90,8 @@ public class TestModule implements BuildExecutorModule {
                        boolean parallel,
                        boolean reporting,
                        String group,
-                       List<ObservabilityEngine> observers) {
+                       List<ObservabilityEngine> observers,
+                       Boolean printing) {
         this.engine = engine;
         this.isTest = isTest;
         this.factory = factory;
@@ -104,6 +108,7 @@ public class TestModule implements BuildExecutorModule {
         this.reporting = reporting;
         this.group = group;
         this.observers = observers;
+        this.printing = printing;
     }
 
     public TestModule engine(TestEngine engine) {
@@ -122,7 +127,8 @@ public class TestModule implements BuildExecutorModule {
                 parallel,
                 reporting,
                 group,
-                observers);
+                observers,
+                printing);
     }
 
     public <P extends Predicate<String> & Serializable> TestModule isTest(P isTest) {
@@ -141,7 +147,8 @@ public class TestModule implements BuildExecutorModule {
                 parallel,
                 reporting,
                 group,
-                observers);
+                observers,
+                printing);
     }
 
     public TestModule factory(Function<List<String>, ProcessHandler.OfProcess> factory) {
@@ -160,7 +167,8 @@ public class TestModule implements BuildExecutorModule {
                 parallel,
                 reporting,
                 group,
-                observers);
+                observers,
+                printing);
     }
 
     public TestModule filter(String filter) {
@@ -179,7 +187,8 @@ public class TestModule implements BuildExecutorModule {
                 parallel,
                 reporting,
                 group,
-                observers);
+                observers,
+                printing);
     }
 
     public TestModule jarsOnly(boolean jarsOnly) {
@@ -198,7 +207,8 @@ public class TestModule implements BuildExecutorModule {
                 parallel,
                 reporting,
                 group,
-                observers);
+                observers,
+                printing);
     }
 
     public TestModule requireEngine(boolean requireEngine) {
@@ -217,7 +227,8 @@ public class TestModule implements BuildExecutorModule {
                 parallel,
                 reporting,
                 group,
-                observers);
+                observers,
+                printing);
     }
 
     public TestModule pinning(Pinning pinning) {
@@ -236,7 +247,8 @@ public class TestModule implements BuildExecutorModule {
                 parallel,
                 reporting,
                 group,
-                observers);
+                observers,
+                printing);
     }
 
     public TestModule pathPlacement(PathPlacement pathPlacement) {
@@ -255,7 +267,8 @@ public class TestModule implements BuildExecutorModule {
                 parallel,
                 reporting,
                 group,
-                observers);
+                observers,
+                printing);
     }
 
     public TestModule moduleName(String moduleName) {
@@ -274,7 +287,8 @@ public class TestModule implements BuildExecutorModule {
                 parallel,
                 reporting,
                 group,
-                observers);
+                observers,
+                printing);
     }
 
     public TestModule tag(String tag) {
@@ -293,7 +307,8 @@ public class TestModule implements BuildExecutorModule {
                 parallel,
                 reporting,
                 group,
-                observers);
+                observers,
+                printing);
     }
 
     public TestModule group(String group) {
@@ -312,7 +327,8 @@ public class TestModule implements BuildExecutorModule {
                 parallel,
                 reporting,
                 group,
-                observers);
+                observers,
+                printing);
     }
 
     public TestModule parallel(boolean parallel) {
@@ -331,7 +347,8 @@ public class TestModule implements BuildExecutorModule {
                 parallel,
                 reporting,
                 group,
-                observers);
+                observers,
+                printing);
     }
 
     public TestModule reporting(boolean reporting) {
@@ -350,7 +367,8 @@ public class TestModule implements BuildExecutorModule {
                 parallel,
                 reporting,
                 group,
-                observers);
+                observers,
+                printing);
     }
 
     public TestModule observe(ObservabilityEngine... observers) {
@@ -373,7 +391,28 @@ public class TestModule implements BuildExecutorModule {
                 parallel,
                 reporting,
                 group,
-                observers);
+                observers,
+                printing);
+    }
+
+    public TestModule printing(boolean printing) {
+        return new TestModule(engine,
+                isTest,
+                factory,
+                repositories,
+                resolvers,
+                jarsOnly,
+                requireEngine,
+                pinning,
+                pathPlacement,
+                moduleName,
+                filter,
+                tag,
+                parallel,
+                reporting,
+                group,
+                observers,
+                printing);
     }
 
     @Override
@@ -415,6 +454,7 @@ public class TestModule implements BuildExecutorModule {
                         reporting,
                         group,
                         observers,
+                        printing,
                         incrementalProperty == null ? null : incrementalProperty.isEmpty() ? "MD5" : incrementalProperty),
                 Stream.concat(upstream.stream(), Stream.of(DEPENDENCIES)));
     }
@@ -516,8 +556,13 @@ public class TestModule implements BuildExecutorModule {
                     boolean reporting,
                     String group,
                     List<ObservabilityEngine> observers,
+                    Boolean printing,
                     String incrementalDigest) {
-            super(factory == null ? ProcessHandler.OfProcess.ofJavaHome("bin/java") : factory, pathPlacement, jarsOnly, group);
+            super(factory == null ? ProcessHandler.OfProcess.ofJavaHome("bin/java") : factory,
+                    pathPlacement,
+                    jarsOnly,
+                    group,
+                    printing == null ? ProcessBuildStep.printing("tests") : printing);
             this.engine = engine;
             this.isTest = isTest;
             this.moduleName = moduleName;

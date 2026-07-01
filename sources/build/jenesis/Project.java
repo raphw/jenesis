@@ -467,10 +467,10 @@ public record Project(
                       %{name}progress%{reset}                         Print the build progress lines (default: true)
                       %{name}checksum%{reset}                         Print each step's input/output file checksums
                       %{name}command%{reset}                          Print each external tool command line as it runs
+                      %{name}process%{reset}                          Stream each external tool's command and output to the console as it runs (override per command, e.g. %{name}javac%{reset}, %{name}tests%{reset})
                       %{name}fetch%{reset}                            Print each artifact downloaded from a repository
                       %{name}cache%{reset}                            Print each step served from or written to the build cache
                       %{name}docker%{reset}                           Print the Docker image when a build/run is wrapped (default: true)
-                      %{name}dependencies%{reset}                     Print each module's dependency tree as it resolves
                     
                     %{header}Pinning (-Djenesis.dependency.pin=<mode>):%{reset}
                       %{name}strict%{reset} fails the build on any unpinned artifact; %{name}ignore%{reset} floats
@@ -904,6 +904,13 @@ public record Project(
                                                         checksums.
                       -Djenesis.print.command=true        Print each external tool
                                                         command line as it runs.
+                      -Djenesis.print.process=true        Stream each external
+                                                        tool's command and
+                                                        output to the console as
+                                                        it runs; override per
+                                                        command with
+                                                        -Djenesis.print.<command>
+                                                        (e.g. javac, tests).
                       -Djenesis.print.fetch=true          Print each artifact
                                                         downloaded from a
                                                         repository.

@@ -80,6 +80,29 @@ The file's keys:
 Verdicts are written to `reports/compliance/licenses.txt`, one line per dependency
 (`OK`, `DENIED`, `MISSING`, `WARN`, or `UNKNOWN`).
 
+Extending the license tables (optional)
+---------------------------------------
+
+The normalization and classification above draw on comprehensive built-in tables,
+so no configuration is required - the Apache and GPL licenses here are recognised
+already. To teach the resolver about a license it does not know (a differently
+worded name, or an identifier that lacks a category), drop an optional
+`spdx.properties` in the configuration directory (the project root by default). It
+uses one prefixed key space:
+
+- `alias/<declared name> = <SPDX id>` normalizes a license name as written in a POM
+  to its canonical SPDX identifier (spaces in the key are backslash-escaped, per
+  standard `.properties` rules).
+- `category/<SPDX id> = <permissiveness>` classifies an identifier as `permissive`,
+  `weak-copyleft`, `strong-copyleft`, `network-copyleft`, or `public-domain`.
+
+Each entry *appends* to the built-in tables rather than replacing them, and the same
+classification feeds both this license check (which matches the `permissive`
+category) and the SBOM's license identifiers. The `spdx.properties` shipped with this
+demo just re-states two built-in mappings, so it changes nothing - it is present only
+to show the format. It is distinct from `licensing.properties`, which is the
+enforcement policy, not the classification.
+
 How it works
 ------------
 
@@ -98,6 +121,7 @@ Layout
     |-- build/jenesis              symlink to ../../../sources/build/jenesis
     |-- pom.xml                    pins commons-lang3 (Apache) and mysql-connector-java 5.1.49 (GPL)
     |-- licensing.properties       allowed=permissive
+    |-- spdx.properties            optional: extends the license alias/category tables (no effect here)
     `-- sources
         `-- compliance
             `-- Sample.java        uses commons-lang3
