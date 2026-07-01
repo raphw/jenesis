@@ -32,10 +32,11 @@ import build.jenesis.step.Tree;
 
 public record Project(
         Path root,
-        SequencedSet<Path> configuration,
-        SequencedSet<Path> profiles,
         Path target,
         Path artifacts,
+        SequencedSet<Path> metadata,
+        SequencedSet<Path> configuration,
+        SequencedSet<Path> profiles,
         BuildExecutorCache cache,
         HashDigestFunction hashFunction,
         Layout layout,
@@ -43,13 +44,12 @@ public record Project(
         boolean sources,
         boolean documentation,
         Pinning pinning,
-        SequencedSet<Path> metadata,
         String version,
         SequencedSet<String> defaultTarget,
         MultiProjectAssembler<? super ProjectModuleDescriptor> assembler,
+        Supplier<BuildExecutor.Configuration> configurator,
         Map<String, Repository> repositories,
-        Map<String, Resolver> resolvers,
-        Supplier<BuildExecutor.Configuration> configurator) {
+        Map<String, Resolver> resolvers) {
 
     public static final String BUILD = "build",
             STAGE = "stage",
@@ -1221,10 +1221,11 @@ public record Project(
                 .map(Path::of)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
         this(resolvedRoot,
-                resolvedConfiguration,
-                resolvedProfiles,
                 resolvedTarget,
                 resolvedArtifacts,
+                resolvedMetadata,
+                resolvedConfiguration,
+                resolvedProfiles,
                 resolvedCache,
                 new HashDigestFunction(System.getProperty("jenesis.project.digest", "SHA-256")),
                 resolvedLayout,
@@ -1232,21 +1233,21 @@ public record Project(
                 Boolean.getBoolean("jenesis.project.sources"),
                 Boolean.getBoolean("jenesis.project.documentation"),
                 Pinning.fromProperty(),
-                resolvedMetadata,
                 System.getProperty("jenesis.project.version"),
                 Collections.unmodifiableSequencedSet(new LinkedHashSet<>(List.of(BUILD))),
                 new InferredMultiProjectAssembler(),
+                BuildExecutor.Configuration::new,
                 Map.of(),
-                Map.of(),
-                BuildExecutor.Configuration::new);
+                Map.of());
     }
 
     public Project root(Path root) {
         return new Project(root,
-                configuration,
-                profiles,
                 target,
                 artifacts,
+                metadata,
+                configuration,
+                profiles,
                 cache,
                 hashFunction,
                 layout,
@@ -1254,21 +1255,21 @@ public record Project(
                 sources,
                 documentation,
                 pinning,
-                metadata,
                 version,
                 defaultTarget,
                 assembler,
+                configurator,
                 repositories,
-                resolvers,
-                configurator);
+                resolvers);
     }
 
     public Project configuration(Path... configuration) {
         return new Project(root,
-                new LinkedHashSet<>(List.of(configuration)),
-                profiles,
                 target,
                 artifacts,
+                metadata,
+                new LinkedHashSet<>(List.of(configuration)),
+                profiles,
                 cache,
                 hashFunction,
                 layout,
@@ -1276,21 +1277,21 @@ public record Project(
                 sources,
                 documentation,
                 pinning,
-                metadata,
                 version,
                 defaultTarget,
                 assembler,
+                configurator,
                 repositories,
-                resolvers,
-                configurator);
+                resolvers);
     }
 
     public Project profiles(Path... profiles) {
         return new Project(root,
-                configuration,
-                new LinkedHashSet<>(List.of(profiles)),
                 target,
                 artifacts,
+                metadata,
+                configuration,
+                new LinkedHashSet<>(List.of(profiles)),
                 cache,
                 hashFunction,
                 layout,
@@ -1298,21 +1299,21 @@ public record Project(
                 sources,
                 documentation,
                 pinning,
-                metadata,
                 version,
                 defaultTarget,
                 assembler,
+                configurator,
                 repositories,
-                resolvers,
-                configurator);
+                resolvers);
     }
 
     public Project target(Path target) {
         return new Project(root,
-                configuration,
-                profiles,
                 target,
                 artifacts,
+                metadata,
+                configuration,
+                profiles,
                 cache,
                 hashFunction,
                 layout,
@@ -1320,21 +1321,21 @@ public record Project(
                 sources,
                 documentation,
                 pinning,
-                metadata,
                 version,
                 defaultTarget,
                 assembler,
+                configurator,
                 repositories,
-                resolvers,
-                configurator);
+                resolvers);
     }
 
     public Project artifacts(Path artifacts) {
         return new Project(root,
-                configuration,
-                profiles,
                 target,
                 artifacts,
+                metadata,
+                configuration,
+                profiles,
                 cache,
                 hashFunction,
                 layout,
@@ -1342,21 +1343,21 @@ public record Project(
                 sources,
                 documentation,
                 pinning,
-                metadata,
                 version,
                 defaultTarget,
                 assembler,
+                configurator,
                 repositories,
-                resolvers,
-                configurator);
+                resolvers);
     }
 
     public Project cache(BuildExecutorCache cache) {
         return new Project(root,
-                configuration,
-                profiles,
                 target,
                 artifacts,
+                metadata,
+                configuration,
+                profiles,
                 cache,
                 hashFunction,
                 layout,
@@ -1364,21 +1365,21 @@ public record Project(
                 sources,
                 documentation,
                 pinning,
-                metadata,
                 version,
                 defaultTarget,
                 assembler,
+                configurator,
                 repositories,
-                resolvers,
-                configurator);
+                resolvers);
     }
 
     public Project hashFunction(HashDigestFunction hashFunction) {
         return new Project(root,
-                configuration,
-                profiles,
                 target,
                 artifacts,
+                metadata,
+                configuration,
+                profiles,
                 cache,
                 hashFunction,
                 layout,
@@ -1386,21 +1387,21 @@ public record Project(
                 sources,
                 documentation,
                 pinning,
-                metadata,
                 version,
                 defaultTarget,
                 assembler,
+                configurator,
                 repositories,
-                resolvers,
-                configurator);
+                resolvers);
     }
 
     public Project layout(Layout layout) {
         return new Project(root,
-                configuration,
-                profiles,
                 target,
                 artifacts,
+                metadata,
+                configuration,
+                profiles,
                 cache,
                 hashFunction,
                 layout,
@@ -1408,21 +1409,21 @@ public record Project(
                 sources,
                 documentation,
                 pinning,
-                metadata,
                 version,
                 defaultTarget,
                 assembler,
+                configurator,
                 repositories,
-                resolvers,
-                configurator);
+                resolvers);
     }
 
     public Project tests(boolean tests) {
         return new Project(root,
-                configuration,
-                profiles,
                 target,
                 artifacts,
+                metadata,
+                configuration,
+                profiles,
                 cache,
                 hashFunction,
                 layout,
@@ -1430,21 +1431,21 @@ public record Project(
                 sources,
                 documentation,
                 pinning,
-                metadata,
                 version,
                 defaultTarget,
                 assembler,
+                configurator,
                 repositories,
-                resolvers,
-                configurator);
+                resolvers);
     }
 
     public Project sources(boolean sources) {
         return new Project(root,
-                configuration,
-                profiles,
                 target,
                 artifacts,
+                metadata,
+                configuration,
+                profiles,
                 cache,
                 hashFunction,
                 layout,
@@ -1452,21 +1453,21 @@ public record Project(
                 sources,
                 documentation,
                 pinning,
-                metadata,
                 version,
                 defaultTarget,
                 assembler,
+                configurator,
                 repositories,
-                resolvers,
-                configurator);
+                resolvers);
     }
 
     public Project documentation(boolean documentation) {
         return new Project(root,
-                configuration,
-                profiles,
                 target,
                 artifacts,
+                metadata,
+                configuration,
+                profiles,
                 cache,
                 hashFunction,
                 layout,
@@ -1474,21 +1475,21 @@ public record Project(
                 sources,
                 documentation,
                 pinning,
-                metadata,
                 version,
                 defaultTarget,
                 assembler,
+                configurator,
                 repositories,
-                resolvers,
-                configurator);
+                resolvers);
     }
 
     public Project pinning(Pinning pinning) {
         return new Project(root,
-                configuration,
-                profiles,
                 target,
                 artifacts,
+                metadata,
+                configuration,
+                profiles,
                 cache,
                 hashFunction,
                 layout,
@@ -1496,21 +1497,21 @@ public record Project(
                 sources,
                 documentation,
                 pinning,
-                metadata,
                 version,
                 defaultTarget,
                 assembler,
+                configurator,
                 repositories,
-                resolvers,
-                configurator);
+                resolvers);
     }
 
     public Project metadata(Path... metadata) {
         return new Project(root,
-                configuration,
-                profiles,
                 target,
                 artifacts,
+                new LinkedHashSet<>(List.of(metadata)),
+                configuration,
+                profiles,
                 cache,
                 hashFunction,
                 layout,
@@ -1518,21 +1519,21 @@ public record Project(
                 sources,
                 documentation,
                 pinning,
-                new LinkedHashSet<>(List.of(metadata)),
                 version,
                 defaultTarget,
                 assembler,
+                configurator,
                 repositories,
-                resolvers,
-                configurator);
+                resolvers);
     }
 
     public Project version(String version) {
         return new Project(root,
-                configuration,
-                profiles,
                 target,
                 artifacts,
+                metadata,
+                configuration,
+                profiles,
                 cache,
                 hashFunction,
                 layout,
@@ -1540,21 +1541,21 @@ public record Project(
                 sources,
                 documentation,
                 pinning,
-                metadata,
                 version,
                 defaultTarget,
                 assembler,
+                configurator,
                 repositories,
-                resolvers,
-                configurator);
+                resolvers);
     }
 
     public Project defaultTarget(String... defaultTarget) {
         return new Project(root,
-                configuration,
-                profiles,
                 target,
                 artifacts,
+                metadata,
+                configuration,
+                profiles,
                 cache,
                 hashFunction,
                 layout,
@@ -1562,21 +1563,21 @@ public record Project(
                 sources,
                 documentation,
                 pinning,
-                metadata,
                 version,
                 Collections.unmodifiableSequencedSet(new LinkedHashSet<>(List.of(defaultTarget))),
                 assembler,
+                configurator,
                 repositories,
-                resolvers,
-                configurator);
+                resolvers);
     }
 
     public Project assembler(MultiProjectAssembler<? super ProjectModuleDescriptor> assembler) {
         return new Project(root,
-                configuration,
-                profiles,
                 target,
                 artifacts,
+                metadata,
+                configuration,
+                profiles,
                 cache,
                 hashFunction,
                 layout,
@@ -1584,21 +1585,21 @@ public record Project(
                 sources,
                 documentation,
                 pinning,
-                metadata,
                 version,
                 defaultTarget,
                 assembler,
+                configurator,
                 repositories,
-                resolvers,
-                configurator);
+                resolvers);
     }
 
     public Project repositories(Map<String, Repository> repositories) {
         return new Project(root,
-                configuration,
-                profiles,
                 target,
                 artifacts,
+                metadata,
+                configuration,
+                profiles,
                 cache,
                 hashFunction,
                 layout,
@@ -1606,21 +1607,21 @@ public record Project(
                 sources,
                 documentation,
                 pinning,
-                metadata,
                 version,
                 defaultTarget,
                 assembler,
+                configurator,
                 repositories,
-                resolvers,
-                configurator);
+                resolvers);
     }
 
     public Project resolvers(Map<String, Resolver> resolvers) {
         return new Project(root,
-                configuration,
-                profiles,
                 target,
                 artifacts,
+                metadata,
+                configuration,
+                profiles,
                 cache,
                 hashFunction,
                 layout,
@@ -1628,21 +1629,21 @@ public record Project(
                 sources,
                 documentation,
                 pinning,
-                metadata,
                 version,
                 defaultTarget,
                 assembler,
+                configurator,
                 repositories,
-                resolvers,
-                configurator);
+                resolvers);
     }
 
     public Project configurator(Supplier<BuildExecutor.Configuration> configurator) {
         return new Project(root,
-                configuration,
-                profiles,
                 target,
                 artifacts,
+                metadata,
+                configuration,
+                profiles,
                 cache,
                 hashFunction,
                 layout,
@@ -1650,13 +1651,12 @@ public record Project(
                 sources,
                 documentation,
                 pinning,
-                metadata,
                 version,
                 defaultTarget,
                 assembler,
+                configurator,
                 repositories,
-                resolvers,
-                configurator);
+                resolvers);
     }
 
     public SequencedMap<String, Path> build(String... selectors) throws IOException {
