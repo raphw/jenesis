@@ -51,7 +51,12 @@ the build is configured, by the `main` launcher:
   load. Each name `<name>` resolves to a `jenesis-<name>.properties` file relative
   to the folder of the file that names it (a `.properties` suffix on the name is
   ignored, so `release` and `release.properties` both name the `jenesis-release.properties`
-  file). A listed profile that does not exist is an error (only the base files are optional).
+  file). The properties file is optional: a missing one is skipped, not an error.
+- A profile **also designates a configuration folder**. For each selected profile
+  `<name>`, a `<name>/` subfolder under each configuration location is searched
+  ahead of the location itself (module-local before project-wide), so a profile can
+  carry its own `checkstyle.xml`, `packaging.properties`, and so on. A profile may
+  therefore exist as just a properties file, just a folder, or both.
 - Profiles **chain**: any loaded file may itself set `jenesis.project.properties`
   to pull in more, transitively, until everything is loaded. Here `release`
   chains to `supply-chain`:

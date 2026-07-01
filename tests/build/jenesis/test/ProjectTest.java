@@ -492,10 +492,11 @@ public class ProjectTest {
     }
 
     @Test
-    public void load_jenesis_properties_fails_on_a_missing_profile() throws IOException {
-        Files.writeString(root.resolve("jenesis.properties"), "jenesis.project.properties=absent\n");
-        assertThatThrownBy(() -> Project.loadJenesisProperties(root))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("jenesis-absent.properties");
+    public void load_jenesis_properties_tolerates_a_profile_without_a_properties_file() throws IOException {
+        Files.writeString(root.resolve("jenesis.properties"), "jenesis.project.properties=folder-only\n");
+        Project.loadJenesisProperties(root);
+        assertThat(new Project().profiles())
+                .as("a profile may contribute only a configuration folder, so a missing properties file is not an error")
+                .containsExactly(Path.of("folder-only"));
     }
 }

@@ -1733,11 +1733,8 @@ public record Project(
     private static void loadProfiles(Set<Path> loaded, Deque<Path> pending, Path base) throws IOException {
         while (!pending.isEmpty()) {
             Path file = pending.removeFirst().normalize();
-            if (!loaded.add(file)) {
+            if (!loaded.add(file) || !Files.isRegularFile(file)) {
                 continue;
-            }
-            if (!Files.isRegularFile(file)) {
-                throw new IllegalArgumentException("Profile properties file not found: " + file);
             }
             SequencedProperties properties = SequencedProperties.ofFiles(file);
             addProfiles(pending, base, properties.getProperty("jenesis.project.properties"));
