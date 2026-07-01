@@ -14,6 +14,7 @@ import build.jenesis.SequencedProperties;
 import build.jenesis.step.Bind;
 import build.jenesis.step.Dependencies;
 import build.jenesis.step.JdkProcessBuildStep;
+import build.jenesis.step.ProcessBuildStep;
 import build.jenesis.step.ProcessHandler;
 
 public class DetektModule implements BuildExecutorModule {
@@ -30,9 +31,10 @@ public class DetektModule implements BuildExecutorModule {
     private final String tool;
     private final String configFile;
     private final boolean strict;
+    private final Boolean printing;
 
     public DetektModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, null, "detekt", "detekt.yml", false);
+        this(repositories, resolvers, null, "detekt", "detekt.yml", false, null);
     }
 
     private DetektModule(Map<String, Repository> repositories,
@@ -40,13 +42,15 @@ public class DetektModule implements BuildExecutorModule {
                          Pinning pinning,
                          String tool,
                          String configFile,
-                         boolean strict) {
+                         boolean strict,
+                         Boolean printing) {
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.pinning = pinning;
         this.tool = tool;
         this.configFile = configFile;
         this.strict = strict;
+        this.printing = printing;
     }
 
     public static Path configurationFile(SequencedSet<Path> configuration) {
@@ -54,19 +58,23 @@ public class DetektModule implements BuildExecutorModule {
     }
 
     public DetektModule pinning(Pinning pinning) {
-        return new DetektModule(repositories, resolvers, pinning, tool, configFile, strict);
+        return new DetektModule(repositories, resolvers, pinning, tool, configFile, strict, printing);
     }
 
     public DetektModule tool(String tool) {
-        return new DetektModule(repositories, resolvers, pinning, tool, configFile, strict);
+        return new DetektModule(repositories, resolvers, pinning, tool, configFile, strict, printing);
     }
 
     public DetektModule configFile(String configFile) {
-        return new DetektModule(repositories, resolvers, pinning, tool, configFile, strict);
+        return new DetektModule(repositories, resolvers, pinning, tool, configFile, strict, printing);
     }
 
     public DetektModule strict(boolean strict) {
-        return new DetektModule(repositories, resolvers, pinning, tool, configFile, strict);
+        return new DetektModule(repositories, resolvers, pinning, tool, configFile, strict, printing);
+    }
+
+    public DetektModule printing(boolean printing) {
+        return new DetektModule(repositories, resolvers, pinning, tool, configFile, strict, printing);
     }
 
     @Override
@@ -81,7 +89,7 @@ public class DetektModule implements BuildExecutorModule {
         SequencedSet<String> checkInputs = new LinkedHashSet<>();
         checkInputs.add(DEPENDENCIES);
         checkInputs.addAll(inherited.sequencedKeySet());
-        buildExecutor.addStep(CHECK, new Check(tool, configFile, strict), checkInputs);
+        buildExecutor.addStep(CHECK, new Check(tool, configFile, strict, printing), checkInputs);
     }
 
     private record Requires(String tool) implements BuildStep {
@@ -109,8 +117,8 @@ public class DetektModule implements BuildExecutorModule {
         private final String configFile;
         private final boolean strict;
 
-        private Check(String tool, String configFile, boolean strict) {
-            super("detekt", ProcessHandler.OfProcess.ofJavaHome("bin/java"));
+        private Check(String tool, String configFile, boolean strict, Boolean printing) {
+            super("detekt", ProcessHandler.OfProcess.ofJavaHome("bin/java"), printing == null ? ProcessBuildStep.printing("detekt") : printing);
             this.tool = tool;
             this.configFile = configFile;
             this.strict = strict;

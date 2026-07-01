@@ -16,6 +16,7 @@ import build.jenesis.step.Dependencies;
 import build.jenesis.step.Javac;
 import build.jenesis.step.Javadoc;
 import build.jenesis.step.JdkProcessBuildStep;
+import build.jenesis.step.ProcessBuildStep;
 import build.jenesis.step.ProcessHandler;
 
 public class DokkaDocumentationModule implements BuildExecutorModule {
@@ -35,9 +36,10 @@ public class DokkaDocumentationModule implements BuildExecutorModule {
     private final String group;
     private final String within;
     private final transient Function<List<String>, ? extends ProcessHandler> factory;
+    private final Boolean printing;
 
     public DokkaDocumentationModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, null, "dokka", "main", null, null);
+        this(repositories, resolvers, null, "dokka", "main", null, null, null);
     }
 
     private DokkaDocumentationModule(Map<String, Repository> repositories,
@@ -46,7 +48,8 @@ public class DokkaDocumentationModule implements BuildExecutorModule {
                                      String tool,
                                      String group,
                                      String within,
-                                     Function<List<String>, ? extends ProcessHandler> factory) {
+                                     Function<List<String>, ? extends ProcessHandler> factory,
+                                     Boolean printing) {
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.pinning = pinning;
@@ -54,26 +57,31 @@ public class DokkaDocumentationModule implements BuildExecutorModule {
         this.group = group;
         this.within = within;
         this.factory = factory;
+        this.printing = printing;
     }
 
     public DokkaDocumentationModule factory(Function<List<String>, ? extends ProcessHandler> factory) {
-        return new DokkaDocumentationModule(repositories, resolvers, pinning, tool, group, within, factory);
+        return new DokkaDocumentationModule(repositories, resolvers, pinning, tool, group, within, factory, printing);
     }
 
     public DokkaDocumentationModule pinning(Pinning pinning) {
-        return new DokkaDocumentationModule(repositories, resolvers, pinning, tool, group, within, factory);
+        return new DokkaDocumentationModule(repositories, resolvers, pinning, tool, group, within, factory, printing);
     }
 
     public DokkaDocumentationModule tool(String tool) {
-        return new DokkaDocumentationModule(repositories, resolvers, pinning, tool, group, within, factory);
+        return new DokkaDocumentationModule(repositories, resolvers, pinning, tool, group, within, factory, printing);
     }
 
     public DokkaDocumentationModule group(String group) {
-        return new DokkaDocumentationModule(repositories, resolvers, pinning, tool, group, within, factory);
+        return new DokkaDocumentationModule(repositories, resolvers, pinning, tool, group, within, factory, printing);
     }
 
     public DokkaDocumentationModule within(String within) {
-        return new DokkaDocumentationModule(repositories, resolvers, pinning, tool, group, within, factory);
+        return new DokkaDocumentationModule(repositories, resolvers, pinning, tool, group, within, factory, printing);
+    }
+
+    public DokkaDocumentationModule printing(boolean printing) {
+        return new DokkaDocumentationModule(repositories, resolvers, pinning, tool, group, within, factory, printing);
     }
 
     @Override
@@ -90,7 +98,7 @@ public class DokkaDocumentationModule implements BuildExecutorModule {
         documentInputs.add(DEPENDENCIES);
         documentInputs.addAll(upstream);
         buildExecutor.addStep(DOCUMENTED,
-                factory == null ? new Document(within, tool, group) : new Document(within, tool, group, factory),
+                factory == null ? new Document(within, tool, group, printing) : new Document(within, tool, group, factory, printing),
                 documentInputs);
     }
 
@@ -129,12 +137,12 @@ public class DokkaDocumentationModule implements BuildExecutorModule {
         private final String tool;
         private final String group;
 
-        private Document(String within, String tool, String group) {
-            this(within, tool, group, ProcessHandler.OfProcess.ofJavaHome("bin/java"));
+        private Document(String within, String tool, String group, Boolean printing) {
+            this(within, tool, group, ProcessHandler.OfProcess.ofJavaHome("bin/java"), printing);
         }
 
-        private Document(String within, String tool, String group, Function<List<String>, ? extends ProcessHandler> factory) {
-            super("dokka", factory);
+        private Document(String within, String tool, String group, Function<List<String>, ? extends ProcessHandler> factory, Boolean printing) {
+            super("dokka", factory, printing == null ? ProcessBuildStep.printing("dokka") : printing);
             this.within = within;
             this.tool = tool;
             this.group = group;

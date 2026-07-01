@@ -14,6 +14,7 @@ import build.jenesis.SequencedProperties;
 import build.jenesis.step.Bind;
 import build.jenesis.step.Dependencies;
 import build.jenesis.step.JdkProcessBuildStep;
+import build.jenesis.step.ProcessBuildStep;
 import build.jenesis.step.ProcessHandler;
 
 public class KtlintModule implements BuildExecutorModule {
@@ -29,21 +30,24 @@ public class KtlintModule implements BuildExecutorModule {
     private final Pinning pinning;
     private final String tool;
     private final boolean strict;
+    private final Boolean printing;
 
     public KtlintModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, null, "ktlint", false);
+        this(repositories, resolvers, null, "ktlint", false, null);
     }
 
     private KtlintModule(Map<String, Repository> repositories,
                          Map<String, Resolver> resolvers,
                          Pinning pinning,
                          String tool,
-                         boolean strict) {
+                         boolean strict,
+                         Boolean printing) {
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.pinning = pinning;
         this.tool = tool;
         this.strict = strict;
+        this.printing = printing;
     }
 
     public static Path configurationFile(SequencedSet<Path> configuration) {
@@ -51,15 +55,19 @@ public class KtlintModule implements BuildExecutorModule {
     }
 
     public KtlintModule pinning(Pinning pinning) {
-        return new KtlintModule(repositories, resolvers, pinning, tool, strict);
+        return new KtlintModule(repositories, resolvers, pinning, tool, strict, printing);
     }
 
     public KtlintModule tool(String tool) {
-        return new KtlintModule(repositories, resolvers, pinning, tool, strict);
+        return new KtlintModule(repositories, resolvers, pinning, tool, strict, printing);
     }
 
     public KtlintModule strict(boolean strict) {
-        return new KtlintModule(repositories, resolvers, pinning, tool, strict);
+        return new KtlintModule(repositories, resolvers, pinning, tool, strict, printing);
+    }
+
+    public KtlintModule printing(boolean printing) {
+        return new KtlintModule(repositories, resolvers, pinning, tool, strict, printing);
     }
 
     @Override
@@ -74,7 +82,7 @@ public class KtlintModule implements BuildExecutorModule {
         SequencedSet<String> checkInputs = new LinkedHashSet<>();
         checkInputs.add(DEPENDENCIES);
         checkInputs.addAll(inherited.sequencedKeySet());
-        buildExecutor.addStep(CHECK, new Check(tool, strict), checkInputs);
+        buildExecutor.addStep(CHECK, new Check(tool, strict, printing), checkInputs);
     }
 
     private record Requires(String tool) implements BuildStep {
@@ -101,8 +109,8 @@ public class KtlintModule implements BuildExecutorModule {
         private final String tool;
         private final boolean strict;
 
-        private Check(String tool, boolean strict) {
-            super("ktlint", ProcessHandler.OfProcess.ofJavaHome("bin/java"));
+        private Check(String tool, boolean strict, Boolean printing) {
+            super("ktlint", ProcessHandler.OfProcess.ofJavaHome("bin/java"), printing == null ? ProcessBuildStep.printing("ktlint") : printing);
             this.tool = tool;
             this.strict = strict;
         }

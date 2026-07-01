@@ -13,6 +13,7 @@ import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Dependencies;
 import build.jenesis.step.FormatBuildStep;
+import build.jenesis.step.ProcessBuildStep;
 
 public class GoogleJavaFormatModule implements BuildExecutorModule {
 
@@ -27,33 +28,40 @@ public class GoogleJavaFormatModule implements BuildExecutorModule {
     private final Pinning pinning;
     private final String group;
     private final boolean verify;
+    private final Boolean printing;
 
     public GoogleJavaFormatModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, null, "google-java-format", false);
+        this(repositories, resolvers, null, "google-java-format", false, null);
     }
 
     private GoogleJavaFormatModule(Map<String, Repository> repositories,
                                    Map<String, Resolver> resolvers,
                                    Pinning pinning,
                                    String group,
-                                   boolean verify) {
+                                   boolean verify,
+                                   Boolean printing) {
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.pinning = pinning;
         this.group = group;
         this.verify = verify;
+        this.printing = printing;
     }
 
     public GoogleJavaFormatModule pinning(Pinning pinning) {
-        return new GoogleJavaFormatModule(repositories, resolvers, pinning, group, verify);
+        return new GoogleJavaFormatModule(repositories, resolvers, pinning, group, verify, printing);
     }
 
     public GoogleJavaFormatModule group(String group) {
-        return new GoogleJavaFormatModule(repositories, resolvers, pinning, group, verify);
+        return new GoogleJavaFormatModule(repositories, resolvers, pinning, group, verify, printing);
     }
 
     public GoogleJavaFormatModule verify(boolean verify) {
-        return new GoogleJavaFormatModule(repositories, resolvers, pinning, group, verify);
+        return new GoogleJavaFormatModule(repositories, resolvers, pinning, group, verify, printing);
+    }
+
+    public GoogleJavaFormatModule printing(boolean printing) {
+        return new GoogleJavaFormatModule(repositories, resolvers, pinning, group, verify, printing);
     }
 
     @Override
@@ -68,7 +76,7 @@ public class GoogleJavaFormatModule implements BuildExecutorModule {
         SequencedSet<String> formatInputs = new LinkedHashSet<>();
         formatInputs.add(DEPENDENCIES);
         formatInputs.addAll(inherited.sequencedKeySet());
-        buildExecutor.addStep(FORMAT, new Format(group, verify), formatInputs);
+        buildExecutor.addStep(FORMAT, new Format(group, verify, printing), formatInputs);
     }
 
     private record Requires(String group) implements BuildStep {
@@ -92,8 +100,8 @@ public class GoogleJavaFormatModule implements BuildExecutorModule {
 
     private static class Format extends FormatBuildStep {
 
-        private Format(String group, boolean verify) {
-            super(group, verify);
+        private Format(String group, boolean verify, Boolean printing) {
+            super(group, verify, printing == null ? ProcessBuildStep.printing(group) : printing);
         }
 
         @Override

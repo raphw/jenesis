@@ -37,9 +37,10 @@ public class KotlinCompilerModule implements BuildExecutorModule {
     private final String tool;
     private final String group;
     private final transient Function<List<String>, ? extends ProcessHandler> factory;
+    private final Boolean printing;
 
     public KotlinCompilerModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, null, true, "kotlinc", "main", null);
+        this(repositories, resolvers, null, true, "kotlinc", "main", null, null);
     }
 
     private KotlinCompilerModule(Map<String, Repository> repositories,
@@ -48,7 +49,8 @@ public class KotlinCompilerModule implements BuildExecutorModule {
                                  boolean includeResources,
                                  String tool,
                                  String group,
-                                 Function<List<String>, ? extends ProcessHandler> factory) {
+                                 Function<List<String>, ? extends ProcessHandler> factory,
+                                 Boolean printing) {
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.pinning = pinning;
@@ -56,26 +58,31 @@ public class KotlinCompilerModule implements BuildExecutorModule {
         this.tool = tool;
         this.group = group;
         this.factory = factory;
+        this.printing = printing;
     }
 
     public KotlinCompilerModule factory(Function<List<String>, ? extends ProcessHandler> factory) {
-        return new KotlinCompilerModule(repositories, resolvers, pinning, includeResources, tool, group, factory);
+        return new KotlinCompilerModule(repositories, resolvers, pinning, includeResources, tool, group, factory, printing);
     }
 
     public KotlinCompilerModule pinning(Pinning pinning) {
-        return new KotlinCompilerModule(repositories, resolvers, pinning, includeResources, tool, group, factory);
+        return new KotlinCompilerModule(repositories, resolvers, pinning, includeResources, tool, group, factory, printing);
     }
 
     public KotlinCompilerModule includeResources(boolean includeResources) {
-        return new KotlinCompilerModule(repositories, resolvers, pinning, includeResources, tool, group, factory);
+        return new KotlinCompilerModule(repositories, resolvers, pinning, includeResources, tool, group, factory, printing);
     }
 
     public KotlinCompilerModule tool(String tool) {
-        return new KotlinCompilerModule(repositories, resolvers, pinning, includeResources, tool, group, factory);
+        return new KotlinCompilerModule(repositories, resolvers, pinning, includeResources, tool, group, factory, printing);
     }
 
     public KotlinCompilerModule group(String group) {
-        return new KotlinCompilerModule(repositories, resolvers, pinning, includeResources, tool, group, factory);
+        return new KotlinCompilerModule(repositories, resolvers, pinning, includeResources, tool, group, factory, printing);
+    }
+
+    public KotlinCompilerModule printing(boolean printing) {
+        return new KotlinCompilerModule(repositories, resolvers, pinning, includeResources, tool, group, factory, printing);
     }
 
     @Override
@@ -92,7 +99,7 @@ public class KotlinCompilerModule implements BuildExecutorModule {
         compileInputs.add(DEPENDENCIES);
         compileInputs.addAll(upstream);
         buildExecutor.addStep(COMPILED,
-                factory == null ? new Compile(includeResources, tool, group) : new Compile(includeResources, tool, group, factory),
+                factory == null ? new Compile(includeResources, tool, group, printing) : new Compile(includeResources, tool, group, factory, printing),
                 compileInputs);
         buildExecutor.addStep(CLASSES, new Versions(), Stream.concat(
                 Stream.of(COMPILED),
@@ -152,12 +159,12 @@ public class KotlinCompilerModule implements BuildExecutorModule {
         private final String tool;
         private final String group;
 
-        private Compile(boolean includeResources, String tool, String group) {
-            this(includeResources, tool, group, ProcessHandler.OfProcess.ofJavaHome("bin/java"));
+        private Compile(boolean includeResources, String tool, String group, Boolean printing) {
+            this(includeResources, tool, group, ProcessHandler.OfProcess.ofJavaHome("bin/java"), printing);
         }
 
-        private Compile(boolean includeResources, String tool, String group, Function<List<String>, ? extends ProcessHandler> factory) {
-            super("kotlinc", factory);
+        private Compile(boolean includeResources, String tool, String group, Function<List<String>, ? extends ProcessHandler> factory, Boolean printing) {
+            super("kotlinc", factory, printing == null ? ProcessBuildStep.printing("kotlinc") : printing);
             this.includeResources = includeResources;
             this.tool = tool;
             this.group = group;

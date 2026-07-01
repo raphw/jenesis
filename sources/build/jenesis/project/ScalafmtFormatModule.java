@@ -13,6 +13,7 @@ import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Dependencies;
 import build.jenesis.step.FormatBuildStep;
+import build.jenesis.step.ProcessBuildStep;
 
 public class ScalafmtFormatModule implements BuildExecutorModule {
 
@@ -28,9 +29,10 @@ public class ScalafmtFormatModule implements BuildExecutorModule {
     private final String group;
     private final String configFile;
     private final boolean verify;
+    private final Boolean printing;
 
     public ScalafmtFormatModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, null, "scalafmt-format", ".scalafmt.conf", false);
+        this(repositories, resolvers, null, "scalafmt-format", ".scalafmt.conf", false, null);
     }
 
     private ScalafmtFormatModule(Map<String, Repository> repositories,
@@ -38,13 +40,15 @@ public class ScalafmtFormatModule implements BuildExecutorModule {
                                  Pinning pinning,
                                  String group,
                                  String configFile,
-                                 boolean verify) {
+                                 boolean verify,
+                                 Boolean printing) {
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.pinning = pinning;
         this.group = group;
         this.configFile = configFile;
         this.verify = verify;
+        this.printing = printing;
     }
 
     public static Path configurationFile(SequencedSet<Path> configuration) {
@@ -52,19 +56,23 @@ public class ScalafmtFormatModule implements BuildExecutorModule {
     }
 
     public ScalafmtFormatModule pinning(Pinning pinning) {
-        return new ScalafmtFormatModule(repositories, resolvers, pinning, group, configFile, verify);
+        return new ScalafmtFormatModule(repositories, resolvers, pinning, group, configFile, verify, printing);
     }
 
     public ScalafmtFormatModule group(String group) {
-        return new ScalafmtFormatModule(repositories, resolvers, pinning, group, configFile, verify);
+        return new ScalafmtFormatModule(repositories, resolvers, pinning, group, configFile, verify, printing);
     }
 
     public ScalafmtFormatModule configFile(String configFile) {
-        return new ScalafmtFormatModule(repositories, resolvers, pinning, group, configFile, verify);
+        return new ScalafmtFormatModule(repositories, resolvers, pinning, group, configFile, verify, printing);
     }
 
     public ScalafmtFormatModule verify(boolean verify) {
-        return new ScalafmtFormatModule(repositories, resolvers, pinning, group, configFile, verify);
+        return new ScalafmtFormatModule(repositories, resolvers, pinning, group, configFile, verify, printing);
+    }
+
+    public ScalafmtFormatModule printing(boolean printing) {
+        return new ScalafmtFormatModule(repositories, resolvers, pinning, group, configFile, verify, printing);
     }
 
     @Override
@@ -79,7 +87,7 @@ public class ScalafmtFormatModule implements BuildExecutorModule {
         SequencedSet<String> formatInputs = new LinkedHashSet<>();
         formatInputs.add(DEPENDENCIES);
         formatInputs.addAll(inherited.sequencedKeySet());
-        buildExecutor.addStep(FORMAT, new Format(group, configFile, verify), formatInputs);
+        buildExecutor.addStep(FORMAT, new Format(group, configFile, verify, printing), formatInputs);
     }
 
     private record Requires(String group) implements BuildStep {
@@ -105,8 +113,8 @@ public class ScalafmtFormatModule implements BuildExecutorModule {
 
         private final String configFile;
 
-        private Format(String group, String configFile, boolean verify) {
-            super(group, verify);
+        private Format(String group, String configFile, boolean verify, Boolean printing) {
+            super(group, verify, printing == null ? ProcessBuildStep.printing(group) : printing);
             this.configFile = configFile;
         }
 

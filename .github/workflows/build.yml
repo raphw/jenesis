@@ -57,41 +57,42 @@ jobs:
           - { name: java-modular-launcher-strict, dir: demo-06-java-modular-executable, entry: build/jenesis/Project.java, flags: -Djenesis.java.launcher=true -Djenesis.dependency.pin=strict }
           - { name: bundle, dir: demo-07-bundle, entry: build/Demo.java }
           - { name: java-multi-release, dir: demo-08-java-multi-release, entry: build/jenesis/Execute.java }
-          - { name: annotations, dir: demo-09-annotations, entry: build/jenesis/Project.java }
-          - { name: java-quality, dir: demo-10-java-quality, entry: build/jenesis/Project.java }
-          - { name: kotlin, dir: demo-15-kotlin, entry: build/jenesis/Project.java }
-          - { name: kotlin-documentation, dir: demo-15-kotlin, entry: build/jenesis/Project.java, flags: -Djenesis.project.documentation=true }
-          - { name: kotlin-quality, dir: demo-16-kotlin-quality, entry: build/jenesis/Project.java }
-          - { name: scala, dir: demo-18-scala, entry: build/jenesis/Project.java }
-          - { name: scala-documentation, dir: demo-18-scala, entry: build/jenesis/Project.java, flags: -Djenesis.project.documentation=true }
-          - { name: scala-quality, dir: demo-19-scala-quality, entry: build/jenesis/Project.java }
-          - { name: groovy, dir: demo-20-groovy, entry: build/jenesis/Project.java }
-          - { name: groovy-documentation, dir: demo-20-groovy, entry: build/jenesis/Project.java, flags: -Djenesis.project.documentation=true }
-          - { name: groovy-quality, dir: demo-21-groovy-quality, entry: build/jenesis/Project.java }
-          - { name: code-coverage, dir: demo-22-code-coverage, entry: build/jenesis/Project.java }
-          - { name: maven-exclusions, dir: demo-25-maven-exclusions, entry: build/jenesis/Project.java }
-          - { name: module-layout, dir: demo-26-module-layout, entry: build/jenesis/Project.java }
-          - { name: module-classifier, dir: demo-27-module-classifier, entry: build/jenesis/Execute.java }
-          - { name: platform-guard, dir: demo-28-platform-guard, entry: build/jenesis/Execute.java }
-          - { name: platform-guard-legacy, dir: demo-28-platform-guard, entry: build/jenesis/Execute.java, flags: -Djenesis.platform.legacy=true }
-          - { name: platform-guard-pom, dir: demo-29-platform-guard-pom, entry: build/jenesis/Execute.java }
-          - { name: platform-guard-pom-legacy, dir: demo-29-platform-guard-pom, entry: build/jenesis/Execute.java, flags: -Djenesis.platform.legacy=true }
-          - { name: custom-assembler, dir: demo-30-custom-assembler, entry: build/Demo.java }
-          - { name: custom-jmod, dir: demo-31-custom-jmod, entry: build/Demo.java }
-          - { name: internal-module, dir: demo-32-internal-module, entry: build/Demo.java }
-          - { name: external-module, dir: demo-33-external-module, entry: build/Demo.java }
-          - { name: custom-maven, dir: demo-34-custom-maven, entry: build/Demo.java }
-          - { name: custom-modular, dir: demo-35-custom-modular, entry: build/Demo.java }
-          - { name: custom-build, dir: demo-36-custom-build, entry: build/Demo.java }
-          - { name: supply-chain-security, dir: demo-38-supply-chain-security, entry: build/Demo.java }
-          - { name: publishing, dir: demo-39-publishing, entry: build/Demo.java }
-          - { name: kotlin-plugin, dir: demo-17-kotlin-plugin, entry: build/jenesis/Project.java }
-          - { name: sbom, dir: demo-11-sbom, entry: build/jenesis/Project.java }
-          - { name: compliance, dir: demo-12-compliance, entry: build/Demo.java }
-          - { name: vulnerabilities, dir: demo-13-vulnerabilities, entry: build/Demo.java }
-          - { name: profiles, dir: demo-14-profiles, entry: build/jenesis/Project.java, flags: -Djenesis.project.properties=release }
-          - { name: test-selection, dir: demo-23-test-selection, entry: build/Demo.java }
-          - { name: pitest, dir: demo-24-pitest, entry: build/jenesis/Project.java }
+          - { name: javac-arguments, dir: demo-09-javac-arguments, entry: build/jenesis/Execute.java }
+          - { name: annotations, dir: demo-10-annotations, entry: build/jenesis/Project.java }
+          - { name: java-quality, dir: demo-11-java-quality, entry: build/jenesis/Project.java }
+          - { name: kotlin, dir: demo-16-kotlin, entry: build/jenesis/Project.java }
+          - { name: kotlin-documentation, dir: demo-16-kotlin, entry: build/jenesis/Project.java, flags: -Djenesis.project.documentation=true }
+          - { name: kotlin-quality, dir: demo-17-kotlin-quality, entry: build/jenesis/Project.java }
+          - { name: scala, dir: demo-19-scala, entry: build/jenesis/Project.java }
+          - { name: scala-documentation, dir: demo-19-scala, entry: build/jenesis/Project.java, flags: -Djenesis.project.documentation=true }
+          - { name: scala-quality, dir: demo-20-scala-quality, entry: build/jenesis/Project.java }
+          - { name: groovy, dir: demo-21-groovy, entry: build/jenesis/Project.java }
+          - { name: groovy-documentation, dir: demo-21-groovy, entry: build/jenesis/Project.java, flags: -Djenesis.project.documentation=true }
+          - { name: groovy-quality, dir: demo-22-groovy-quality, entry: build/jenesis/Project.java }
+          - { name: code-coverage, dir: demo-23-code-coverage, entry: build/jenesis/Project.java }
+          - { name: maven-exclusions, dir: demo-26-maven-exclusions, entry: build/jenesis/Project.java }
+          - { name: module-layout, dir: demo-27-module-layout, entry: build/jenesis/Project.java }
+          - { name: module-classifier, dir: demo-28-module-classifier, entry: build/jenesis/Execute.java }
+          - { name: platform-guard, dir: demo-29-platform-guard, entry: build/jenesis/Execute.java }
+          - { name: platform-guard-legacy, dir: demo-29-platform-guard, entry: build/jenesis/Execute.java, flags: -Djenesis.platform.legacy=true }
+          - { name: platform-guard-pom, dir: demo-30-platform-guard-pom, entry: build/jenesis/Execute.java }
+          - { name: platform-guard-pom-legacy, dir: demo-30-platform-guard-pom, entry: build/jenesis/Execute.java, flags: -Djenesis.platform.legacy=true }
+          - { name: custom-assembler, dir: demo-31-custom-assembler, entry: build/Demo.java }
+          - { name: custom-jmod, dir: demo-32-custom-jmod, entry: build/Demo.java }
+          - { name: internal-module, dir: demo-33-internal-module, entry: build/Demo.java }
+          - { name: external-module, dir: demo-34-external-module, entry: build/Demo.java }
+          - { name: custom-maven, dir: demo-35-custom-maven, entry: build/Demo.java }
+          - { name: custom-modular, dir: demo-36-custom-modular, entry: build/Demo.java }
+          - { name: custom-build, dir: demo-37-custom-build, entry: build/Demo.java }
+          - { name: supply-chain-security, dir: demo-39-supply-chain-security, entry: build/Demo.java }
+          - { name: publishing, dir: demo-40-publishing, entry: build/Demo.java }
+          - { name: kotlin-plugin, dir: demo-18-kotlin-plugin, entry: build/jenesis/Project.java }
+          - { name: sbom, dir: demo-12-sbom, entry: build/jenesis/Project.java }
+          - { name: compliance, dir: demo-13-compliance, entry: build/Demo.java }
+          - { name: vulnerabilities, dir: demo-14-vulnerabilities, entry: build/Demo.java }
+          - { name: profiles, dir: demo-15-profiles, entry: build/jenesis/Project.java, flags: -Djenesis.project.properties=release }
+          - { name: test-selection, dir: demo-24-test-selection, entry: build/Demo.java }
+          - { name: pitest, dir: demo-25-pitest, entry: build/jenesis/Project.java }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

@@ -16,6 +16,7 @@ import build.jenesis.step.Dependencies;
 import build.jenesis.step.Javac;
 import build.jenesis.step.Javadoc;
 import build.jenesis.step.JdkProcessBuildStep;
+import build.jenesis.step.ProcessBuildStep;
 import build.jenesis.step.ProcessHandler;
 
 public class ScalaDocumentationModule implements BuildExecutorModule {
@@ -36,9 +37,10 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
     private final String group;
     private final String within;
     private final transient Function<List<String>, ? extends ProcessHandler> factory;
+    private final Boolean printing;
 
     public ScalaDocumentationModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, null, "scaladoc", "main", null, null);
+        this(repositories, resolvers, null, "scaladoc", "main", null, null, null);
     }
 
     private ScalaDocumentationModule(Map<String, Repository> repositories,
@@ -47,7 +49,8 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
                                      String tool,
                                      String group,
                                      String within,
-                                     Function<List<String>, ? extends ProcessHandler> factory) {
+                                     Function<List<String>, ? extends ProcessHandler> factory,
+                                     Boolean printing) {
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.pinning = pinning;
@@ -55,26 +58,31 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
         this.group = group;
         this.within = within;
         this.factory = factory;
+        this.printing = printing;
     }
 
     public ScalaDocumentationModule factory(Function<List<String>, ? extends ProcessHandler> factory) {
-        return new ScalaDocumentationModule(repositories, resolvers, pinning, tool, group, within, factory);
+        return new ScalaDocumentationModule(repositories, resolvers, pinning, tool, group, within, factory, printing);
     }
 
     public ScalaDocumentationModule pinning(Pinning pinning) {
-        return new ScalaDocumentationModule(repositories, resolvers, pinning, tool, group, within, factory);
+        return new ScalaDocumentationModule(repositories, resolvers, pinning, tool, group, within, factory, printing);
     }
 
     public ScalaDocumentationModule tool(String tool) {
-        return new ScalaDocumentationModule(repositories, resolvers, pinning, tool, group, within, factory);
+        return new ScalaDocumentationModule(repositories, resolvers, pinning, tool, group, within, factory, printing);
     }
 
     public ScalaDocumentationModule group(String group) {
-        return new ScalaDocumentationModule(repositories, resolvers, pinning, tool, group, within, factory);
+        return new ScalaDocumentationModule(repositories, resolvers, pinning, tool, group, within, factory, printing);
     }
 
     public ScalaDocumentationModule within(String within) {
-        return new ScalaDocumentationModule(repositories, resolvers, pinning, tool, group, within, factory);
+        return new ScalaDocumentationModule(repositories, resolvers, pinning, tool, group, within, factory, printing);
+    }
+
+    public ScalaDocumentationModule printing(boolean printing) {
+        return new ScalaDocumentationModule(repositories, resolvers, pinning, tool, group, within, factory, printing);
     }
 
     @Override
@@ -91,7 +99,7 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
         documentInputs.add(DEPENDENCIES);
         documentInputs.addAll(upstream);
         buildExecutor.addStep(DOCUMENTED,
-                factory == null ? new Document(within, tool, group) : new Document(within, tool, group, factory),
+                factory == null ? new Document(within, tool, group, printing) : new Document(within, tool, group, factory, printing),
                 documentInputs);
     }
 
@@ -146,12 +154,12 @@ public class ScalaDocumentationModule implements BuildExecutorModule {
         private final String tool;
         private final String group;
 
-        private Document(String within, String tool, String group) {
-            this(within, tool, group, ProcessHandler.OfProcess.ofJavaHome("bin/java"));
+        private Document(String within, String tool, String group, Boolean printing) {
+            this(within, tool, group, ProcessHandler.OfProcess.ofJavaHome("bin/java"), printing);
         }
 
-        private Document(String within, String tool, String group, Function<List<String>, ? extends ProcessHandler> factory) {
-            super("scaladoc", factory);
+        private Document(String within, String tool, String group, Function<List<String>, ? extends ProcessHandler> factory, Boolean printing) {
+            super("scaladoc", factory, printing == null ? ProcessBuildStep.printing("scaladoc") : printing);
             this.within = within;
             this.tool = tool;
             this.group = group;

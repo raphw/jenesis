@@ -14,6 +14,7 @@ import build.jenesis.SequencedProperties;
 import build.jenesis.step.Bind;
 import build.jenesis.step.Dependencies;
 import build.jenesis.step.JdkProcessBuildStep;
+import build.jenesis.step.ProcessBuildStep;
 import build.jenesis.step.ProcessHandler;
 
 public class CodeNarcModule implements BuildExecutorModule {
@@ -27,9 +28,10 @@ public class CodeNarcModule implements BuildExecutorModule {
     private final String tool;
     private final String configFile;
     private final boolean strict;
+    private final Boolean printing;
 
     public CodeNarcModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, null, "codenarc", "codenarc.xml", false);
+        this(repositories, resolvers, null, "codenarc", "codenarc.xml", false, null);
     }
 
     private CodeNarcModule(Map<String, Repository> repositories,
@@ -37,13 +39,15 @@ public class CodeNarcModule implements BuildExecutorModule {
                            Pinning pinning,
                            String tool,
                            String configFile,
-                           boolean strict) {
+                           boolean strict,
+                           Boolean printing) {
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.pinning = pinning;
         this.tool = tool;
         this.configFile = configFile;
         this.strict = strict;
+        this.printing = printing;
     }
 
     public static Path configurationFile(SequencedSet<Path> configuration) {
@@ -51,19 +55,23 @@ public class CodeNarcModule implements BuildExecutorModule {
     }
 
     public CodeNarcModule pinning(Pinning pinning) {
-        return new CodeNarcModule(repositories, resolvers, pinning, tool, configFile, strict);
+        return new CodeNarcModule(repositories, resolvers, pinning, tool, configFile, strict, printing);
     }
 
     public CodeNarcModule tool(String tool) {
-        return new CodeNarcModule(repositories, resolvers, pinning, tool, configFile, strict);
+        return new CodeNarcModule(repositories, resolvers, pinning, tool, configFile, strict, printing);
     }
 
     public CodeNarcModule configFile(String configFile) {
-        return new CodeNarcModule(repositories, resolvers, pinning, tool, configFile, strict);
+        return new CodeNarcModule(repositories, resolvers, pinning, tool, configFile, strict, printing);
     }
 
     public CodeNarcModule strict(boolean strict) {
-        return new CodeNarcModule(repositories, resolvers, pinning, tool, configFile, strict);
+        return new CodeNarcModule(repositories, resolvers, pinning, tool, configFile, strict, printing);
+    }
+
+    public CodeNarcModule printing(boolean printing) {
+        return new CodeNarcModule(repositories, resolvers, pinning, tool, configFile, strict, printing);
     }
 
     @Override
@@ -78,7 +86,7 @@ public class CodeNarcModule implements BuildExecutorModule {
         SequencedSet<String> checkInputs = new LinkedHashSet<>();
         checkInputs.add(DEPENDENCIES);
         checkInputs.addAll(inherited.sequencedKeySet());
-        buildExecutor.addStep(CHECK, new Check(tool, configFile, strict), checkInputs);
+        buildExecutor.addStep(CHECK, new Check(tool, configFile, strict, printing), checkInputs);
     }
 
     private record Requires(String tool) implements BuildStep {
@@ -108,8 +116,8 @@ public class CodeNarcModule implements BuildExecutorModule {
         private final String configFile;
         private final boolean strict;
 
-        private Check(String tool, String configFile, boolean strict) {
-            super("codenarc", ProcessHandler.OfProcess.ofJavaHome("bin/java"));
+        private Check(String tool, String configFile, boolean strict, Boolean printing) {
+            super("codenarc", ProcessHandler.OfProcess.ofJavaHome("bin/java"), printing == null ? ProcessBuildStep.printing("codenarc") : printing);
             this.tool = tool;
             this.configFile = configFile;
             this.strict = strict;

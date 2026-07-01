@@ -13,6 +13,7 @@ import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Dependencies;
 import build.jenesis.step.JdkProcessBuildStep;
+import build.jenesis.step.ProcessBuildStep;
 import build.jenesis.step.ProcessHandler;
 
 public class JaCoCoModule implements BuildExecutorModule {
@@ -24,27 +25,34 @@ public class JaCoCoModule implements BuildExecutorModule {
     private final Map<String, Resolver> resolvers;
     private final Pinning pinning;
     private final String tool;
+    private final Boolean printing;
 
     public JaCoCoModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, null, "jacoco");
+        this(repositories, resolvers, null, "jacoco", null);
     }
 
     private JaCoCoModule(Map<String, Repository> repositories,
                          Map<String, Resolver> resolvers,
                          Pinning pinning,
-                         String tool) {
+                         String tool,
+                         Boolean printing) {
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.pinning = pinning;
         this.tool = tool;
+        this.printing = printing;
     }
 
     public JaCoCoModule pinning(Pinning pinning) {
-        return new JaCoCoModule(repositories, resolvers, pinning, tool);
+        return new JaCoCoModule(repositories, resolvers, pinning, tool, printing);
     }
 
     public JaCoCoModule tool(String tool) {
-        return new JaCoCoModule(repositories, resolvers, pinning, tool);
+        return new JaCoCoModule(repositories, resolvers, pinning, tool, printing);
+    }
+
+    public JaCoCoModule printing(boolean printing) {
+        return new JaCoCoModule(repositories, resolvers, pinning, tool, printing);
     }
 
     @Override
@@ -59,7 +67,7 @@ public class JaCoCoModule implements BuildExecutorModule {
         SequencedSet<String> reportInputs = new LinkedHashSet<>();
         reportInputs.add(DEPENDENCIES);
         reportInputs.addAll(inherited.sequencedKeySet());
-        buildExecutor.addStep(REPORT, new Report(tool), reportInputs);
+        buildExecutor.addStep(REPORT, new Report(tool, printing), reportInputs);
     }
 
     private record Requires(String tool) implements BuildStep {
@@ -85,8 +93,8 @@ public class JaCoCoModule implements BuildExecutorModule {
 
         private final String tool;
 
-        private Report(String tool) {
-            super("jacoco", ProcessHandler.OfProcess.ofJavaHome("bin/java"));
+        private Report(String tool, Boolean printing) {
+            super("jacoco", ProcessHandler.OfProcess.ofJavaHome("bin/java"), printing == null ? ProcessBuildStep.printing("jacoco") : printing);
             this.tool = tool;
         }
 

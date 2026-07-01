@@ -14,6 +14,7 @@ import build.jenesis.SequencedProperties;
 import build.jenesis.step.Bind;
 import build.jenesis.step.Dependencies;
 import build.jenesis.step.JdkProcessBuildStep;
+import build.jenesis.step.ProcessBuildStep;
 import build.jenesis.step.ProcessHandler;
 
 public class CheckstyleModule implements BuildExecutorModule {
@@ -30,9 +31,10 @@ public class CheckstyleModule implements BuildExecutorModule {
     private final String tool;
     private final String configFile;
     private final boolean strict;
+    private final Boolean printing;
 
     public CheckstyleModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, null, "checkstyle", "checkstyle.xml", false);
+        this(repositories, resolvers, null, "checkstyle", "checkstyle.xml", false, null);
     }
 
     private CheckstyleModule(Map<String, Repository> repositories,
@@ -40,13 +42,15 @@ public class CheckstyleModule implements BuildExecutorModule {
                              Pinning pinning,
                              String tool,
                              String configFile,
-                             boolean strict) {
+                             boolean strict,
+                             Boolean printing) {
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.pinning = pinning;
         this.tool = tool;
         this.configFile = configFile;
         this.strict = strict;
+        this.printing = printing;
     }
 
     public static Path configurationFile(SequencedSet<Path> configuration) {
@@ -54,19 +58,23 @@ public class CheckstyleModule implements BuildExecutorModule {
     }
 
     public CheckstyleModule pinning(Pinning pinning) {
-        return new CheckstyleModule(repositories, resolvers, pinning, tool, configFile, strict);
+        return new CheckstyleModule(repositories, resolvers, pinning, tool, configFile, strict, printing);
     }
 
     public CheckstyleModule tool(String tool) {
-        return new CheckstyleModule(repositories, resolvers, pinning, tool, configFile, strict);
+        return new CheckstyleModule(repositories, resolvers, pinning, tool, configFile, strict, printing);
     }
 
     public CheckstyleModule configFile(String configFile) {
-        return new CheckstyleModule(repositories, resolvers, pinning, tool, configFile, strict);
+        return new CheckstyleModule(repositories, resolvers, pinning, tool, configFile, strict, printing);
     }
 
     public CheckstyleModule strict(boolean strict) {
-        return new CheckstyleModule(repositories, resolvers, pinning, tool, configFile, strict);
+        return new CheckstyleModule(repositories, resolvers, pinning, tool, configFile, strict, printing);
+    }
+
+    public CheckstyleModule printing(boolean printing) {
+        return new CheckstyleModule(repositories, resolvers, pinning, tool, configFile, strict, printing);
     }
 
     @Override
@@ -81,7 +89,7 @@ public class CheckstyleModule implements BuildExecutorModule {
         SequencedSet<String> checkInputs = new LinkedHashSet<>();
         checkInputs.add(DEPENDENCIES);
         checkInputs.addAll(inherited.sequencedKeySet());
-        buildExecutor.addStep(CHECK, new Check(tool, configFile, strict), checkInputs);
+        buildExecutor.addStep(CHECK, new Check(tool, configFile, strict, printing), checkInputs);
     }
 
     private record Requires(String tool) implements BuildStep {
@@ -109,8 +117,8 @@ public class CheckstyleModule implements BuildExecutorModule {
         private final String configFile;
         private final boolean strict;
 
-        private Check(String tool, String configFile, boolean strict) {
-            super("checkstyle", ProcessHandler.OfProcess.ofJavaHome("bin/java"));
+        private Check(String tool, String configFile, boolean strict, Boolean printing) {
+            super("checkstyle", ProcessHandler.OfProcess.ofJavaHome("bin/java"), printing == null ? ProcessBuildStep.printing("checkstyle") : printing);
             this.tool = tool;
             this.configFile = configFile;
             this.strict = strict;

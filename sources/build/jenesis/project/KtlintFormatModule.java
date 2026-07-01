@@ -13,6 +13,7 @@ import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 import build.jenesis.step.Dependencies;
 import build.jenesis.step.FormatBuildStep;
+import build.jenesis.step.ProcessBuildStep;
 
 public class KtlintFormatModule implements BuildExecutorModule {
 
@@ -27,21 +28,24 @@ public class KtlintFormatModule implements BuildExecutorModule {
     private final Pinning pinning;
     private final String group;
     private final boolean verify;
+    private final Boolean printing;
 
     public KtlintFormatModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, null, "ktlint-format", false);
+        this(repositories, resolvers, null, "ktlint-format", false, null);
     }
 
     private KtlintFormatModule(Map<String, Repository> repositories,
                                Map<String, Resolver> resolvers,
                                Pinning pinning,
                                String group,
-                               boolean verify) {
+                               boolean verify,
+                               Boolean printing) {
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.pinning = pinning;
         this.group = group;
         this.verify = verify;
+        this.printing = printing;
     }
 
     public static Path configurationFile(SequencedSet<Path> configuration) {
@@ -49,15 +53,19 @@ public class KtlintFormatModule implements BuildExecutorModule {
     }
 
     public KtlintFormatModule pinning(Pinning pinning) {
-        return new KtlintFormatModule(repositories, resolvers, pinning, group, verify);
+        return new KtlintFormatModule(repositories, resolvers, pinning, group, verify, printing);
     }
 
     public KtlintFormatModule group(String group) {
-        return new KtlintFormatModule(repositories, resolvers, pinning, group, verify);
+        return new KtlintFormatModule(repositories, resolvers, pinning, group, verify, printing);
     }
 
     public KtlintFormatModule verify(boolean verify) {
-        return new KtlintFormatModule(repositories, resolvers, pinning, group, verify);
+        return new KtlintFormatModule(repositories, resolvers, pinning, group, verify, printing);
+    }
+
+    public KtlintFormatModule printing(boolean printing) {
+        return new KtlintFormatModule(repositories, resolvers, pinning, group, verify, printing);
     }
 
     @Override
@@ -72,7 +80,7 @@ public class KtlintFormatModule implements BuildExecutorModule {
         SequencedSet<String> formatInputs = new LinkedHashSet<>();
         formatInputs.add(DEPENDENCIES);
         formatInputs.addAll(inherited.sequencedKeySet());
-        buildExecutor.addStep(FORMAT, new Format(group, verify), formatInputs);
+        buildExecutor.addStep(FORMAT, new Format(group, verify, printing), formatInputs);
     }
 
     private record Requires(String group) implements BuildStep {
@@ -96,8 +104,8 @@ public class KtlintFormatModule implements BuildExecutorModule {
 
     private static class Format extends FormatBuildStep {
 
-        private Format(String group, boolean verify) {
-            super(group, verify);
+        private Format(String group, boolean verify, Boolean printing) {
+            super(group, verify, printing == null ? ProcessBuildStep.printing(group) : printing);
         }
 
         @Override

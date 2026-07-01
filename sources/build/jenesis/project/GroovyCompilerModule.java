@@ -15,6 +15,7 @@ import build.jenesis.step.Bind;
 import build.jenesis.step.Dependencies;
 import build.jenesis.step.Javac;
 import build.jenesis.step.JdkProcessBuildStep;
+import build.jenesis.step.ProcessBuildStep;
 import build.jenesis.step.ProcessHandler;
 import build.jenesis.step.Versions;
 
@@ -36,9 +37,10 @@ public class GroovyCompilerModule implements BuildExecutorModule {
     private final String tool;
     private final String group;
     private final transient Function<List<String>, ? extends ProcessHandler> factory;
+    private final Boolean printing;
 
     public GroovyCompilerModule(Map<String, Repository> repositories, Map<String, Resolver> resolvers) {
-        this(repositories, resolvers, null, true, "groovyc", "main", null);
+        this(repositories, resolvers, null, true, "groovyc", "main", null, null);
     }
 
     private GroovyCompilerModule(Map<String, Repository> repositories,
@@ -47,7 +49,8 @@ public class GroovyCompilerModule implements BuildExecutorModule {
                                  boolean includeResources,
                                  String tool,
                                  String group,
-                                 Function<List<String>, ? extends ProcessHandler> factory) {
+                                 Function<List<String>, ? extends ProcessHandler> factory,
+                                 Boolean printing) {
         this.repositories = repositories;
         this.resolvers = resolvers;
         this.pinning = pinning;
@@ -55,26 +58,31 @@ public class GroovyCompilerModule implements BuildExecutorModule {
         this.tool = tool;
         this.group = group;
         this.factory = factory;
+        this.printing = printing;
     }
 
     public GroovyCompilerModule factory(Function<List<String>, ? extends ProcessHandler> factory) {
-        return new GroovyCompilerModule(repositories, resolvers, pinning, includeResources, tool, group, factory);
+        return new GroovyCompilerModule(repositories, resolvers, pinning, includeResources, tool, group, factory, printing);
     }
 
     public GroovyCompilerModule pinning(Pinning pinning) {
-        return new GroovyCompilerModule(repositories, resolvers, pinning, includeResources, tool, group, factory);
+        return new GroovyCompilerModule(repositories, resolvers, pinning, includeResources, tool, group, factory, printing);
     }
 
     public GroovyCompilerModule includeResources(boolean includeResources) {
-        return new GroovyCompilerModule(repositories, resolvers, pinning, includeResources, tool, group, factory);
+        return new GroovyCompilerModule(repositories, resolvers, pinning, includeResources, tool, group, factory, printing);
     }
 
     public GroovyCompilerModule tool(String tool) {
-        return new GroovyCompilerModule(repositories, resolvers, pinning, includeResources, tool, group, factory);
+        return new GroovyCompilerModule(repositories, resolvers, pinning, includeResources, tool, group, factory, printing);
     }
 
     public GroovyCompilerModule group(String group) {
-        return new GroovyCompilerModule(repositories, resolvers, pinning, includeResources, tool, group, factory);
+        return new GroovyCompilerModule(repositories, resolvers, pinning, includeResources, tool, group, factory, printing);
+    }
+
+    public GroovyCompilerModule printing(boolean printing) {
+        return new GroovyCompilerModule(repositories, resolvers, pinning, includeResources, tool, group, factory, printing);
     }
 
     @Override
@@ -91,7 +99,7 @@ public class GroovyCompilerModule implements BuildExecutorModule {
         compileInputs.add(DEPENDENCIES);
         compileInputs.addAll(upstream);
         buildExecutor.addStep(COMPILED,
-                factory == null ? new Compile(includeResources, tool, group) : new Compile(includeResources, tool, group, factory),
+                factory == null ? new Compile(includeResources, tool, group, printing) : new Compile(includeResources, tool, group, factory, printing),
                 compileInputs);
         buildExecutor.addStep(CLASSES, new Versions(), Stream.concat(
                 Stream.of(COMPILED),
@@ -151,12 +159,12 @@ public class GroovyCompilerModule implements BuildExecutorModule {
         private final String tool;
         private final String group;
 
-        private Compile(boolean includeResources, String tool, String group) {
-            this(includeResources, tool, group, ProcessHandler.OfProcess.ofJavaHome("bin/java"));
+        private Compile(boolean includeResources, String tool, String group, Boolean printing) {
+            this(includeResources, tool, group, ProcessHandler.OfProcess.ofJavaHome("bin/java"), printing);
         }
 
-        private Compile(boolean includeResources, String tool, String group, Function<List<String>, ? extends ProcessHandler> factory) {
-            super("groovyc", factory);
+        private Compile(boolean includeResources, String tool, String group, Function<List<String>, ? extends ProcessHandler> factory, Boolean printing) {
+            super("groovyc", factory, printing == null ? ProcessBuildStep.printing("groovyc") : printing);
             this.includeResources = includeResources;
             this.tool = tool;
             this.group = group;
