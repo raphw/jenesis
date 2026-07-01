@@ -24,10 +24,39 @@ public abstract class ProcessBuildStep implements BuildStep {
 
     protected final transient Function<List<String>, ? extends ProcessHandler> factory;
     private final String command;
+    protected final transient boolean verbose;
 
     protected ProcessBuildStep(String command, Function<List<String>, ? extends ProcessHandler> factory) {
+        this(command, factory, printing(command));
+    }
+
+    protected ProcessBuildStep(String command,
+                               Function<List<String>, ? extends ProcessHandler> factory,
+                               boolean verbose) {
         this.command = command;
         this.factory = factory;
+        this.verbose = verbose;
+    }
+
+    protected static boolean printing(String command) {
+        String specific = System.getProperty("jenesis.print." + command);
+        return specific == null
+                ? Boolean.getBoolean("jenesis.print.process")
+                : Boolean.parseBoolean(specific);
+    }
+
+    protected ProcessHandler.Tee tee(Executor executor, ProcessHandler handler) {
+        if (!verbose) {
+            return null;
+        }
+        System.out.println(paint(66, command + " >>>> " + String.join(" ", handler.commands())));
+        return new ProcessHandler.Tee(executor,
+                line -> System.out.println(paint(244, command + " >>>> " + line)),
+                line -> System.out.println(paint(131, command + " >>>> " + line)));
+    }
+
+    private static String paint(int code, String text) {
+        return "\033[38;5;" + code + "m" + text + BuildExecutorCallback.RESET;
     }
 
     protected abstract CompletionStage<List<String>> process(Executor executor,
@@ -81,6 +110,7 @@ public abstract class ProcessBuildStep implements BuildStep {
                 Path output = context.supplement().resolve("output"), error = context.supplement().resolve("error");
                 ProcessHandler handler = factory.apply(Stream.concat(prepended.stream(), processed.stream()).toList());
                 Files.writeString(context.supplement().resolve("command"), String.join(" ", handler.commands()));
+                ProcessHandler.Tee tee = tee(executor, handler);
                 if (Boolean.getBoolean("jenesis.print.command")) {
                     System.out.printf("%s%-11s%s %s%n",
                         BuildExecutorCallback.YELLOW,
@@ -91,7 +121,7 @@ public abstract class ProcessBuildStep implements BuildStep {
                 executor.execute(() -> {
                     worker.set(Thread.currentThread());
                     try {
-                        int exitCode = handler.execute(output, error);
+                        int exitCode = handler.execute(output, error, tee);
                         if (acceptableExitCode(exitCode, executor, context, arguments)) {
                             future.complete(new BuildStepResult(true));
                         } else {

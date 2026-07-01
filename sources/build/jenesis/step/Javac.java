@@ -20,14 +20,15 @@ public class Javac extends JdkProcessBuildStep {
     private final String group;
 
     public Javac(ProcessHandler.Factory factory) {
-        this(factory.apply("javac", "bin/javac"), true, PathPlacement.INFERRED, "main");
+        this(factory.apply("javac", "bin/javac"), true, PathPlacement.INFERRED, "main", printing("javac"));
     }
 
     private Javac(Function<List<String>, ? extends ProcessHandler> factory,
                   boolean includeResources,
                   PathPlacement pathPlacement,
-                  String group) {
-        super("javac", factory);
+                  String group,
+                  boolean verbose) {
+        super("javac", factory, verbose);
         this.includeResources = includeResources;
         this.pathPlacement = pathPlacement;
         this.group = group;
@@ -44,15 +45,19 @@ public class Javac extends JdkProcessBuildStep {
     }
 
     public Javac includeResources(boolean includeResources) {
-        return new Javac(factory, includeResources, pathPlacement, group);
+        return new Javac(factory, includeResources, pathPlacement, group, verbose);
     }
 
     public Javac pathPlacement(PathPlacement pathPlacement) {
-        return new Javac(factory, includeResources, pathPlacement, group);
+        return new Javac(factory, includeResources, pathPlacement, group, verbose);
     }
 
     public Javac group(String group) {
-        return new Javac(factory, includeResources, pathPlacement, group);
+        return new Javac(factory, includeResources, pathPlacement, group, verbose);
+    }
+
+    public Javac verbose(boolean verbose) {
+        return new Javac(factory, includeResources, pathPlacement, group, verbose);
     }
 
     @Override
@@ -400,10 +405,11 @@ public class Javac extends JdkProcessBuildStep {
         Path error = context.supplement().resolve("error-" + release);
         ProcessHandler handler = factory.apply(commands);
         Files.writeString(context.supplement().resolve("command-" + release), String.join(" ", handler.commands()));
+        ProcessHandler.Tee tee = tee(executor, handler);
         CompletableFuture<Void> future = new CompletableFuture<>();
         executor.execute(() -> {
             try {
-                int exitCode = handler.execute(output, error);
+                int exitCode = handler.execute(output, error, tee);
                 if (exitCode == 0) {
                     future.complete(null);
                 } else {

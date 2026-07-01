@@ -11,7 +11,15 @@ public class JMod extends JdkProcessBuildStep {
     public static final String CONFIG = "jmodconfig/", LIBRARIES = "jmodlibs/", COMMANDS = "jmodcmds/";
 
     public JMod(ProcessHandler.Factory factory) {
-        super("jmod", factory.apply("jmod", "bin/jmod"));
+        this(factory.apply("jmod", "bin/jmod"), printing("jmod"));
+    }
+
+    private JMod(Function<List<String>, ? extends ProcessHandler> factory, boolean verbose) {
+        super("jmod", factory, verbose);
+    }
+
+    public JMod verbose(boolean verbose) {
+        return new JMod(factory, verbose);
     }
 
     @Override

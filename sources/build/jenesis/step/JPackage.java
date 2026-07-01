@@ -18,19 +18,21 @@ public class JPackage extends JdkProcessBuildStep {
     }
 
     public JPackage(ProcessHandler.Factory factory, String type) {
-        super("jpackage", factory.apply("jpackage", "bin/jpackage"));
-        this.type = type;
-        this.group = "main";
+        this(factory.apply("jpackage", "bin/jpackage"), type, "main", printing("jpackage"));
     }
 
-    private JPackage(Function<List<String>, ? extends ProcessHandler> factory, String type, String group) {
-        super("jpackage", factory);
+    private JPackage(Function<List<String>, ? extends ProcessHandler> factory, String type, String group, boolean verbose) {
+        super("jpackage", factory, verbose);
         this.type = type;
         this.group = group;
     }
 
     public JPackage group(String group) {
-        return new JPackage(factory, type, group);
+        return new JPackage(factory, type, group, verbose);
+    }
+
+    public JPackage verbose(boolean verbose) {
+        return new JPackage(factory, type, group, verbose);
     }
 
     @Override

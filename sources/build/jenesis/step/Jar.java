@@ -11,8 +11,16 @@ public class Jar extends JdkProcessBuildStep {
     private final Sort sort;
 
     public Jar(ProcessHandler.Factory factory, Sort sort) {
-        super("jar", factory.apply("jar", "bin/jar"));
+        this(factory.apply("jar", "bin/jar"), sort, printing("jar"));
+    }
+
+    private Jar(Function<List<String>, ? extends ProcessHandler> factory, Sort sort, boolean verbose) {
+        super("jar", factory, verbose);
         this.sort = sort;
+    }
+
+    public Jar verbose(boolean verbose) {
+        return new Jar(factory, sort, verbose);
     }
 
     @Override

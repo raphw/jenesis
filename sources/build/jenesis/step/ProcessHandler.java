@@ -6,7 +6,10 @@ public sealed interface ProcessHandler permits ProcessHandler.OfTool, ProcessHan
 
     List<String> commands();
 
-    int execute(Path output, Path error) throws IOException;
+    int execute(Path output, Path error, Tee tee) throws IOException;
+
+    record Tee(Executor executor, Consumer<String> out, Consumer<String> err) {
+    }
 
     enum Factory {
         TOOL {
@@ -66,10 +69,59 @@ public sealed interface ProcessHandler permits ProcessHandler.OfTool, ProcessHan
         }
 
         @Override
-        public int execute(Path output, Path error) throws IOException {
-            try (PrintWriter out = new PrintWriter(Files.newBufferedWriter(output));
-                 PrintWriter err = new PrintWriter(Files.newBufferedWriter(error))) {
+        public int execute(Path output, Path error, Tee tee) throws IOException {
+            if (tee == null) {
+                try (PrintWriter out = new PrintWriter(Files.newBufferedWriter(output));
+                     PrintWriter err = new PrintWriter(Files.newBufferedWriter(error))) {
+                    return toolProvider.run(out, err, commands.toArray(String[]::new));
+                }
+            }
+            try (PrintWriter out = new PrintWriter(new LineTee(Files.newBufferedWriter(output), tee.out()), true);
+                 PrintWriter err = new PrintWriter(new LineTee(Files.newBufferedWriter(error), tee.err()), true)) {
                 return toolProvider.run(out, err, commands.toArray(String[]::new));
+            }
+        }
+
+        private static final class LineTee extends Writer {
+
+            private final Writer delegate;
+            private final Consumer<String> consumer;
+            private final StringBuilder line = new StringBuilder();
+
+            private LineTee(Writer delegate, Consumer<String> consumer) {
+                this.delegate = delegate;
+                this.consumer = consumer;
+            }
+
+            @Override
+            public void write(char[] buffer, int offset, int length) throws IOException {
+                delegate.write(buffer, offset, length);
+                for (int index = 0; index < length; index++) {
+                    char character = buffer[offset + index];
+                    if (character == '\n') {
+                        consumer.accept(line.toString());
+                        line.setLength(0);
+                    } else if (character != '\r') {
+                        line.append(character);
+                    }
+                }
+            }
+
+            @Override
+            public void flush() throws IOException {
+                delegate.flush();
+            }
+
+            @Override
+            public void close() throws IOException {
+                try {
+                    if (!line.isEmpty()) {
+                        consumer.accept(line.toString());
+                        line.setLength(0);
+                    }
+                } finally {
+                    delegate.close();
+                }
             }
         }
     }
@@ -148,17 +200,38 @@ public sealed interface ProcessHandler permits ProcessHandler.OfTool, ProcessHan
         }
 
         @Override
-        public int execute(Path output, Path error) throws IOException {
-            ProcessBuilder builder = new ProcessBuilder(commands)
-                    .redirectOutput(output.toFile())
-                    .redirectError(error.toFile());
+        public int execute(Path output, Path error, Tee tee) throws IOException {
+            ProcessBuilder builder = new ProcessBuilder(commands);
+            if (tee == null) {
+                builder.redirectOutput(output.toFile()).redirectError(error.toFile());
+            }
             builder.environment().putIfAbsent("COLUMNS", "80");
             builder.environment().putIfAbsent("LINES", "24");
             builder.environment().putIfAbsent("TERM", "dumb");
             Process process = builder.start();
             process.getOutputStream().close();
+            CompletableFuture<Void> errored = null;
+            if (tee != null) {
+                CompletableFuture<Void> target = new CompletableFuture<>();
+                errored = target;
+                tee.executor().execute(() -> {
+                    try {
+                        drain(process.getErrorStream(), error, tee.err());
+                        target.complete(null);
+                    } catch (Throwable t) {
+                        target.completeExceptionally(t);
+                    }
+                });
+            }
             try {
-                return process.waitFor();
+                if (tee != null) {
+                    drain(process.getInputStream(), output, tee.out());
+                }
+                int code = process.waitFor();
+                if (errored != null) {
+                    errored.join();
+                }
+                return code;
             } catch (InterruptedException e) {
                 process.destroyForcibly();
                 try {
@@ -167,6 +240,19 @@ public sealed interface ProcessHandler permits ProcessHandler.OfTool, ProcessHan
                 }
                 Thread.currentThread().interrupt();
                 throw new RuntimeException(e);
+            }
+        }
+
+        private static void drain(InputStream stream, Path file, Consumer<String> consumer) throws IOException {
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, Charset.defaultCharset()));
+                 BufferedWriter writer = Files.newBufferedWriter(file, Charset.defaultCharset())) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    writer.write(line);
+                    writer.newLine();
+                    writer.flush();
+                    consumer.accept(line);
+                }
             }
         }
     }

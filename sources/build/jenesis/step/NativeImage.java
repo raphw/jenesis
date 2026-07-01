@@ -21,19 +21,24 @@ public class NativeImage extends JdkProcessBuildStep {
     }
 
     public NativeImage(PathPlacement pathPlacement, Function<List<String>, ? extends ProcessHandler> factory) {
-        this(pathPlacement, factory, "main");
+        this(pathPlacement, factory, "main", printing("native-image"));
     }
 
     private NativeImage(PathPlacement pathPlacement,
                         Function<List<String>, ? extends ProcessHandler> factory,
-                        String group) {
-        super("native-image", factory);
+                        String group,
+                        boolean verbose) {
+        super("native-image", factory, verbose);
         this.pathPlacement = pathPlacement;
         this.group = group;
     }
 
     public NativeImage group(String group) {
-        return new NativeImage(pathPlacement, factory, group);
+        return new NativeImage(pathPlacement, factory, group, verbose);
+    }
+
+    public NativeImage verbose(boolean verbose) {
+        return new NativeImage(pathPlacement, factory, group, verbose);
     }
 
     @Override

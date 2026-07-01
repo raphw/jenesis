@@ -13,16 +13,20 @@ public class JLink extends JdkProcessBuildStep {
     private final String group;
 
     public JLink(ProcessHandler.Factory factory) {
-        this(factory.apply("jlink", "bin/jlink"), "main");
+        this(factory.apply("jlink", "bin/jlink"), "main", printing("jlink"));
     }
 
-    private JLink(Function<List<String>, ? extends ProcessHandler> factory, String group) {
-        super("jlink", factory);
+    private JLink(Function<List<String>, ? extends ProcessHandler> factory, String group, boolean verbose) {
+        super("jlink", factory, verbose);
         this.group = group;
     }
 
     public JLink group(String group) {
-        return new JLink(factory, group);
+        return new JLink(factory, group, verbose);
+    }
+
+    public JLink verbose(boolean verbose) {
+        return new JLink(factory, group, verbose);
     }
 
     @Override

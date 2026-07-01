@@ -13,32 +13,19 @@ public abstract class Java extends JdkProcessBuildStep {
     protected final boolean jarsOnly;
     protected final String group;
 
-    protected Java() {
-        this(PathPlacement.CLASS_PATH, true);
-    }
-
-    protected Java(PathPlacement pathPlacement, boolean jarsOnly) {
-        super("java", ProcessHandler.OfProcess.ofJavaHome("bin/java"));
-        this.pathPlacement = pathPlacement;
-        this.jarsOnly = jarsOnly;
-        this.group = "main";
-    }
-
-    protected Java(Function<List<String>, ? extends ProcessHandler> factory) {
-        this(factory, PathPlacement.CLASS_PATH, true);
-    }
-
     protected Java(Function<List<String>, ? extends ProcessHandler> factory,
                    PathPlacement pathPlacement,
-                   boolean jarsOnly) {
-        this(factory, pathPlacement, jarsOnly, "main");
+                   boolean jarsOnly,
+                   String group) {
+        this(factory, pathPlacement, jarsOnly, group, printing("java"));
     }
 
     protected Java(Function<List<String>, ? extends ProcessHandler> factory,
                    PathPlacement pathPlacement,
                    boolean jarsOnly,
-                   String group) {
-        super("java", factory);
+                   String group,
+                   boolean verbose) {
+        super("java", factory, verbose);
         this.pathPlacement = pathPlacement;
         this.jarsOnly = jarsOnly;
         this.group = group;
@@ -57,7 +44,7 @@ public abstract class Java extends JdkProcessBuildStep {
     }
 
     public static Java of(PathPlacement pathPlacement, boolean jarsOnly, List<String> commands) {
-        return new Java(pathPlacement, jarsOnly) {
+        return new Java(ProcessHandler.OfProcess.ofJavaHome("bin/java"), pathPlacement, jarsOnly, "main") {
             @Override
             protected CompletionStage<List<String>> commands(Executor executor,
                                                              BuildStepContext context,
@@ -86,7 +73,7 @@ public abstract class Java extends JdkProcessBuildStep {
                           PathPlacement pathPlacement,
                           boolean jarsOnly,
                           List<String> commands) {
-        return new Java(factory, pathPlacement, jarsOnly) {
+        return new Java(factory, pathPlacement, jarsOnly, "main") {
             @Override
             protected CompletionStage<List<String>> commands(Executor executor,
                                                              BuildStepContext context,
@@ -98,7 +85,20 @@ public abstract class Java extends JdkProcessBuildStep {
 
     public Java group(String group) {
         Java self = this;
-        return new Java(factory, pathPlacement, jarsOnly, group) {
+        return new Java(factory, pathPlacement, jarsOnly, group, verbose) {
+            @Override
+            protected CompletionStage<List<String>> commands(Executor executor,
+                                                             BuildStepContext context,
+                                                             SequencedMap<String, BuildStepArgument> arguments)
+                    throws IOException {
+                return self.commands(executor, context, arguments);
+            }
+        };
+    }
+
+    public Java verbose(boolean verbose) {
+        Java self = this;
+        return new Java(factory, pathPlacement, jarsOnly, group, verbose) {
             @Override
             protected CompletionStage<List<String>> commands(Executor executor,
                                                              BuildStepContext context,

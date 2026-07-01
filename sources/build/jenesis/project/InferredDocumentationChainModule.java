@@ -138,13 +138,13 @@ public class InferredDocumentationChainModule implements BuildExecutorModule {
                 outputs.add(SCALADOC);
             } else if (hasJava && !hasKotlin && !hasScala && !hasGroovy) {
                 buildExecutor.addStep(JAVADOC,
-                        new Javadoc(ProcessHandler.Factory.of()).classpath(),
+                        new Javadoc(ProcessHandler.Factory.of()).classpath(true),
                         sourceInputs);
                 outputs.add(JAVADOC);
             } else {
                 if (hasJava) {
                     buildExecutor.addStep(JAVADOC,
-                            new Javadoc(ProcessHandler.Factory.of()).classpath(),
+                            new Javadoc(ProcessHandler.Factory.of()).classpath(true),
                             sourceInputs);
                     outputs.add(JAVADOC);
                 }
