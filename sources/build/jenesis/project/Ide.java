@@ -64,7 +64,8 @@ public class Ide implements BuildStep {
                 continue;
             }
             Path content = path.isEmpty() ? base : base.resolve(path).normalize();
-            String name = name(path, base);
+            String module = inventory.getProperty(prefix + ".module");
+            String name = module == null || module.isEmpty() ? name(path, base) : module;
             boolean test = inventory.getProperty(prefix + ".test") != null;
             List<String> coordinates = new ArrayList<>();
             List<Path> jars = new ArrayList<>();
@@ -137,8 +138,7 @@ public class Ide implements BuildStep {
             Path name = base.getFileName();
             return name == null ? "root" : name.toString();
         }
-        int slash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
-        return slash < 0 ? path : path.substring(slash + 1);
+        return path.replace('/', '.').replace('\\', '.');
     }
 
     private static String prefix(SequencedProperties inventory) {

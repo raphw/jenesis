@@ -65,6 +65,62 @@ public class IdeTest {
     }
 
     @Test
+    public void idea_names_module_by_jpms_module_property() throws IOException {
+        Files.createDirectories(root.resolve("greeter"));
+        Files.createDirectories(root.resolve("app"));
+        Path greeter = inventory("module-greeter", properties -> {
+            properties.setProperty("module-greeter.path", "greeter");
+            properties.setProperty("module-greeter.module", "org.example.greeter");
+            properties.setProperty("module-greeter.identity.0", "maven/org.example/greeter/1.0");
+        });
+        Path app = inventory("module-app", properties -> {
+            properties.setProperty("module-app.path", "app");
+            properties.setProperty("module-app.dependency.0", "maven/org.example/greeter/1.0 lib/greeter.jar");
+        });
+
+        run(Ide.IDEA, greeter, app);
+
+        assertThat(root.resolve("greeter").resolve("org.example.greeter.iml")).exists();
+        String modules = Files.readString(root.resolve(".idea").resolve("modules.xml"));
+        assertThat(modules).contains("$PROJECT_DIR$/greeter/org.example.greeter.iml");
+        String iml = Files.readString(root.resolve("app").resolve("app.iml"));
+        assertThat(iml).contains("<orderEntry type=\"module\" module-name=\"org.example.greeter\"/>");
+    }
+
+    @Test
+    public void idea_keeps_colliding_basenames_distinct() throws IOException {
+        Files.createDirectories(root.resolve("store").resolve("spi"));
+        Files.createDirectories(root.resolve("format").resolve("spi"));
+        Files.createDirectories(root.resolve("app"));
+        Path store = inventory("module-store", properties -> {
+            properties.setProperty("module-store.path", "store/spi");
+            properties.setProperty("module-store.module", "app.store");
+            properties.setProperty("module-store.identity.0", "maven/org.example/store/1.0");
+        });
+        Path format = inventory("module-format", properties -> {
+            properties.setProperty("module-format.path", "format/spi");
+            properties.setProperty("module-format.module", "app.format");
+            properties.setProperty("module-format.identity.0", "maven/org.example/format/1.0");
+        });
+        Path app = inventory("module-app", properties -> {
+            properties.setProperty("module-app.path", "app");
+            properties.setProperty("module-app.dependency.0", "maven/org.example/store/1.0 lib/store.jar");
+            properties.setProperty("module-app.dependency.1", "maven/org.example/format/1.0 lib/format.jar");
+        });
+
+        run(Ide.IDEA, store, format, app);
+
+        String iml = Files.readString(root.resolve("app").resolve("app.iml"));
+        assertThat(iml).contains("<orderEntry type=\"module\" module-name=\"app.store\"/>");
+        assertThat(iml).contains("<orderEntry type=\"module\" module-name=\"app.format\"/>");
+        assertThat(root.resolve("store").resolve("spi").resolve("app.store.iml")).exists();
+        assertThat(root.resolve("format").resolve("spi").resolve("app.format.iml")).exists();
+        String modules = Files.readString(root.resolve(".idea").resolve("modules.xml"));
+        assertThat(modules).contains("$PROJECT_DIR$/store/spi/app.store.iml");
+        assertThat(modules).contains("$PROJECT_DIR$/format/spi/app.format.iml");
+    }
+
+    @Test
     public void eclipse_writes_project_and_classpath() throws IOException {
         Files.createDirectories(root.resolve("greeter").resolve("sources"));
         Files.createDirectories(root.resolve("greeter").resolve("test"));
