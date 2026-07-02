@@ -50,6 +50,8 @@ public class ModuleInfoParser {
             }
             SequencedMap<String, String> versions = new LinkedHashMap<>();
             SequencedMap<String, SequencedMap<String, String>> variants = new LinkedHashMap<>();
+            SequencedMap<String, String> boms = new LinkedHashMap<>();
+            SequencedMap<String, SequencedMap<String, String>> bomVariants = new LinkedHashMap<>();
             SequencedMap<String, String> plugins = new LinkedHashMap<>();
             String release = null;
             String name = null;
@@ -105,33 +107,79 @@ public class ModuleInfoParser {
                                         || token.startsWith("java.") || token.startsWith("jdk.")) {
                                     continue;
                                 }
-                                String key;
-                                int firstSlash = token.indexOf('/');
-                                int secondSlash = firstSlash < 0 ? -1 : token.indexOf('/', firstSlash + 1);
-                                if (firstSlash < 0) {
-                                    key = group + "/module/" + token;
-                                } else if (secondSlash < 0) {
-                                    if (firstSlash < 1 || firstSlash == token.length() - 1) {
-                                        throw new IllegalArgumentException("Malformed @jenesis.pin token '"
-                                                + token
-                                                + "': expected <module>, <groupId>/<artifactId>,"
-                                                + " or <group>/<repository>/<coordinate>");
-                                    }
-                                    key = group + "/maven/" + token;
-                                } else {
-                                    if (firstSlash < 1 || secondSlash == firstSlash + 1
-                                            || secondSlash == token.length() - 1) {
-                                        throw new IllegalArgumentException("Malformed @jenesis.pin token '"
-                                                + token
-                                                + "': expected <module>, <groupId>/<artifactId>,"
-                                                + " or <group>/<repository>/<coordinate>");
-                                    }
-                                    key = token;
-                                }
+                                String key = expand("jenesis.pin", token);
                                 if (guard == null) {
                                     versions.put(key, version);
                                 } else {
                                     variants.computeIfAbsent(key, _ -> new LinkedHashMap<>()).put(guard, version);
+                                }
+                            }
+                            case "jenesis.bom" -> {
+                                String bom = content.replaceAll("\\s+", " ").trim();
+                                String guard = null;
+                                if (bom.endsWith("]")) {
+                                    int bracket = bom.lastIndexOf('[');
+                                    if (bracket < 0) {
+                                        throw new IllegalArgumentException("Malformed @jenesis.bom guard '"
+                                                + bom
+                                                + "': expected <value> [<token>,<token>...]");
+                                    }
+                                    guard = Platform.of(bom.substring(bracket + 1, bom.length() - 1)).canonical();
+                                    bom = bom.substring(0, bracket).trim();
+                                }
+                                if (bom.isEmpty()) {
+                                    continue;
+                                }
+                                String[] words = bom.split(" ");
+                                String token = words[0], key, value;
+                                String last = token.substring(token.lastIndexOf('/') + 1);
+                                if (last.startsWith("bom-") && last.endsWith(".properties")) {
+                                    if (words.length > 1) {
+                                        throw new IllegalArgumentException("Malformed @jenesis.bom declaration '"
+                                                + bom
+                                                + "': a local BOM takes no version or checksum");
+                                    }
+                                    int first = token.indexOf('/');
+                                    String qualifier = first < 0 ? group : token.substring(0, first);
+                                    if (qualifier.isEmpty() || first != token.lastIndexOf('/')) {
+                                        throw new IllegalArgumentException("Malformed @jenesis.bom token '"
+                                                + token
+                                                + "': expected [<group>/]bom-<name>.properties");
+                                    }
+                                    key = qualifier + "/" + last;
+                                    value = "";
+                                } else {
+                                    key = expand("jenesis.bom", token);
+                                    int first = key.indexOf('/');
+                                    int second = key.indexOf('/', first + 1);
+                                    if (!key.substring(first + 1, second).equals("module")) {
+                                        throw new IllegalArgumentException("Malformed @jenesis.bom token '"
+                                                + token
+                                                + "': BOM artifacts are fetched from the module repository");
+                                    }
+                                    if (words.length > 3) {
+                                        throw new IllegalArgumentException("Malformed @jenesis.bom declaration '"
+                                                + bom
+                                                + "': expected <token> [<version> [<algorithm>/<hash>]]");
+                                    }
+                                    String version = words.length > 1 ? words[1] : "";
+                                    if (version.startsWith(":")) {
+                                        throw new IllegalArgumentException("Malformed @jenesis.bom version '"
+                                                + version
+                                                + "': a BOM cannot carry a classifier");
+                                    }
+                                    String checksum = words.length > 2 ? words[2] : "";
+                                    if (!checksum.isEmpty() && checksum.indexOf('/') < 1) {
+                                        throw new IllegalArgumentException("Malformed @jenesis.bom checksum '"
+                                                + checksum
+                                                + "': expected <algorithm>/<hash>");
+                                    }
+                                    value = checksum.isEmpty() ? version : version + " " + checksum;
+                                }
+                                if (guard == null) {
+                                    boms.put(key, value);
+                                } else {
+                                    bomVariants.computeIfAbsent(key, _ -> new LinkedHashMap<>()).put(guard, value);
                                 }
                             }
                             case "jenesis.plugin" -> {
@@ -175,8 +223,34 @@ public class ModuleInfoParser {
                     runtimeDependencies,
                     plugins,
                     versions,
-                    variants);
+                    variants,
+                    boms,
+                    bomVariants);
         }
         throw new IllegalArgumentException("Expected module-info.java to contain module information");
+    }
+
+    private String expand(String tag, String token) {
+        int firstSlash = token.indexOf('/');
+        int secondSlash = firstSlash < 0 ? -1 : token.indexOf('/', firstSlash + 1);
+        if (firstSlash < 0) {
+            return group + "/module/" + token;
+        } else if (secondSlash < 0) {
+            if (firstSlash < 1 || firstSlash == token.length() - 1) {
+                throw new IllegalArgumentException("Malformed @" + tag + " token '"
+                        + token
+                        + "': expected <module>, <groupId>/<artifactId>,"
+                        + " or <group>/<repository>/<coordinate>");
+            }
+            return group + "/maven/" + token;
+        } else {
+            if (firstSlash < 1 || secondSlash == firstSlash + 1 || secondSlash == token.length() - 1) {
+                throw new IllegalArgumentException("Malformed @" + tag + " token '"
+                        + token
+                        + "': expected <module>, <groupId>/<artifactId>,"
+                        + " or <group>/<repository>/<coordinate>");
+            }
+            return token;
+        }
     }
 }

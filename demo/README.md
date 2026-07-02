@@ -98,6 +98,7 @@ Quick index
 | 40 | [`publishing`](demo-40-publishing/README.md)                 | Assemble a Maven Central ready bundle (POM metadata + sources/javadoc jars) and resolve it back | `java build/Demo.java`             |
 | 41 | [`native-image`](demo-41-native-image/README.md)             | Compile a modular app ahead of time into a standalone GraalVM native binary, selected by a `packaging.properties` with `native=true` (needs GraalVM `native-image`; local-only) | `java build/jenesis/Project.java`  |
 | 42 | [`build-cache`](demo-42-build-cache/README.md)               | A content-addressed build cache serving step outputs across builds - project-local (`-Djenesis.project.cache`), shared via a URI (`-Djenesis.cache.uri=`), or local layered in front of a remote; shown by bootstrapping it then serving a full `-Djenesis.executor.rebuild=true` from it | `java build/jenesis/Project.java`  |
+| 43 | [`bom`](demo-43-bom/README.md)                               | A bill of materials: one properties file of version and checksum pins imported via `@jenesis.bom` (a local `bom-<name>.properties` here, a module-repository coordinate in general), overridable by local `@jenesis.pin` tags and strong enough for strict pinning | `java build/jenesis/Project.java`  |
 
 ## 1. A single Maven project - [`java-pom`](demo-01-java-pom/README.md)
 
@@ -805,6 +806,27 @@ HTTP/object-store backend is another implementation of the same `fetch`/`store`
 interface, and the local folder is the on-disk analogue - point several checkouts
 or a CI workspace and a laptop at one folder and a step compiled once is reused
 wherever its inputs match.
+
+## 28. A bill of materials - [`bom`](demo-43-bom/README.md)
+
+Where `supply-chain-security` pins every dependency in place with
+`@jenesis.pin` tags, `bom` moves the pins into one shared properties file: the
+module declares `requires org.slf4j;` and a single
+`@jenesis.bom bom-platform.properties` tag, and the BOM file - found in the
+project's BOM locations (`jenesis.project.boms`, defaulting to the
+configuration location, i.e. the project root), which profiles never
+touch - carries the version
+and `SHA-256` checksum for both the module name and its Maven coordinate. BOM
+keys follow the pin token grammar without the group (bare module name, Maven
+`groupId/artifactId`, or explicit `repository/coordinate`); the group, and an
+optional platform guard, sit on the `@jenesis.bom` declaration instead
+(`kotlinc/bom-platform.properties` merges the entries into the `kotlinc`
+group). A BOM
+can equally be fetched from the module repository by naming its coordinate -
+versioned and checksummed, or floating to the latest published file - and the
+demo shows the precedence rules: a local `@jenesis.pin` overrides any BOM
+entry, the first declared BOM wins a conflict, and BOM-provided checksums
+satisfy `-Djenesis.dependency.pin=strict` with no per-dependency tags at all.
 
 Cross-cutting concepts
 ----------------------

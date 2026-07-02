@@ -8,6 +8,7 @@ import build.jenesis.BuildStepContext;
 import build.jenesis.BuildStepResult;
 import build.jenesis.Checksum;
 import build.jenesis.ChecksumStatus;
+import build.jenesis.DependencyScope;
 import build.jenesis.License;
 import build.jenesis.Pinning;
 import build.jenesis.Repository;
@@ -566,5 +567,341 @@ public class DependenciesResolutionTest {
                         dependencies,
                         Map.of(Path.of(BuildStep.REQUIRES), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join())
                 .hasStackTraceContaining("Conflicting checksums pinned for foo-bar.jar");
+    }
+
+    private Resolver versioning() {
+        return (executor, prefix, repositories, descriptors, bom, _) -> {
+            SequencedMap<String, String> resolved = new LinkedHashMap<>();
+            descriptors.sequencedKeySet().forEach(descriptor -> {
+                String pin = bom.getOrDefault(descriptor, "FLOAT");
+                int space = pin.indexOf(' ');
+                resolved.put(prefix + "/" + descriptor + "/" + (space < 0 ? pin : pin.substring(0, space)),
+                        space < 0 ? "" : pin.substring(space + 1));
+            });
+            return new Resolver.Resolution(
+                    Resolver.materializeAll(executor, repositories, prefix, resolved),
+                    List.of(),
+                    new LinkedHashMap<>());
+        };
+    }
+
+    @Test
+    public void bom_entries_manage_resolution_and_local_pins_win() throws IOException {
+        SequencedProperties requires = new SequencedProperties();
+        requires.setProperty("main/compile/module/bar", "");
+        requires.setProperty("main/compile/module/qux", "");
+        requires.store(dependencies.resolve(BuildStep.REQUIRES));
+        SequencedProperties versions = new SequencedProperties();
+        versions.setProperty("main/module/bar", "9.9");
+        versions.store(dependencies.resolve(BuildStep.VERSIONS));
+        SequencedProperties boms = new SequencedProperties();
+        boms.setProperty("bom/main/module/acme.platform", "1.0");
+        boms.store(dependencies.resolve(BuildStep.BOMS));
+        BuildStepResult result = new Dependencies(
+                Map.of("module", files(Map.of("acme.platform/1.0:properties", "bar = 1.0\nqux = 2.0\n"))),
+                Map.of("module", versioning())).apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
+                        dependencies,
+                        Map.of(Path.of(BuildStep.REQUIRES), Checksum.of(ChecksumStatus.ADDED),
+                                Path.of(BuildStep.VERSIONS), Checksum.of(ChecksumStatus.ADDED),
+                                Path.of(BuildStep.BOMS), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        SequencedProperties index = SequencedProperties.ofFiles(next.resolve(BuildStep.DEPENDENCIES));
+        assertThat(index.stringPropertyNames()).containsExactlyInAnyOrder(
+                "main/compile/module/bar/9.9",
+                "main/compile/module/qux/2.0");
+    }
+
+    @Test
+    public void resolved_boms_are_written_for_the_pin_step() throws IOException {
+        SequencedProperties requires = new SequencedProperties();
+        requires.setProperty("main/compile/module/qux", "");
+        requires.store(dependencies.resolve(BuildStep.REQUIRES));
+        SequencedProperties boms = new SequencedProperties();
+        boms.setProperty("bom/main/module/acme.platform", "1.0");
+        boms.setProperty("entry/main/module/extra", "3.0");
+        boms.store(dependencies.resolve(BuildStep.BOMS));
+        BuildStepResult result = new Dependencies(
+                Map.of("module", files(Map.of("acme.platform/1.0:properties", "qux = 2.0\n"))),
+                Map.of("module", versioning())).apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
+                        dependencies,
+                        Map.of(Path.of(BuildStep.REQUIRES), Checksum.of(ChecksumStatus.ADDED),
+                                Path.of(BuildStep.BOMS), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        SequencedProperties resolved = SequencedProperties.ofFiles(next.resolve(BuildStep.BOMS));
+        assertThat(resolved.stringPropertyNames()).containsExactlyInAnyOrder(
+                "bom/main/module/acme.platform/1.0",
+                "entry/main/module/extra",
+                "entry/main/module/qux");
+        assertThat(next.resolve(resolved.getProperty("bom/main/module/acme.platform/1.0")))
+                .content().isEqualTo("qux = 2.0\n");
+        assertThat(resolved.getProperty("entry/main/module/qux")).isEqualTo("2.0");
+        assertThat(resolved.getProperty("entry/main/module/extra")).isEqualTo("3.0");
+    }
+
+    @Test
+    public void floating_bom_fetches_unversioned_coordinate() throws IOException {
+        SequencedProperties requires = new SequencedProperties();
+        requires.setProperty("main/compile/module/qux", "");
+        requires.store(dependencies.resolve(BuildStep.REQUIRES));
+        SequencedProperties boms = new SequencedProperties();
+        boms.setProperty("bom/main/module/acme.platform", "");
+        boms.store(dependencies.resolve(BuildStep.BOMS));
+        BuildStepResult result = new Dependencies(
+                Map.of("module", files(Map.of("acme.platform:properties", "qux = 2.0\n"))),
+                Map.of("module", versioning())).apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
+                        dependencies,
+                        Map.of(Path.of(BuildStep.REQUIRES), Checksum.of(ChecksumStatus.ADDED),
+                                Path.of(BuildStep.BOMS), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        SequencedProperties index = SequencedProperties.ofFiles(next.resolve(BuildStep.DEPENDENCIES));
+        assertThat(index.stringPropertyNames()).containsExactly("main/compile/module/qux/2.0");
+    }
+
+    @Test
+    public void first_declared_bom_wins() throws IOException {
+        SequencedProperties requires = new SequencedProperties();
+        requires.setProperty("main/compile/module/qux", "");
+        requires.store(dependencies.resolve(BuildStep.REQUIRES));
+        SequencedProperties boms = new SequencedProperties();
+        boms.setProperty("bom/main/module/first", "1.0");
+        boms.setProperty("bom/main/module/second", "1.0");
+        boms.store(dependencies.resolve(BuildStep.BOMS));
+        BuildStepResult result = new Dependencies(
+                Map.of("module", files(Map.of(
+                        "first/1.0:properties", "qux = 1.0\n",
+                        "second/1.0:properties", "qux = 2.0\n"))),
+                Map.of("module", versioning())).apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
+                        dependencies,
+                        Map.of(Path.of(BuildStep.REQUIRES), Checksum.of(ChecksumStatus.ADDED),
+                                Path.of(BuildStep.BOMS), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        SequencedProperties index = SequencedProperties.ofFiles(next.resolve(BuildStep.DEPENDENCIES));
+        assertThat(index.stringPropertyNames()).containsExactly("main/compile/module/qux/1.0");
+    }
+
+    @Test
+    public void expanded_local_bom_entries_apply_without_fetching() throws IOException {
+        SequencedProperties requires = new SequencedProperties();
+        requires.setProperty("main/compile/module/qux", "");
+        requires.store(dependencies.resolve(BuildStep.REQUIRES));
+        SequencedProperties boms = new SequencedProperties();
+        boms.setProperty("entry/main/module/qux", "3.0");
+        boms.store(dependencies.resolve(BuildStep.BOMS));
+        BuildStepResult result = new Dependencies(
+                Map.of("module", files(Map.of())),
+                Map.of("module", versioning())).apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
+                        dependencies,
+                        Map.of(Path.of(BuildStep.REQUIRES), Checksum.of(ChecksumStatus.ADDED),
+                                Path.of(BuildStep.BOMS), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        SequencedProperties index = SequencedProperties.ofFiles(next.resolve(BuildStep.DEPENDENCIES));
+        assertThat(index.stringPropertyNames()).containsExactly("main/compile/module/qux/3.0");
+    }
+
+    @Test
+    public void mismatched_bom_digest_fails_the_fetch() throws IOException {
+        SequencedProperties boms = new SequencedProperties();
+        boms.setProperty("bom/main/module/acme.platform", "1.0 " + checksum("other"));
+        boms.store(dependencies.resolve(BuildStep.BOMS));
+        Dependencies resolve = new Dependencies(
+                Map.of("module", files(Map.of("acme.platform/1.0:properties", "qux = 2.0\n"))),
+                Map.of("module", versioning()));
+        assertThatThrownBy(() -> resolve.apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
+                        dependencies,
+                        Map.of(Path.of(BuildStep.BOMS), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join())
+                .hasStackTraceContaining("Failed to fetch BOM main/module/acme.platform")
+                .hasStackTraceContaining("Mismatched digest");
+    }
+
+    @Test
+    public void versions_pinning_skips_bom_digest_validation() throws IOException {
+        SequencedProperties requires = new SequencedProperties();
+        requires.setProperty("main/compile/module/qux", "");
+        requires.store(dependencies.resolve(BuildStep.REQUIRES));
+        SequencedProperties boms = new SequencedProperties();
+        boms.setProperty("bom/main/module/acme.platform", "1.0 " + checksum("other"));
+        boms.store(dependencies.resolve(BuildStep.BOMS));
+        BuildStepResult result = new Dependencies(
+                Map.of("module", files(Map.of("acme.platform/1.0:properties", "qux = 2.0\n"))),
+                Map.of("module", versioning())).pinning(Pinning.VERSIONS).apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
+                        dependencies,
+                        Map.of(Path.of(BuildStep.REQUIRES), Checksum.of(ChecksumStatus.ADDED),
+                                Path.of(BuildStep.BOMS), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        SequencedProperties index = SequencedProperties.ofFiles(next.resolve(BuildStep.DEPENDENCIES));
+        assertThat(index.stringPropertyNames()).containsExactly("main/compile/module/qux/2.0");
+    }
+
+    @Test
+    public void strict_pinning_rejects_hashless_bom_reference() throws IOException {
+        SequencedProperties boms = new SequencedProperties();
+        boms.setProperty("bom/main/module/acme.platform", "1.0");
+        boms.store(dependencies.resolve(BuildStep.BOMS));
+        Dependencies resolve = new Dependencies(
+                Map.of("module", files(Map.of("acme.platform/1.0:properties", "qux = 2.0\n"))),
+                Map.of("module", versioning())).pinning(Pinning.STRICT);
+        assertThatThrownBy(() -> resolve.apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
+                        dependencies,
+                        Map.of(Path.of(BuildStep.BOMS), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("No checksum pinned for BOM main/module/acme.platform")
+                .hasMessageContaining("strict pinning");
+    }
+
+    @Test
+    public void strict_pinning_accepts_bom_entry_checksums() throws IOException {
+        SequencedProperties requires = new SequencedProperties();
+        requires.setProperty("main/compile/module/bar", "");
+        requires.store(dependencies.resolve(BuildStep.REQUIRES));
+        String content = "bar = 1.0 " + checksum("bar/1.0") + "\n";
+        SequencedProperties boms = new SequencedProperties();
+        boms.setProperty("bom/main/module/acme.platform", "1.0 " + checksum(content));
+        boms.store(dependencies.resolve(BuildStep.BOMS));
+        BuildStepResult result = new Dependencies(
+                Map.of("module", files(Map.of("acme.platform/1.0:properties", content))),
+                Map.of("module", versioning())).pinning(Pinning.STRICT).apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
+                        dependencies,
+                        Map.of(Path.of(BuildStep.REQUIRES), Checksum.of(ChecksumStatus.ADDED),
+                                Path.of(BuildStep.BOMS), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        SequencedProperties index = SequencedProperties.ofFiles(next.resolve(BuildStep.DEPENDENCIES));
+        assertThat(index.getProperty("main/compile/module/bar/1.0")).endsWith(" " + checksum("bar/1.0"));
+    }
+
+    @Test
+    public void ignore_pinning_floats_bom_entries_and_skips_validation() throws IOException {
+        SequencedProperties requires = new SequencedProperties();
+        requires.setProperty("main/compile/module/bar", "");
+        requires.store(dependencies.resolve(BuildStep.REQUIRES));
+        SequencedProperties boms = new SequencedProperties();
+        boms.setProperty("bom/main/module/acme.platform", "1.0 " + checksum("other"));
+        boms.store(dependencies.resolve(BuildStep.BOMS));
+        SequencedMap<String, String> received = new LinkedHashMap<>();
+        BuildStepResult result = new Dependencies(
+                Map.of("module", files(Map.of("acme.platform/1.0:properties", "bar = 1.0 SHA-256/aaaa\n"))),
+                Map.of("module", (executor, prefix, repositories, descriptors, pins, _) -> {
+                    received.putAll(pins);
+                    SequencedMap<String, String> resolved = new LinkedHashMap<>();
+                    descriptors.sequencedKeySet().forEach(descriptor -> resolved.put(prefix + "/" + descriptor, ""));
+                    return new Resolver.Resolution(
+                            Resolver.materializeAll(executor, repositories, prefix, resolved),
+                            List.of(),
+                            new LinkedHashMap<>());
+                })).pinning(Pinning.IGNORE).apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
+                        dependencies,
+                        Map.of(Path.of(BuildStep.REQUIRES), Checksum.of(ChecksumStatus.ADDED),
+                                Path.of(BuildStep.BOMS), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        assertThat(received).isEmpty();
+    }
+
+    @Test
+    public void unknown_repository_for_bom_fails_loudly() throws IOException {
+        SequencedProperties boms = new SequencedProperties();
+        boms.setProperty("bom/main/nope/acme.platform", "1.0");
+        boms.store(dependencies.resolve(BuildStep.BOMS));
+        Dependencies resolve = new Dependencies(
+                Map.of("module", files(Map.of())),
+                Map.of("module", versioning()));
+        assertThatThrownBy(() -> resolve.apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
+                        dependencies,
+                        Map.of(Path.of(BuildStep.BOMS), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Unknown repository for BOM: main/nope/acme.platform");
+    }
+
+    @Test
+    public void unresolved_bom_fails_loudly() throws IOException {
+        SequencedProperties boms = new SequencedProperties();
+        boms.setProperty("bom/main/module/acme.platform", "1.0");
+        boms.store(dependencies.resolve(BuildStep.BOMS));
+        Dependencies resolve = new Dependencies(
+                Map.of("module", (_, _) -> Optional.empty()),
+                Map.of("module", versioning()));
+        assertThatThrownBy(() -> resolve.apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
+                        dependencies,
+                        Map.of(Path.of(BuildStep.BOMS), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join())
+                .hasStackTraceContaining("Failed to fetch BOM main/module/acme.platform")
+                .hasStackTraceContaining("Unresolved");
+    }
+
+    @Test
+    public void bom_entries_reach_managed_prefixes() throws IOException {
+        SequencedProperties requires = new SequencedProperties();
+        requires.setProperty("main/compile/module/bar", "");
+        requires.store(dependencies.resolve(BuildStep.REQUIRES));
+        SequencedProperties boms = new SequencedProperties();
+        boms.setProperty("bom/main/module/acme.platform", "1.0");
+        boms.store(dependencies.resolve(BuildStep.BOMS));
+        SequencedMap<String, String> received = new LinkedHashMap<>();
+        Resolver resolver = new Resolver() {
+            @Override
+            public Resolver.Resolution dependencies(Executor executor,
+                                                    String prefix,
+                                                    Map<String, Repository> repositories,
+                                                    SequencedMap<String, SequencedSet<String>> coordinates,
+                                                    SequencedMap<String, String> versions,
+                                                    DependencyScope scope) throws IOException {
+                received.putAll(versions);
+                SequencedMap<String, String> resolved = new LinkedHashMap<>();
+                coordinates.sequencedKeySet().forEach(coordinate -> resolved.put(prefix + "/" + coordinate, ""));
+                return new Resolver.Resolution(
+                        Resolver.materializeAll(executor, repositories, prefix, resolved),
+                        List.of(),
+                        new LinkedHashMap<>());
+            }
+
+            @Override
+            public SequencedSet<String> managedPrefixes() {
+                return new LinkedHashSet<>(List.of("maven"));
+            }
+        };
+        BuildStepResult result = new Dependencies(
+                Map.of("module", files(Map.of("acme.platform/1.0:properties", "org.slf4j/slf4j-api = 2.0.17\n"))),
+                Map.of("module", resolver)).apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
+                        dependencies,
+                        Map.of(Path.of(BuildStep.REQUIRES), Checksum.of(ChecksumStatus.ADDED),
+                                Path.of(BuildStep.BOMS), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        assertThat(received).containsEntry("org.slf4j/slf4j-api", "2.0.17");
     }
 }

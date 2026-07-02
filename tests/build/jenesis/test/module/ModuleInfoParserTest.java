@@ -470,4 +470,166 @@ public class ModuleInfoParserTest {
         ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
         assertThat(info.main()).isNull();
     }
+
+    @Test
+    public void bom_tag_supports_floating_versioned_and_hashed_declarations() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @jenesis.bom acme.platform
+                 * @jenesis.bom other.platform 2.1.0
+                 * @jenesis.bom third.platform 3.0.0 SHA256/cafebabe
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
+        assertThat(info.boms()).containsExactly(
+                Map.entry("main/module/acme.platform", ""),
+                Map.entry("main/module/other.platform", "2.1.0"),
+                Map.entry("main/module/third.platform", "3.0.0 SHA256/cafebabe"));
+    }
+
+    @Test
+    public void bom_tag_keeps_qualified_token_verbatim() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @jenesis.bom kotlinc/module/acme.platform 2.1.0 SHA256/cafebabe
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
+        assertThat(info.boms()).containsExactly(
+                Map.entry("kotlinc/module/acme.platform", "2.1.0 SHA256/cafebabe"));
+    }
+
+    @Test
+    public void bom_tag_guard_forms_variants() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @jenesis.bom acme.platform 2.1.0
+                 * @jenesis.bom acme.platform 1.9.0 SHA256/cafebabe [legacy]
+                 * @jenesis.bom guarded.platform [legacy]
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
+        assertThat(info.boms()).containsExactly(Map.entry("main/module/acme.platform", "2.1.0"));
+        assertThat(info.bomVariants()).containsOnlyKeys("main/module/acme.platform", "main/module/guarded.platform");
+        assertThat(info.bomVariants().get("main/module/acme.platform"))
+                .containsExactly(Map.entry("legacy", "1.9.0 SHA256/cafebabe"));
+        assertThat(info.bomVariants().get("main/module/guarded.platform"))
+                .containsExactly(Map.entry("legacy", ""));
+    }
+
+    @Test
+    public void bom_tag_resolves_local_files() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @jenesis.bom bom-team.properties
+                 * @jenesis.bom kotlinc/bom-other.properties
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
+        assertThat(info.boms()).containsExactly(
+                Map.entry("main/bom-team.properties", ""),
+                Map.entry("kotlinc/bom-other.properties", ""));
+    }
+
+    @Test
+    public void bom_tag_rejects_version_on_local_file() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @jenesis.bom bom-team.properties 1.0
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        assertThatThrownBy(() -> new ModuleInfoParser().identify(folder.resolve("module-info.java")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("a local BOM takes no version or checksum");
+    }
+
+    @Test
+    public void bom_tag_rejects_nested_local_token() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @jenesis.bom kotlinc/module/bom-team.properties
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        assertThatThrownBy(() -> new ModuleInfoParser().identify(folder.resolve("module-info.java")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("expected [<group>/]bom-<name>.properties");
+    }
+
+    @Test
+    public void bom_tag_rejects_maven_tokens() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @jenesis.bom com.acme/acme-bom 2.1.0
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        assertThatThrownBy(() -> new ModuleInfoParser().identify(folder.resolve("module-info.java")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("BOM artifacts are fetched from the module repository");
+    }
+
+    @Test
+    public void bom_tag_rejects_qualified_non_module_repository() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @jenesis.bom kotlinc/maven/com.acme/acme-bom 2.1.0
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        assertThatThrownBy(() -> new ModuleInfoParser().identify(folder.resolve("module-info.java")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("BOM artifacts are fetched from the module repository");
+    }
+
+    @Test
+    public void bom_tag_rejects_classifier_version() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @jenesis.bom acme.platform :linux:2.1.0
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        assertThatThrownBy(() -> new ModuleInfoParser().identify(folder.resolve("module-info.java")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("a BOM cannot carry a classifier");
+    }
+
+    @Test
+    public void bom_tag_rejects_malformed_checksum() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @jenesis.bom acme.platform 2.1.0 cafebabe
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        assertThatThrownBy(() -> new ModuleInfoParser().identify(folder.resolve("module-info.java")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("expected <algorithm>/<hash>");
+    }
 }

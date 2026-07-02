@@ -37,6 +37,7 @@ public record Project(
         Path artifacts,
         SequencedSet<Path> metadata,
         SequencedSet<Path> configuration,
+        SequencedSet<Path> boms,
         SequencedSet<Path> profiles,
         BuildExecutorCache cache,
         HashDigestFunction hashFunction,
@@ -199,6 +200,7 @@ public record Project(
                                 project.pinning(),
                                 true,
                                 Layout.licenseFiles(project, Dependencies.SPDX),
+                                project.boms(),
                                 (descriptor, mergedRepos, mergedResolvers) -> assembler.apply(
                                         new ProjectModuleDescriptor(descriptor,
                                                 configurations(
@@ -275,6 +277,7 @@ public record Project(
                                 project.pinning(),
                                 true,
                                 Layout.licenseFiles(project, Dependencies.SPDX),
+                                project.boms(),
                                 (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
                                         new ProjectModuleDescriptor(descriptor,
                                                 configurations(modularConfigurationFolder(descriptor.location()), project.configuration(), project.profiles()),
@@ -455,6 +458,7 @@ public record Project(
                       %{name}sources%{reset}, %{name}documentation%{reset}           Assemble source/javadoc jars
                       %{name}metadata%{reset}                         Path-separated list of extra metadata files
                       %{name}configuration%{reset}                    Directory the inferred tools search for config files (default: root; empty skips it)
+                      %{name}boms%{reset}                             Path-separated locations of local bom-<name>.properties files (default: configuration)
                       %{name}version%{reset}                          Project version
                       %{name}digest%{reset}                           Algorithm for pin and dependency checksums (default: SHA-256)
                       %{name}watch%{reset}                            Rebuild the selected target whenever a source file changes (Ctrl+C to stop)
@@ -478,6 +482,16 @@ public record Project(
                       pins by running the %{name}pin%{reset} step under it); %{name}versions%{reset} keeps the
                       pinned versions but skips checksum verification. Unset keeps existing
                       pins but tolerates missing ones.
+
+                    %{header}Pin step (-Djenesis.pin.<key>=<value>):%{reset}
+                      %{name}checksum%{reset} <true|false>          Record content checksums in pins (default: true);
+                                                       false writes versions only
+                      %{name}bom%{reset} <keep|flatten>             %{name}keep%{reset} (default) writes no pin for a dependency a
+                                                       BOM already supplies (removing a now-redundant
+                                                       pin line) and pins each versioned @jenesis.bom
+                                                       reference with its file hash; %{name}flatten%{reset} removes
+                                                       the @jenesis.bom declarations and pins the
+                                                       resolved closure in full
 
                     %{header}Platform (-Djenesis.platform.<token>=<true|false>):%{reset}
                       The active platform starts from the detected operating system and
@@ -547,6 +561,15 @@ public record Project(
                                                        an optional trailing %{name}[<token>,<token>...]%{reset} guard applies
                                                        the pin only when those tokens are in the active platform,
                                                        with an unguarded line for the same coordinate as fallback
+                      %{name}@jenesis.bom%{reset} <token> [<ver> [<algo>/<hex>]] [<guard>]
+                                                       Import a BOM properties file of version and checksum pins;
+                                                       the token follows the pin grammar (bare <module> is short for
+                                                       <group>/module/<module>) and names a BOM in the module
+                                                       repository, fetched at <ver> or floating latest without one;
+                                                       a token of [<group>/]bom-<name>.properties reads that file
+                                                       from the project's BOM locations (jenesis.project.boms,
+                                                       default: the configuration locations) instead; local
+                                                       @jenesis.pin lines override BOM entries
 
                     See README.md for the full reference.
                     """)
@@ -724,6 +747,14 @@ public record Project(
                       versions.properties   `<group>/<repository>/<coordinate>` ->
                                             `<version>[ <algo>/<hex>]`. Bill of
                                             materials for the resolution pass.
+                      boms.properties       `bom/<group>/<repository>/<coordinate>`
+                                            -> `[<version>[ <algo>/<hex>]]` BOM
+                                            references to fetch (empty version
+                                            floats to latest), and
+                                            `entry/<group>/<repository>/<coordinate>`
+                                            -> `<version>[ <algo>/<hex>]` entries
+                                            expanded from module-local BOM files;
+                                            merged below versions.properties.
                       exclusions.properties `<group>/<scope>/<repository>/<coordinate>`
                                             -> comma-separated
                                             `<groupId>/<artifactId>` exclusions.
@@ -808,7 +839,38 @@ public record Project(
                                                         active platform, with an
                                                         unguarded line for the same
                                                         coordinate as the fallback.
-                    
+                      @jenesis.bom <token> [<ver> [<algo>/<hex>]] [<guard>]
+                                                        Import a BOM properties
+                                                        file of version and
+                                                        checksum pins. The token
+                                                        follows the pin grammar
+                                                        (a bare <module>
+                                                        abbreviates
+                                                        <group>/module/<module>)
+                                                        and names a BOM in the
+                                                        module repository, fetched
+                                                        at <ver> or floating
+                                                        latest without one. A
+                                                        token of
+                                                        [<group>/]bom-<name>.properties
+                                                        (a dash never occurs in a
+                                                        module name) reads that
+                                                        file from the project's
+                                                        BOM locations
+                                                        (jenesis.project.boms,
+                                                        default: the configuration
+                                                        locations; fixed, never
+                                                        profile-resolved).
+                                                        BOM file keys omit the
+                                                        group (bare <module>,
+                                                        <groupId>/<artifactId>, or
+                                                        explicit
+                                                        <repo>/<coordinate>);
+                                                        local @jenesis.pin lines
+                                                        override BOM entries, and
+                                                        the first declared BOM
+                                                        wins a conflict.
+
                     9. Set system properties for one-off overrides
                     ----------------------------------------------
                     Project-level (-Djenesis.project.<key>=<value>):
@@ -822,6 +884,10 @@ public record Project(
                                                   inferred tools' config files
                                                   (default root; empty uses only
                                                   each module's build.jenesis/).
+                      boms                        Path-separated locations of
+                                                  local bom-<name>.properties
+                                                  files (default: configuration;
+                                                  never profile-resolved).
                       version                     Stamp version onto every
                                                   produced artifact.
                       digest                      Algorithm for pin and
@@ -839,6 +905,24 @@ public record Project(
                                                   (refresh pins via the pin step);
                                                   versions keeps pinned versions
                                                   but skips checksum verification.
+
+                    Pin step:
+                      -Djenesis.pin.checksum=true|false
+                                                  Record content checksums in
+                                                  pins (default true); false
+                                                  writes versions only.
+                      -Djenesis.pin.bom=keep|flatten
+                                                  keep (default) writes no pin
+                                                  for a dependency a BOM already
+                                                  supplies (a now-redundant pin
+                                                  line is removed) and pins each
+                                                  versioned @jenesis.bom
+                                                  reference with its file hash;
+                                                  flatten removes the
+                                                  @jenesis.bom declarations and
+                                                  pins the resolved closure in
+                                                  full (platform-guarded BOM
+                                                  declarations fail flattening).
 
                     Platform:
                       -Djenesis.platform.<token>=true|false  The active platform
@@ -1188,6 +1272,20 @@ public record Project(
                     .map(value -> configurationRoot.resolve(Path.of(value)))
                     .collect(Collectors.toCollection(LinkedHashSet::new));
         }
+        String bomsOverride = System.getProperty("jenesis.project.boms");
+        SequencedSet<Path> resolvedBoms;
+        if (bomsOverride == null) {
+            resolvedBoms = resolvedConfiguration;
+        } else if (bomsOverride.isEmpty()) {
+            resolvedBoms = Collections.emptyNavigableSet();
+        } else {
+            Path bomsRoot = resolvedRoot;
+            resolvedBoms = Arrays.stream(bomsOverride.split(Pattern.quote(File.pathSeparator)))
+                    .map(String::trim)
+                    .filter(value -> !value.isEmpty())
+                    .map(value -> bomsRoot.resolve(Path.of(value)))
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+        }
         String profilesOverride = System.getProperty("jenesis.project.properties");
         SequencedSet<Path> resolvedProfiles = profilesOverride == null
                 ? Collections.emptyNavigableSet()
@@ -1241,6 +1339,7 @@ public record Project(
                 resolvedArtifacts,
                 resolvedMetadata,
                 resolvedConfiguration,
+                resolvedBoms,
                 resolvedProfiles,
                 resolvedCache,
                 new HashDigestFunction(System.getProperty("jenesis.project.digest", "SHA-256")),
@@ -1263,6 +1362,7 @@ public record Project(
                 artifacts,
                 metadata,
                 configuration,
+                boms,
                 profiles,
                 cache,
                 hashFunction,
@@ -1285,6 +1385,30 @@ public record Project(
                 artifacts,
                 metadata,
                 new LinkedHashSet<>(List.of(configuration)),
+                boms,
+                profiles,
+                cache,
+                hashFunction,
+                layout,
+                tests,
+                sources,
+                documentation,
+                pinning,
+                version,
+                defaultTarget,
+                assembler,
+                configurator,
+                repositories,
+                resolvers);
+    }
+
+    public Project boms(Path... boms) {
+        return new Project(root,
+                target,
+                artifacts,
+                metadata,
+                configuration,
+                new LinkedHashSet<>(List.of(boms)),
                 profiles,
                 cache,
                 hashFunction,
@@ -1307,6 +1431,7 @@ public record Project(
                 artifacts,
                 metadata,
                 configuration,
+                boms,
                 new LinkedHashSet<>(List.of(profiles)),
                 cache,
                 hashFunction,
@@ -1329,6 +1454,7 @@ public record Project(
                 artifacts,
                 metadata,
                 configuration,
+                boms,
                 profiles,
                 cache,
                 hashFunction,
@@ -1351,6 +1477,7 @@ public record Project(
                 artifacts,
                 metadata,
                 configuration,
+                boms,
                 profiles,
                 cache,
                 hashFunction,
@@ -1373,6 +1500,7 @@ public record Project(
                 artifacts,
                 metadata,
                 configuration,
+                boms,
                 profiles,
                 cache,
                 hashFunction,
@@ -1395,6 +1523,7 @@ public record Project(
                 artifacts,
                 metadata,
                 configuration,
+                boms,
                 profiles,
                 cache,
                 hashFunction,
@@ -1417,6 +1546,7 @@ public record Project(
                 artifacts,
                 metadata,
                 configuration,
+                boms,
                 profiles,
                 cache,
                 hashFunction,
@@ -1439,6 +1569,7 @@ public record Project(
                 artifacts,
                 metadata,
                 configuration,
+                boms,
                 profiles,
                 cache,
                 hashFunction,
@@ -1461,6 +1592,7 @@ public record Project(
                 artifacts,
                 metadata,
                 configuration,
+                boms,
                 profiles,
                 cache,
                 hashFunction,
@@ -1483,6 +1615,7 @@ public record Project(
                 artifacts,
                 metadata,
                 configuration,
+                boms,
                 profiles,
                 cache,
                 hashFunction,
@@ -1505,6 +1638,7 @@ public record Project(
                 artifacts,
                 metadata,
                 configuration,
+                boms,
                 profiles,
                 cache,
                 hashFunction,
@@ -1527,6 +1661,7 @@ public record Project(
                 artifacts,
                 new LinkedHashSet<>(List.of(metadata)),
                 configuration,
+                boms,
                 profiles,
                 cache,
                 hashFunction,
@@ -1549,6 +1684,7 @@ public record Project(
                 artifacts,
                 metadata,
                 configuration,
+                boms,
                 profiles,
                 cache,
                 hashFunction,
@@ -1571,6 +1707,7 @@ public record Project(
                 artifacts,
                 metadata,
                 configuration,
+                boms,
                 profiles,
                 cache,
                 hashFunction,
@@ -1593,6 +1730,7 @@ public record Project(
                 artifacts,
                 metadata,
                 configuration,
+                boms,
                 profiles,
                 cache,
                 hashFunction,
@@ -1615,6 +1753,7 @@ public record Project(
                 artifacts,
                 metadata,
                 configuration,
+                boms,
                 profiles,
                 cache,
                 hashFunction,
@@ -1637,6 +1776,7 @@ public record Project(
                 artifacts,
                 metadata,
                 configuration,
+                boms,
                 profiles,
                 cache,
                 hashFunction,
@@ -1659,6 +1799,7 @@ public record Project(
                 artifacts,
                 metadata,
                 configuration,
+                boms,
                 profiles,
                 cache,
                 hashFunction,

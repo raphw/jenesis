@@ -13,6 +13,7 @@ import build.jenesis.module.PinModuleInfo;
 import build.jenesis.step.Inventory;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class PinModuleInfoTest {
 
@@ -81,8 +82,16 @@ public class PinModuleInfoTest {
     }
 
     private String run(Path moduleInfo, Platform platform) throws IOException {
-        new PinModuleInfo("module", "", List.of(moduleInfo), new HashDigestFunction("SHA-256"))
-                .platform(platform)
+        return run(moduleInfo, platform, UnaryOperator.identity());
+    }
+
+    private String run(Path moduleInfo, UnaryOperator<PinModuleInfo> configurator) throws IOException {
+        return run(moduleInfo, Platform.of("linux,x86_64"), configurator);
+    }
+
+    private String run(Path moduleInfo, Platform platform, UnaryOperator<PinModuleInfo> configurator) throws IOException {
+        configurator.apply(new PinModuleInfo("module", "", List.of(moduleInfo), new HashDigestFunction("SHA-256"))
+                        .platform(platform))
                 .apply(Runnable::run,
                         new BuildStepContext(previous, next, supplement),
                         new LinkedHashMap<>(Map.of("input", new BuildStepArgument(
@@ -91,6 +100,25 @@ public class PinModuleInfoTest {
                 .toCompletableFuture()
                 .join();
         return Files.readString(moduleInfo);
+    }
+
+    private void writeBomEntries(Map<String, String> entries) throws IOException {
+        SequencedProperties properties = loadInventory();
+        int index = count(properties, "module.bom.");
+        for (Map.Entry<String, String> entry : entries.entrySet()) {
+            properties.setProperty("module.bom." + index++, "entry/" + entry.getKey() + " " + entry.getValue());
+        }
+        properties.store(input.resolve(Inventory.INVENTORY));
+    }
+
+    private Path writeBomReference(String coordinate, String version, String content) throws IOException {
+        String name = coordinate.replace('/', '-') + "-" + version + ".properties";
+        Path file = Files.writeString(input.resolve(name), content);
+        SequencedProperties properties = loadInventory();
+        int index = count(properties, "module.bom.");
+        properties.setProperty("module.bom." + index, "bom/" + coordinate + "/" + version + " " + name);
+        properties.store(input.resolve(Inventory.INVENTORY));
+        return file;
     }
 
     @Test
@@ -540,5 +568,197 @@ public class PinModuleInfoTest {
         }
         String expected = HexFormat.of().formatHex(digest.digest(payload));
         assertThat(result).contains("@jenesis.pin kotlin/maven/org.jetbrains/something 1.2.3 SHA-256/" + expected);
+    }
+
+    @Test
+    public void bom_covered_dependency_is_not_pinned() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                module foo {
+                  requires bar;
+                }
+                """);
+        writeResolved(Map.of("module/bar", "1.0 SHA-256/aaaa"));
+        writeBomEntries(Map.of("main/module/bar", "1.0 SHA-256/aaaa"));
+        String result = run(file);
+        assertThat(result).doesNotContain("@jenesis.pin");
+    }
+
+    @Test
+    public void bom_covered_existing_pin_line_is_removed() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                /**
+                 * @jenesis.pin bar 1.0 SHA-256/aaaa
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        writeResolved(Map.of("module/bar", "1.0 SHA-256/aaaa"));
+        writeBomEntries(Map.of("main/module/bar", "1.0 SHA-256/aaaa"));
+        String result = run(file);
+        assertThat(result).doesNotContain("@jenesis.pin");
+    }
+
+    @Test
+    public void bom_version_mismatch_keeps_the_pin() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                module foo {
+                  requires bar;
+                }
+                """);
+        writeResolved(Map.of("module/bar", "1.0 SHA-256/aaaa"));
+        writeBomEntries(Map.of("main/module/bar", "2.0 SHA-256/aaaa"));
+        String result = run(file);
+        assertThat(result).contains("@jenesis.pin bar 1.0 SHA-256/aaaa");
+    }
+
+    @Test
+    public void bom_checksum_mismatch_keeps_the_pin() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                module foo {
+                  requires bar;
+                }
+                """);
+        writeResolved(Map.of("module/bar", "1.0 SHA-256/aaaa"));
+        writeBomEntries(Map.of("main/module/bar", "1.0 SHA-256/bbbb"));
+        String result = run(file);
+        assertThat(result).contains("@jenesis.pin bar 1.0 SHA-256/aaaa");
+    }
+
+    @Test
+    public void version_only_pinning_skips_checksums() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                module foo {
+                  requires bar;
+                }
+                """);
+        writeResolved(Map.of("module/bar", "1.0 SHA-256/aaaa"));
+        String result = run(file, step -> step.checksum(false));
+        assertThat(result).contains("@jenesis.pin bar 1.0");
+        assertThat(result).doesNotContain("SHA-256");
+    }
+
+    @Test
+    public void version_only_pinning_treats_version_match_as_covered() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                module foo {
+                  requires bar;
+                }
+                """);
+        writeResolved(Map.of("module/bar", "1.0 SHA-256/aaaa"));
+        writeBomEntries(Map.of("main/module/bar", "1.0"));
+        String result = run(file, step -> step.checksum(false));
+        assertThat(result).doesNotContain("@jenesis.pin");
+    }
+
+    @Test
+    public void bom_reference_is_pinned_with_its_file_hash() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                /**
+                 * @jenesis.bom acme.platform 1.0
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        Path bom = writeBomReference("main/module/acme.platform", "1.0", "bar = 1.0\n");
+        String result = run(file);
+        assertThat(result).contains("@jenesis.bom acme.platform 1.0 "
+                + new HashDigestFunction("SHA-256").encodedHash(bom));
+    }
+
+    @Test
+    public void version_only_pinning_pins_bom_reference_without_hash() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                /**
+                 * @jenesis.bom acme.platform 1.0 SHA-256/aaaa
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        writeBomReference("main/module/acme.platform", "1.0", "bar = 1.0\n");
+        String result = run(file, step -> step.checksum(false));
+        assertThat(result).contains("@jenesis.bom acme.platform 1.0\n");
+        assertThat(result).doesNotContain("SHA-256");
+    }
+
+    @Test
+    public void guarded_bom_reference_refreshes_the_local_match_only() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                /**
+                 * @jenesis.bom acme.platform 2.0 SHA-256/aaaa [windows]
+                 * @jenesis.bom acme.platform 1.0
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        Path bom = writeBomReference("main/module/acme.platform", "1.0", "bar = 1.0\n");
+        String result = run(file);
+        assertThat(result).contains("@jenesis.bom acme.platform 2.0 SHA-256/aaaa [windows]");
+        assertThat(result).contains("@jenesis.bom acme.platform 1.0 "
+                + new HashDigestFunction("SHA-256").encodedHash(bom));
+    }
+
+    @Test
+    public void floating_and_local_bom_declarations_stay_untouched() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                /**
+                 * @jenesis.bom acme.platform
+                 * @jenesis.bom bom-team.properties
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        String result = run(file);
+        assertThat(result).contains("@jenesis.bom acme.platform\n");
+        assertThat(result).contains("@jenesis.bom bom-team.properties");
+    }
+
+    @Test
+    public void flatten_removes_bom_declarations_and_pins_the_closure() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                /**
+                 * @jenesis.bom acme.platform 1.0 SHA-256/cccc
+                 * @jenesis.bom bom-team.properties
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        writeResolved(Map.of("module/bar", "1.0 SHA-256/aaaa"));
+        writeBomEntries(Map.of("main/module/bar", "1.0 SHA-256/aaaa"));
+        String result = run(file, step -> step.flatten(true));
+        assertThat(result).doesNotContain("@jenesis.bom");
+        assertThat(result).contains("@jenesis.pin bar 1.0 SHA-256/aaaa");
+    }
+
+    @Test
+    public void flatten_rejects_guarded_bom_declarations() throws IOException {
+        Path file = root.resolve("module-info.java");
+        Files.writeString(file, """
+                /**
+                 * @jenesis.bom acme.platform 1.0 [windows]
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        assertThatThrownBy(() -> run(file, step -> step.flatten(true)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Cannot flatten platform-guarded BOM declaration");
     }
 }

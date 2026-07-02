@@ -7,6 +7,7 @@ import build.jenesis.SequencedProperties;
 import build.jenesis.step.Dependencies;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class DependenciesTest {
 
@@ -63,5 +64,50 @@ public class DependenciesTest {
                 .containsExactly(folder.resolve("libs/processor.jar"));
         assertThat(Dependencies.select(folder, "kotlinc", "plugin"))
                 .containsExactly(folder.resolve("libs/kotlin-plugin.jar"));
+    }
+
+    @Test
+    public void bom_entries_expand_by_slash_count() {
+        SequencedProperties properties = new SequencedProperties();
+        properties.setProperty("acme.core", "2.1.0 SHA-256/aaa");
+        properties.setProperty("org.slf4j/slf4j-api", "2.0.17");
+        properties.setProperty("maven/com.acme/acme-native/jar", "1.0.0 SHA-256/bbb");
+        properties.setProperty("org.example/native-lib", ":linux-x86_64:1.2.3");
+        assertThat(Dependencies.bomEntries(properties, "main")).containsExactly(
+                Map.entry("main/module/acme.core", "2.1.0 SHA-256/aaa"),
+                Map.entry("main/maven/org.slf4j/slf4j-api", "2.0.17"),
+                Map.entry("main/maven/com.acme/acme-native/jar", "1.0.0 SHA-256/bbb"),
+                Map.entry("main/maven/org.example/native-lib", ":linux-x86_64:1.2.3"));
+    }
+
+    @Test
+    public void bom_entries_prefix_the_declared_group() {
+        SequencedProperties properties = new SequencedProperties();
+        properties.setProperty("acme.core", "2.1.0");
+        assertThat(Dependencies.bomEntries(properties, "kotlinc"))
+                .containsExactly(Map.entry("kotlinc/module/acme.core", "2.1.0"));
+    }
+
+    @Test
+    public void bom_entries_reject_platform_guards() {
+        SequencedProperties properties = new SequencedProperties();
+        properties.setProperty("acme.core", "2.1.0 [linux]");
+        assertThatThrownBy(() -> Dependencies.bomEntries(properties, "main"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("platform guards are not supported in BOM files");
+    }
+
+    @Test
+    public void bom_entries_reject_malformed_keys() {
+        SequencedProperties trailing = new SequencedProperties();
+        trailing.setProperty("org.slf4j/", "2.0.17");
+        assertThatThrownBy(() -> Dependencies.bomEntries(trailing, "main"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("org.slf4j/");
+        SequencedProperties empty = new SequencedProperties();
+        empty.setProperty("maven//coordinate", "1.0");
+        assertThatThrownBy(() -> Dependencies.bomEntries(empty, "main"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("maven//coordinate");
     }
 }

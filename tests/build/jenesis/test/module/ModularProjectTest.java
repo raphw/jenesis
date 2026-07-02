@@ -268,6 +268,190 @@ public class ModularProjectTest {
     }
 
     @Test
+    public void emits_boms_properties_from_javadoc_declarations() throws IOException {
+        Files.writeString(project.resolve("module-info.java"), """
+                /**
+                 * @jenesis.bom acme.platform
+                 * @jenesis.bom kotlinc/module/other.platform 2.1.0 SHA-256/cafebabe
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
+                new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
+                BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false);
+        executor.addModule("module", new ModularProject("module", project));
+        SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
+        SequencedProperties boms = SequencedProperties.ofFiles(
+                results.get("module/module-/manifests").resolve(BuildStep.BOMS));
+        assertThat(boms).containsOnly(
+                Map.entry("bom/main/module/acme.platform", ""),
+                Map.entry("bom/kotlinc/module/other.platform", "2.1.0 SHA-256/cafebabe"));
+    }
+
+    @Test
+    public void expands_local_bom_file_to_entries() throws IOException {
+        Files.writeString(project.resolve("bom-team.properties"), """
+                bar = 1.2.3 SHA-256/aaa
+                org.slf4j/slf4j-api = 2.0.17
+                """);
+        Files.writeString(project.resolve("module-info.java"), """
+                /**
+                 * @jenesis.bom bom-team.properties
+                 * @jenesis.bom acme.platform 1.0
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
+                new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
+                BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false);
+        executor.addModule("module", new ModularProject("module", project)
+                .boms(new LinkedHashSet<>(List.of(project))));
+        SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
+        SequencedProperties boms = SequencedProperties.ofFiles(
+                results.get("module/module-/manifests").resolve(BuildStep.BOMS));
+        assertThat(boms.stringPropertyNames()).containsExactly(
+                "entry/main/module/bar",
+                "entry/main/maven/org.slf4j/slf4j-api",
+                "bom/main/module/acme.platform");
+        assertThat(boms.getProperty("entry/main/module/bar")).isEqualTo("1.2.3 SHA-256/aaa");
+        assertThat(boms.getProperty("entry/main/maven/org.slf4j/slf4j-api")).isEqualTo("2.0.17");
+        assertThat(boms.getProperty("bom/main/module/acme.platform")).isEqualTo("1.0");
+    }
+
+    @Test
+    public void local_bom_with_group_qualifier_prefixes_entries() throws IOException {
+        Files.writeString(project.resolve("bom-team.properties"), """
+                bar = 1.2.3
+                """);
+        Files.writeString(project.resolve("module-info.java"), """
+                /**
+                 * @jenesis.bom kotlinc/bom-team.properties
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
+                new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
+                BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false);
+        executor.addModule("module", new ModularProject("module", project)
+                .boms(new LinkedHashSet<>(List.of(project))));
+        SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
+        SequencedProperties boms = SequencedProperties.ofFiles(
+                results.get("module/module-/manifests").resolve(BuildStep.BOMS));
+        assertThat(boms).containsOnly(Map.entry("entry/kotlinc/module/bar", "1.2.3"));
+    }
+
+    @Test
+    public void first_boms_location_shadows_later_ones() throws IOException {
+        Path first = Files.createDirectory(project.resolve("first"));
+        Path second = Files.createDirectory(project.resolve("second"));
+        Files.writeString(first.resolve("bom-team.properties"), """
+                bar = 1.0
+                """);
+        Files.writeString(second.resolve("bom-team.properties"), """
+                bar = 2.0
+                """);
+        Files.writeString(project.resolve("module-info.java"), """
+                /**
+                 * @jenesis.bom bom-team.properties
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
+                new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
+                BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false);
+        executor.addModule("module", new ModularProject("module", project)
+                .boms(new LinkedHashSet<>(List.of(first, second))));
+        SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
+        SequencedProperties boms = SequencedProperties.ofFiles(
+                results.get("module/module-/manifests").resolve(BuildStep.BOMS));
+        assertThat(boms).containsOnly(Map.entry("entry/main/module/bar", "1.0"));
+    }
+
+    @Test
+    public void selects_guarded_bom_matching_platform() throws IOException {
+        Files.writeString(project.resolve("module-info.java"), """
+                /**
+                 * @jenesis.bom acme.platform 2.0 [windows]
+                 * @jenesis.bom acme.platform 1.0
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
+                new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
+                BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false);
+        executor.addModule("module", new ModularProject("module", project)
+                .platform(Platform.of("windows,x86_64")));
+        SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
+        SequencedProperties boms = SequencedProperties.ofFiles(
+                results.get("module/module-/manifests").resolve(BuildStep.BOMS));
+        assertThat(boms).containsOnly(Map.entry("bom/main/module/acme.platform", "2.0"));
+    }
+
+    @Test
+    public void unmatched_guarded_bom_without_fallback_is_skipped() throws IOException {
+        Files.writeString(project.resolve("module-info.java"), """
+                /**
+                 * @jenesis.bom acme.platform 2.0 [windows]
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
+                new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
+                BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false);
+        executor.addModule("module", new ModularProject("module", project)
+                .platform(Platform.of("linux,x86_64")));
+        SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
+        assertThat(results.get("module/module-/manifests").resolve(BuildStep.BOMS)).doesNotExist();
+    }
+
+    @Test
+    public void missing_local_bom_fails_the_build() throws IOException {
+        Files.writeString(project.resolve("module-info.java"), """
+                /**
+                 * @jenesis.bom bom-missing.properties
+                 */
+                module foo {
+                  requires bar;
+                }
+                """);
+        BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
+                new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
+                BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false);
+        executor.addModule("module", new ModularProject("module", project)
+                .boms(new LinkedHashSet<>(List.of(project))));
+        assertThatThrownBy(() -> executor.execute(Runnable::run).toCompletableFuture().join())
+                .hasRootCauseInstanceOf(IllegalArgumentException.class)
+                .hasRootCauseMessage("Local BOM not found: main/bom-missing.properties");
+    }
+
+
+    @Test
     public void omits_versions_properties_when_no_pins() throws IOException {
         Files.writeString(project.resolve("module-info.java"), """
                 /**
@@ -323,6 +507,7 @@ public class ModularProjectTest {
                 Map.of("module", new ModularJarResolver(false)),
                 null,
                 true,
+                Collections.emptyNavigableSet(),
                 Collections.emptyNavigableSet(),
                 (descriptor, _, _) -> {
                     switch (descriptor.name()) {

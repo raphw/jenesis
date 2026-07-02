@@ -15,6 +15,7 @@ public interface BuildStep extends Serializable {
     String IDENTITY = "identity.properties",
             REQUIRES = "requires.properties",
             VERSIONS = "versions.properties",
+            BOMS = "boms.properties",
             MODULE = "module.properties",
             METADATA = "metadata.properties",
             EXCLUSIONS = "exclusions.properties",

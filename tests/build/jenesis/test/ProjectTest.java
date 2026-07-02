@@ -29,6 +29,7 @@ public class ProjectTest {
         System.clearProperty("jenesis.test.skip");
         System.clearProperty("jenesis.project.root");
         System.clearProperty("jenesis.project.configuration");
+        System.clearProperty("jenesis.project.boms");
         System.clearProperty("jenesis.project.target");
         System.clearProperty("jenesis.project.artifacts");
         System.clearProperty("jenesis.project.cache");
@@ -146,6 +147,26 @@ public class ProjectTest {
     public void empty_configuration_property_skips_the_global_configuration() {
         System.setProperty("jenesis.project.configuration", "");
         assertThat(new Project().configuration()).isEmpty();
+    }
+
+    @Test
+    public void boms_default_to_the_configuration() {
+        assertThat(new Project().boms()).containsExactly(Path.of("."));
+        System.setProperty("jenesis.project.configuration", "config");
+        assertThat(new Project().boms()).containsExactly(Path.of(".").resolve("config"));
+    }
+
+    @Test
+    public void boms_property_overrides_the_configuration() {
+        System.setProperty("jenesis.project.boms", "platform");
+        assertThat(new Project().boms()).containsExactly(Path.of(".").resolve("platform"));
+        System.setProperty("jenesis.project.boms", "");
+        assertThat(new Project().boms()).isEmpty();
+    }
+
+    @Test
+    public void boms_wither_replaces_the_locations() {
+        assertThat(new Project().boms(Path.of("platform")).boms()).containsExactly(Path.of("platform"));
     }
 
     @Test

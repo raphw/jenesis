@@ -15,31 +15,68 @@ public class PinModuleInfo implements BuildStep {
     private static final Pattern MODULE_DECLARATION = Pattern.compile("(?m)^(open\\s+)?module\\s+");
     private static final Pattern JAVADOC_END = Pattern.compile("\\*/\\s*$");
     private static final Pattern PIN_TAG = Pattern.compile("^\\s*\\*\\s*@jenesis\\.pin\\s+(\\S+)(\\s+.*)?$");
+    private static final Pattern BOM_TAG = Pattern.compile("^\\s*\\*\\s*@jenesis\\.bom\\s+(\\S+)(\\s+.*)?$");
 
     private final String prefix;
     private final String path;
     private final List<Path> moduleInfoFiles;
     private final transient HashDigestFunction hashFunction;
     private final Platform platform;
+    private final boolean checksum;
+    private final boolean flatten;
 
     public PinModuleInfo(String prefix, String path, List<Path> moduleInfoFiles, HashDigestFunction hashFunction) {
-        this(prefix, path, moduleInfoFiles, hashFunction, new Platform());
+        this(prefix, path, moduleInfoFiles, hashFunction, new Platform(), checksumFromProperty(), flattenFromProperty());
     }
 
     private PinModuleInfo(String prefix,
                           String path,
                           List<Path> moduleInfoFiles,
                           HashDigestFunction hashFunction,
-                          Platform platform) {
+                          Platform platform,
+                          boolean checksum,
+                          boolean flatten) {
         this.prefix = prefix;
         this.path = path;
         this.moduleInfoFiles = List.copyOf(moduleInfoFiles);
         this.hashFunction = hashFunction;
         this.platform = platform;
+        this.checksum = checksum;
+        this.flatten = flatten;
     }
 
     public PinModuleInfo platform(Platform platform) {
-        return new PinModuleInfo(prefix, path, moduleInfoFiles, hashFunction, platform);
+        return new PinModuleInfo(prefix, path, moduleInfoFiles, hashFunction, platform, checksum, flatten);
+    }
+
+    public PinModuleInfo checksum(boolean checksum) {
+        return new PinModuleInfo(prefix, path, moduleInfoFiles, hashFunction, platform, checksum, flatten);
+    }
+
+    public PinModuleInfo flatten(boolean flatten) {
+        return new PinModuleInfo(prefix, path, moduleInfoFiles, hashFunction, platform, checksum, flatten);
+    }
+
+    private static boolean checksumFromProperty() {
+        String value = System.getProperty("jenesis.pin.checksum");
+        if (value == null || value.equals("true")) {
+            return true;
+        }
+        if (value.equals("false")) {
+            return false;
+        }
+        throw new IllegalArgumentException("Unknown pin checksum mode: " + value + " (expected true or false)");
+    }
+
+    private static boolean flattenFromProperty() {
+        String value = System.getProperty("jenesis.pin.bom");
+        if (value == null || value.equals("keep")) {
+            return false;
+        }
+        if (value.equals("flatten")) {
+            return true;
+        }
+        throw new IllegalArgumentException("Unknown pin BOM mode: " + value + " (expected keep or flatten)");
     }
 
     @Override
@@ -54,11 +91,43 @@ public class PinModuleInfo implements BuildStep {
             throws IOException {
         SequencedMap<String, Inventory.Dependency> closure = Inventory.closure(arguments.values(), path);
         Set<String> internal = collectInternal(Inventory.identities(arguments.values()));
-        SequencedMap<String, String> entries = collectEntries(closure, internal, hashFunction);
+        SequencedMap<String, String> entries = collectEntries(closure, internal, checksum ? hashFunction : null);
+        Set<String> covered = new HashSet<>();
+        SequencedMap<String, String> references = new LinkedHashMap<>();
+        if (!flatten) {
+            SequencedMap<String, String> managed = Inventory.bomEntries(arguments.values(), path);
+            Iterator<Map.Entry<String, String>> it = entries.entrySet().iterator();
+            while (it.hasNext()) {
+                Map.Entry<String, String> entry = it.next();
+                String expanded = expand(entry.getKey());
+                String supplied = managed.get(expanded);
+                if (supplied != null && covers(supplied, entry.getValue())) {
+                    covered.add(expanded);
+                    it.remove();
+                }
+            }
+            for (Map.Entry<String, Path> reference : Inventory.bomReferences(arguments.values(), path).entrySet()) {
+                int lastSlash = reference.getKey().lastIndexOf('/');
+                String version = reference.getKey().substring(lastSlash + 1);
+                references.put(reference.getKey().substring(0, lastSlash), checksum
+                        ? version + " " + hashFunction.encodedHash(reference.getValue())
+                        : version);
+            }
+        }
         for (Path file : moduleInfoFiles) {
-            updateModuleInfo(file, entries, platform);
+            updateModuleInfo(file, entries, covered, references, flatten, platform);
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
+    }
+
+    private static boolean covers(String supplied, String pin) {
+        int suppliedSpace = supplied.indexOf(' ');
+        String suppliedVersion = suppliedSpace < 0 ? supplied : supplied.substring(0, suppliedSpace);
+        String suppliedChecksum = suppliedSpace < 0 ? null : supplied.substring(suppliedSpace + 1).trim();
+        int pinSpace = pin.indexOf(' ');
+        String pinVersion = pinSpace < 0 ? pin : pin.substring(0, pinSpace);
+        String pinChecksum = pinSpace < 0 ? null : pin.substring(pinSpace + 1).trim();
+        return suppliedVersion.equals(pinVersion) && (pinChecksum == null || pinChecksum.equals(suppliedChecksum));
     }
 
     private static String computeChecksum(Inventory.Dependency dependency,
@@ -71,6 +140,9 @@ public class PinModuleInfo implements BuildStep {
 
     private static void updateModuleInfo(Path file,
                                          SequencedMap<String, String> entries,
+                                         Set<String> covered,
+                                         SequencedMap<String, String> references,
+                                         boolean flatten,
                                          Platform platform) throws IOException {
         String existing = Files.readString(file);
         Matcher moduleDeclarationMatcher = MODULE_DECLARATION.matcher(existing);
@@ -80,7 +152,7 @@ public class PinModuleInfo implements BuildStep {
         int moduleStart = moduleDeclarationMatcher.start();
         String prelude = existing.substring(0, moduleStart);
         String body = existing.substring(moduleStart);
-        String updatedPrelude = updateJavadoc(prelude, entries, platform);
+        String updatedPrelude = updateJavadoc(prelude, entries, covered, references, flatten, platform);
         String updated = updatedPrelude + body;
         if (!updated.equals(existing)) {
             Files.writeString(file, updated);
@@ -120,9 +192,10 @@ public class PinModuleInfo implements BuildStep {
                     && mavenCoordinate.indexOf('/') == mavenCoordinate.lastIndexOf('/');
             // A module root in a Maven-resolved layout pins only the version: the root pom
             // it stands for is not hashed, and the jar it points at is hashed by its Maven entry.
-            String checksum = moduleRoot
+            String checksum = hashFunction == null
+                    || (moduleRoot
                     && dependency.getValue().jar() != null
-                    && hashedElsewhere.contains(dependency.getValue().jar())
+                    && hashedElsewhere.contains(dependency.getValue().jar()))
                     ? null
                     : computeChecksum(dependency.getValue(), hashFunction);
             String value = checksum == null ? version : version + " " + checksum;
@@ -160,6 +233,9 @@ public class PinModuleInfo implements BuildStep {
 
     private static String updateJavadoc(String prelude,
                                         SequencedMap<String, String> entries,
+                                        Set<String> covered,
+                                        SequencedMap<String, String> references,
+                                        boolean flatten,
                                         Platform platform) {
         int javadocEnd = -1;
         int javadocStart = -1;
@@ -179,7 +255,7 @@ public class PinModuleInfo implements BuildStep {
         String before = prelude.substring(0, javadocStart);
         String javadoc = prelude.substring(javadocStart, javadocEnd);
         String after = prelude.substring(javadocEnd);
-        String rewritten = rewriteJavadoc(javadoc, entries, platform);
+        String rewritten = rewriteJavadoc(javadoc, entries, covered, references, flatten, platform);
         return before + rewritten + after;
     }
 
@@ -188,8 +264,12 @@ public class PinModuleInfo implements BuildStep {
 
     private static String rewriteJavadoc(String javadoc,
                                          SequencedMap<String, String> entries,
+                                         Set<String> covered,
+                                         SequencedMap<String, String> references,
+                                         boolean flatten,
                                          Platform platform) {
         List<String> lines = new ArrayList<>(List.of(javadoc.split("\\n", -1)));
+        rewriteBoms(lines, references, flatten, platform);
         SequencedMap<String, List<PinLine>> guarded = new LinkedHashMap<>();
         for (int lineIndex = 0; lineIndex < lines.size(); lineIndex++) {
             Matcher matcher = PIN_TAG.matcher(lines.get(lineIndex));
@@ -261,6 +341,9 @@ public class PinModuleInfo implements BuildStep {
         for (String key : entries.keySet()) {
             regenerated.add(expand(key));
         }
+        // A coordinate covered by a BOM is regenerated as no pin at all: its stale unguarded
+        // line is dropped rather than preserved, since the BOM entry now supplies the value.
+        regenerated.addAll(covered);
         // An unguarded line whose coordinate is not in the resolved closure is a manual override
         // (for example a transitively required module name) and is preserved as-is; only lines the
         // closure regenerates are rewritten, so a repin never discards a hand-set version.
@@ -306,6 +389,88 @@ public class PinModuleInfo implements BuildStep {
         }
         lines.addAll(insertAt, tags);
         return String.join("\n", lines);
+    }
+
+    private static void rewriteBoms(List<String> lines,
+                                    SequencedMap<String, String> references,
+                                    boolean flatten,
+                                    Platform platform) {
+        if (flatten) {
+            Iterator<String> it = lines.iterator();
+            while (it.hasNext()) {
+                String line = it.next();
+                Matcher matcher = BOM_TAG.matcher(line);
+                if (!matcher.matches()) {
+                    continue;
+                }
+                String rest = matcher.group(2) == null ? "" : matcher.group(2).trim();
+                if (rest.endsWith("]")) {
+                    throw new IllegalStateException("Cannot flatten platform-guarded BOM declaration: "
+                            + line.trim());
+                }
+                it.remove();
+            }
+            return;
+        }
+        SequencedMap<String, List<PinLine>> declarations = new LinkedHashMap<>();
+        for (int lineIndex = 0; lineIndex < lines.size(); lineIndex++) {
+            Matcher matcher = BOM_TAG.matcher(lines.get(lineIndex));
+            if (!matcher.matches()) {
+                continue;
+            }
+            String token = matcher.group(1);
+            String last = token.substring(token.lastIndexOf('/') + 1);
+            if (last.startsWith("bom-") && last.endsWith(".properties")) {
+                continue;
+            }
+            String rest = matcher.group(2) == null ? "" : matcher.group(2).trim();
+            String guard = null;
+            if (rest.endsWith("]")) {
+                int bracket = rest.lastIndexOf('[');
+                if (bracket >= 0) {
+                    guard = rest.substring(bracket + 1, rest.length() - 1);
+                }
+            }
+            declarations.computeIfAbsent(expand(token), _ -> new ArrayList<>())
+                    .add(new PinLine(lineIndex, token, guard));
+        }
+        for (Map.Entry<String, List<PinLine>> entry : declarations.entrySet()) {
+            String resolved = references.get(entry.getKey());
+            if (resolved == null) {
+                continue;
+            }
+            PinLine fallback = null, matched = null;
+            int specificity = 0;
+            boolean ambiguous = false;
+            for (PinLine declaration : entry.getValue()) {
+                if (declaration.guard() == null) {
+                    fallback = declaration;
+                    continue;
+                }
+                Platform guard = Platform.of(declaration.guard());
+                if (!platform.matches(guard)) {
+                    continue;
+                }
+                if (guard.tokens().size() > specificity) {
+                    matched = declaration;
+                    specificity = guard.tokens().size();
+                    ambiguous = false;
+                } else if (guard.tokens().size() == specificity) {
+                    ambiguous = true;
+                }
+            }
+            if (ambiguous) {
+                continue;
+            }
+            PinLine winner = matched != null ? matched : fallback;
+            if (winner != null) {
+                lines.set(winner.index(), " * @jenesis.bom "
+                        + winner.token()
+                        + " "
+                        + resolved
+                        + (winner.guard() == null ? "" : " [" + winner.guard() + "]"));
+            }
+        }
     }
 
     private static String expand(String token) {

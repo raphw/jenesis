@@ -58,6 +58,41 @@ public class MultiProjectDependenciesTest {
     }
 
     @Test
+    public void merges_boms_across_sibling_modules_first_wins() throws IOException {
+        SequencedProperties first = new SequencedProperties();
+        first.setProperty("bom/main/module/acme.platform", "1.0");
+        first.setProperty("entry/main/module/bar", "1.2.3");
+        first.store(module.resolve(BuildStep.BOMS));
+        SequencedProperties firstRequires = new SequencedProperties();
+        firstRequires.store(module.resolve(BuildStep.REQUIRES));
+        SequencedProperties second = new SequencedProperties();
+        second.setProperty("bom/main/module/acme.platform", "2.0");
+        second.setProperty("bom/main/module/other.platform", "3.0");
+        second.store(dependency.resolve(BuildStep.BOMS));
+        SequencedProperties secondRequires = new SequencedProperties();
+        secondRequires.store(dependency.resolve(BuildStep.REQUIRES));
+        SequencedMap<String, BuildStepArgument> arguments = new LinkedHashMap<>();
+        arguments.put("foo", new BuildStepArgument(
+                module,
+                Map.of(Path.of(BuildStep.BOMS), Checksum.of(ChecksumStatus.ADDED))));
+        arguments.put("bar", new BuildStepArgument(
+                dependency,
+                Map.of(Path.of(BuildStep.BOMS), Checksum.of(ChecksumStatus.ADDED))));
+        BuildStepResult result = new MultiProjectDependencies(_ -> true).apply(
+                        Runnable::run,
+                        new BuildStepContext(previous, next, supplement),
+                        arguments)
+                .toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        SequencedProperties properties = SequencedProperties.ofFiles(next.resolve(BuildStep.BOMS));
+        assertThat(properties.stringPropertyNames()).containsExactlyInAnyOrder(
+                "bom/main/module/acme.platform",
+                "entry/main/module/bar",
+                "bom/main/module/other.platform");
+        assertThat(properties.getProperty("bom/main/module/acme.platform")).isEqualTo("1.0");
+    }
+
+    @Test
     public void preserves_pinned_checksum_for_external_dep() throws IOException {
         SequencedProperties dependencies = new SequencedProperties();
         dependencies.setProperty("baz", "SHA256/cafebabe");

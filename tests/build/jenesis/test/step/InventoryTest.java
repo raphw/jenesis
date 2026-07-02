@@ -283,4 +283,46 @@ public class InventoryTest {
     private static SequencedProperties read(Path file) throws IOException {
         return SequencedProperties.ofFiles(file);
     }
+
+    @Test
+    public void mirrors_resolved_boms_from_the_dependency_step() throws IOException {
+        Path runtime = Files.createDirectory(root.resolve("runtime"));
+        Path resolved = Files.createDirectory(runtime.resolve("resolved"));
+        Path bom = Files.writeString(resolved.resolve("acme.platform.properties"), "bar = 1.0\n");
+        new SequencedProperties().store(runtime.resolve(BuildStep.DEPENDENCIES));
+        SequencedProperties boms = new SequencedProperties();
+        boms.setProperty("bom/main/module/acme.platform/1.0", "resolved/acme.platform.properties");
+        boms.setProperty("entry/main/module/bar", "1.0 SHA-256/aaaa");
+        boms.store(runtime.resolve(BuildStep.BOMS));
+
+        BuildStepResult result = run(args("runtime", runtime));
+
+        assertThat(result.next()).isTrue();
+        SequencedProperties inventory = read(next.resolve(Inventory.INVENTORY));
+        assertThat(inventory.getProperty("module.bom.0")).startsWith("bom/main/module/acme.platform/1.0 ");
+        assertThat(inventory.getProperty("module.bom.1")).isEqualTo("entry/main/module/bar 1.0 SHA-256/aaaa");
+        BuildStepArgument argument = new BuildStepArgument(next, Map.of());
+        assertThat(Inventory.bomReferences(List.of(argument), ""))
+                .containsOnly(Map.entry("main/module/acme.platform/1.0", bom));
+        assertThat(Inventory.bomEntries(List.of(argument), ""))
+                .containsOnly(Map.entry("main/module/bar", "1.0 SHA-256/aaaa"));
+    }
+
+    @Test
+    public void ignores_boms_without_a_dependency_index() throws IOException {
+        Path manifests = Files.createDirectory(root.resolve("manifests"));
+        SequencedProperties module = new SequencedProperties();
+        module.setProperty("path", "");
+        module.store(manifests.resolve(BuildStep.MODULE));
+        Path runtime = Files.createDirectory(root.resolve("runtime"));
+        SequencedProperties boms = new SequencedProperties();
+        boms.setProperty("bom/main/module/acme.platform", "1.0");
+        boms.store(runtime.resolve(BuildStep.BOMS));
+
+        BuildStepResult result = run(args("manifests", manifests, "runtime", runtime));
+
+        assertThat(result.next()).isTrue();
+        SequencedProperties inventory = read(next.resolve(Inventory.INVENTORY));
+        assertThat(inventory.getProperty("module.bom.0")).isNull();
+    }
 }

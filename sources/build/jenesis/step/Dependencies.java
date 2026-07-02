@@ -40,11 +40,49 @@ public class Dependencies implements BuildStep {
         return new Dependencies(repositories, resolvers, pinning);
     }
 
+    public static SequencedMap<String, String> bomEntries(SequencedProperties properties, String group) {
+        SequencedMap<String, String> entries = new LinkedHashMap<>();
+        for (String key : properties.stringPropertyNames()) {
+            String value = properties.getProperty(key).trim();
+            if (value.endsWith("]")) {
+                throw new IllegalArgumentException("Malformed BOM entry '"
+                        + key
+                        + "': platform guards are not supported in BOM files,"
+                        + " guard the @jenesis.bom declaration instead");
+            }
+            int firstSlash = key.indexOf('/');
+            int secondSlash = firstSlash < 0 ? -1 : key.indexOf('/', firstSlash + 1);
+            String expanded;
+            if (firstSlash < 0) {
+                expanded = "module/" + key;
+            } else if (secondSlash < 0) {
+                if (firstSlash < 1 || firstSlash == key.length() - 1) {
+                    throw new IllegalArgumentException("Malformed BOM entry '"
+                            + key
+                            + "': expected <module>, <groupId>/<artifactId>,"
+                            + " or <repository>/<coordinate>");
+                }
+                expanded = "maven/" + key;
+            } else {
+                if (firstSlash < 1 || secondSlash == firstSlash + 1 || secondSlash == key.length() - 1) {
+                    throw new IllegalArgumentException("Malformed BOM entry '"
+                            + key
+                            + "': expected <module>, <groupId>/<artifactId>,"
+                            + " or <repository>/<coordinate>");
+                }
+                expanded = key;
+            }
+            entries.put(group + "/" + expanded, value);
+        }
+        return entries;
+    }
+
     @Override
     public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
         return arguments.values().stream().anyMatch(argument -> argument.hasChanged(
                 Path.of(REQUIRES),
                 Path.of(VERSIONS),
+                Path.of(BOMS),
                 Path.of(EXCLUSIONS),
                 Path.of(SPDX)));
     }
@@ -85,6 +123,7 @@ public class Dependencies implements BuildStep {
         }
         SequencedMap<String, SequencedMap<String, SequencedMap<String, SequencedMap<String, String>>>> requires = new LinkedHashMap<>();
         SequencedMap<String, SequencedMap<String, SequencedMap<String, String>>> versions = new LinkedHashMap<>();
+        SequencedMap<String, String> bomTokens = new LinkedHashMap<>();
         SequencedMap<String, SequencedMap<String, SequencedMap<String, SequencedMap<String, SequencedSet<String>>>>> exclusions = new LinkedHashMap<>();
         for (BuildStepArgument argument : arguments.values()) {
             Path requiresFile = argument.folder().resolve(REQUIRES);
@@ -117,6 +156,26 @@ public class Dependencies implements BuildStep {
                     versions.computeIfAbsent(key.substring(0, first), _ -> new LinkedHashMap<>())
                             .computeIfAbsent(key.substring(first + 1, second), _ -> new LinkedHashMap<>())
                             .putIfAbsent(key.substring(second + 1), properties.getProperty(key));
+                }
+            }
+            Path bomsFile = argument.folder().resolve(BOMS);
+            if (Files.exists(bomsFile)) {
+                SequencedProperties properties = SequencedProperties.ofFiles(bomsFile);
+                for (String key : properties.stringPropertyNames()) {
+                    String reference = key.startsWith("bom/")
+                            ? key.substring(4)
+                            : key.startsWith("entry/") ? key.substring(6) : null;
+                    int first = reference == null ? -1 : reference.indexOf('/');
+                    int second = first < 1 ? -1 : reference.indexOf('/', first + 1);
+                    if (first < 1 || second <= first || second == reference.length() - 1) {
+                        throw new IllegalArgumentException("Malformed BOM reference '"
+                                + key
+                                + "' in "
+                                + bomsFile
+                                + ": expected bom/<group>/<repository>/<coordinate>"
+                                + " or entry/<group>/<repository>/<coordinate>");
+                    }
+                    bomTokens.putIfAbsent(key, properties.getProperty(key));
                 }
             }
             Path exclusionsFile = argument.folder().resolve(EXCLUSIONS);
@@ -154,6 +213,64 @@ public class Dependencies implements BuildStep {
             }
             wrapped.put(name, effective.cached(libs));
         });
+        if (!bomTokens.isEmpty()) {
+            SequencedMap<String, String> managed = new LinkedHashMap<>();
+            SequencedProperties resolvedBoms = new SequencedProperties();
+            for (Map.Entry<String, String> token : bomTokens.entrySet()) {
+                if (token.getKey().startsWith("entry/")) {
+                    managed.putIfAbsent(token.getKey().substring(6), token.getValue());
+                    continue;
+                }
+                String reference = token.getKey().substring(4);
+                int first = reference.indexOf('/');
+                int second = reference.indexOf('/', first + 1);
+                String group = reference.substring(0, first);
+                String repo = reference.substring(first + 1, second);
+                String coordinate = reference.substring(second + 1);
+                String value = token.getValue();
+                int space = value.indexOf(' ');
+                String version = space < 0 ? value : value.substring(0, space);
+                String checksum = space < 0 ? "" : value.substring(space + 1).trim();
+                Repository repository = wrapped.get(Resolver.base(repo));
+                if (repository == null) {
+                    throw new IllegalArgumentException("Unknown repository for BOM: " + reference);
+                }
+                boolean verify = pinning != Pinning.VERSIONS && pinning != Pinning.IGNORE;
+                Resolver.Resolved bom;
+                try {
+                    bom = Resolver.materialize(executor,
+                            repository,
+                            version.isEmpty()
+                                    ? coordinate + ":properties"
+                                    : coordinate + "/" + version + ":properties",
+                            verify ? checksum : null);
+                } catch (RuntimeException e) {
+                    throw new IllegalStateException("Failed to fetch BOM " + reference, e);
+                }
+                if (pinning == Pinning.STRICT && checksum.isEmpty() && !bom.internal()) {
+                    throw new IllegalStateException("No checksum pinned for BOM "
+                            + reference
+                            + " (strict pinning is enabled)");
+                }
+                if (!version.isEmpty()) {
+                    resolvedBoms.setProperty("bom/" + reference + "/" + version,
+                            context.next().relativize(bom.file()).toString().replace(File.separatorChar, '/'));
+                }
+                bomEntries(SequencedProperties.ofFiles(bom.file()), group).forEach(managed::putIfAbsent);
+            }
+            for (Map.Entry<String, String> entry : managed.entrySet()) {
+                String key = entry.getKey();
+                int first = key.indexOf('/');
+                int second = key.indexOf('/', first + 1);
+                resolvedBoms.setProperty("entry/" + key, entry.getValue());
+                versions.computeIfAbsent(key.substring(0, first), _ -> new LinkedHashMap<>())
+                        .computeIfAbsent(key.substring(first + 1, second), _ -> new LinkedHashMap<>())
+                        .putIfAbsent(key.substring(second + 1), entry.getValue());
+            }
+            if (!resolvedBoms.isEmpty()) {
+                resolvedBoms.store(context.next().resolve(BOMS));
+            }
+        }
         SequencedProperties resolved = new SequencedProperties();
         SequencedMap<String, Resolver.Resolved> materialized = new LinkedHashMap<>();
         SequencedProperties graph = new SequencedProperties();
