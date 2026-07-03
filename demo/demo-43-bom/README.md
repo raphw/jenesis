@@ -72,6 +72,24 @@ which is only as reproducible as any unpinned dependency and cannot carry a
 hash. The local `~/.jenesis` repository is consulted first, so an exported
 BOM resolves before the remote one.
 
+Emitting a BOM
+--------------
+
+A module can also *publish* a BOM of its own resolved dependency closure. A
+`bom.properties` build-configuration file (this demo has one at its root)
+switches the modular layouts to emit the closure as a properties file, which
+`export` stages into the local Jenesis repository alongside the module jar:
+
+    ~/.jenesis/demo.bom/1-SNAPSHOT/demo.bom.properties
+
+The file is the module's full closure with a version and checksum per
+coordinate, keyed group-less exactly like a hand-written BOM, so another
+project consumes it with `@jenesis.bom demo.bom` the same way this one
+consumes `bom-platform.properties`. It is published only into the Jenesis
+repository; the Maven `export` never emits it. Emission is off unless
+`bom.properties` is present, mirroring how `packaging.properties` gates
+`jpackage`; the file is otherwise empty and reserved for future options.
+
 Precedence
 ----------
 

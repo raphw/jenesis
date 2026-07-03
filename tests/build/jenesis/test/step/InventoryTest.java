@@ -69,6 +69,29 @@ public class InventoryTest {
     }
 
     @Test
+    public void records_bom_file_separately_from_runtime() throws IOException {
+        Path manifests = Files.createDirectory(root.resolve("manifests"));
+        SequencedProperties module = new SequencedProperties();
+        module.setProperty("path", "foo");
+        module.setProperty("module", "com.example.foo");
+        module.setProperty("modular", "true");
+        module.store(manifests.resolve(BuildStep.MODULE));
+        Path produce = Files.createDirectory(root.resolve("produce"));
+        Path classes = Files.writeString(
+                Files.createDirectory(produce.resolve("artifacts")).resolve("classes.jar"), "main");
+        Path bom = Files.writeString(
+                Files.createDirectory(produce.resolve("bom")).resolve("bom-com.example.foo.properties"), "a = 1.0\n");
+
+        run(args("manifests", manifests, "produce", produce));
+
+        SequencedProperties inventory = read(next.resolve(Inventory.INVENTORY));
+        assertThat(inventory.getProperty("module-foo.bomfile.0")).isEqualTo(relativize(bom));
+        assertThat(inventory.getProperty("module-foo.artifacts.0")).isEqualTo(relativize(classes));
+        assertThat(inventory.getProperty("module-foo.runtime.0")).isEqualTo(relativize(classes));
+        assertThat(inventory.getProperty("module-foo.runtime.1")).isNull();
+    }
+
+    @Test
     public void omits_main_class_when_absent() throws IOException {
         Path manifests = Files.createDirectory(root.resolve("manifests"));
         SequencedProperties module = new SequencedProperties();

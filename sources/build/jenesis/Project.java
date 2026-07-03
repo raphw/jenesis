@@ -25,6 +25,7 @@ import build.jenesis.project.MultiProjectModule;
 import build.jenesis.project.ProjectModuleDescriptor;
 import build.jenesis.project.ProjectWatch;
 import build.jenesis.step.Bind;
+import build.jenesis.step.Bom;
 import build.jenesis.step.Dependencies;
 import build.jenesis.step.ImageStaging;
 import build.jenesis.step.Inventory;
@@ -179,6 +180,7 @@ public record Project(
             executor.addModule(HELP, new HelpModule("modular", assembler.getClass().getName()));
             executor.addModule(SKILL, new SkillModule(project.target()));
             executor.addModule(METADATA, MetadataModule.toMetadataModule(project));
+            MultiProjectAssembler<? super ProjectModuleDescriptor> bomAware = new BomAwareAssembler(assembler, project.hashFunction());
             executor.addModule(BUILD, (sub, inherited) -> {
                 Map<String, Repository> repositories = new LinkedHashMap<>(project.repositories());
                 repositories.putIfAbsent("module",
@@ -201,7 +203,7 @@ public record Project(
                                 true,
                                 Layout.licenseFiles(project, Dependencies.SPDX),
                                 project.boms(),
-                                (descriptor, mergedRepos, mergedResolvers) -> assembler.apply(
+                                (descriptor, mergedRepos, mergedResolvers) -> bomAware.apply(
                                         new ProjectModuleDescriptor(descriptor,
                                                 configurations(
                                                         modularConfigurationFolder(descriptor.location()),
@@ -251,6 +253,7 @@ public record Project(
                     BuildExecutorModule.PREVIOUS.repeat(2) + MultiProjectModule.MANIFESTS,
                     "module",
                     true);
+            MultiProjectAssembler<? super ProjectModuleDescriptor> bomAware = new BomAwareAssembler(pomAware, project.hashFunction());
             executor.addModule(BUILD, (sub, inherited) -> {
                 Map<String, Repository> repositories = new LinkedHashMap<>(project.repositories());
                 repositories.putIfAbsent("maven",
@@ -278,7 +281,7 @@ public record Project(
                                 true,
                                 Layout.licenseFiles(project, Dependencies.SPDX),
                                 project.boms(),
-                                (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
+                                (descriptor, mergedRepos, mergedResolvers) -> bomAware.apply(
                                         new ProjectModuleDescriptor(descriptor,
                                                 configurations(modularConfigurationFolder(descriptor.location()), project.configuration(), project.profiles()),
                                                 project.tests(),
@@ -570,6 +573,21 @@ public record Project(
                                                        from the project's BOM locations (jenesis.project.boms,
                                                        default: the configuration locations) instead; local
                                                        @jenesis.pin lines override BOM entries
+
+                    %{header}Build-configuration files (in a module's build.jenesis config location; presence activates, contents configure):%{reset}
+                      %{name}packaging.properties%{reset}    Extra deliverables: jmod/jlink/bundle/launcher/native (booleans), jpackage=<type>
+                      %{name}sbom.properties%{reset}         CycloneDX SBOM format=json|xml|none (SBOM is on by default; -Djenesis.sbom.cyclonedx=false disables)
+                      %{name}bom.properties%{reset}          Publish the module's resolved closure as a repository BOM, <module>/<version>/<module>.properties (Jenesis repository only)
+                      %{name}licensing.properties%{reset}    License compliance check (allowed/denied/unknown/override.<coord>)
+                      %{name}vulnerability.properties%{reset} OSV vulnerability check (severity, warn)
+                      %{name}jacoco.properties%{reset}       JaCoCo test-coverage report
+                      %{name}graal.properties%{reset}        GraalVM native-image reachability agent during the test run
+                      %{name}pitest.properties%{reset}       PIT mutation testing
+                      %{name}javaformat.properties%{reset}   Java source formatter=google|palantir
+                      %{name}spdx.properties%{reset}         Extend the license alias/category tables
+                      %{name}process-<tool>.properties%{reset} Extra command-line arguments merged into a forked tool (javac, javadoc, jar, jlink, jpackage, ...)
+                      The inferred linters and other formatters activate instead from their own native config
+                      files (checkstyle.xml, pmd.xml, spotbugs-exclude.xml, .editorconfig, .scalafmt.conf, ...).
 
                     See README.md for the full reference.
                     """)
@@ -870,6 +888,38 @@ public record Project(
                                                         override BOM entries, and
                                                         the first declared BOM
                                                         wins a conflict.
+
+                    Build-configuration files (in a module's build.jenesis config
+                    location - a module's META-INF/build.jenesis/ folder, plus the
+                    project configuration locations; presence activates the
+                    feature, contents configure it):
+                      packaging.properties      Extra deliverables: jmod/jlink/
+                                                bundle/launcher/native (booleans),
+                                                jpackage=<type>.
+                      sbom.properties           CycloneDX SBOM format=json|xml|none.
+                                                The SBOM is on by default; this file
+                                                only tunes it (disable entirely with
+                                                -Djenesis.sbom.cyclonedx=false).
+                      bom.properties            Publish the module's resolved closure
+                                                as a repository BOM, export writes it
+                                                to <module>/<version>/<module>.properties
+                                                (Jenesis repository only; the Maven
+                                                export never carries it).
+                      licensing.properties      License compliance check
+                                                (allowed/denied/unknown/override.<coord>).
+                      vulnerability.properties  OSV vulnerability check (severity, warn).
+                      jacoco.properties         JaCoCo test-coverage report.
+                      graal.properties          GraalVM native-image reachability agent
+                                                attached during the test run.
+                      pitest.properties         PIT mutation testing.
+                      javaformat.properties     Java source formatter=google|palantir.
+                      spdx.properties           Extend the license alias/category tables.
+                      process-<tool>.properties Extra command-line arguments merged
+                                                into a forked tool (javac, javadoc,
+                                                jar, jlink, jpackage, ...).
+                    The inferred linters and the ktlint/scalafmt formatters activate
+                    instead from their own native config files (checkstyle.xml,
+                    pmd.xml, spotbugs-exclude.xml, .editorconfig, .scalafmt.conf, ...).
 
                     9. Set system properties for one-off overrides
                     ----------------------------------------------
@@ -1216,6 +1266,24 @@ public record Project(
                             }
                         },
                         inherited.sequencedKeySet().stream());
+            });
+        }
+    }
+
+    private record BomAwareAssembler(MultiProjectAssembler<? super ProjectModuleDescriptor> base,
+                                     HashDigestFunction hashFunction) implements MultiProjectAssembler<ProjectModuleDescriptor> {
+
+        @Override
+        public AssemblyDescriptor apply(ProjectModuleDescriptor descriptor,
+                                        Map<String, Repository> repositories,
+                                        Map<String, Resolver> resolvers) {
+            AssemblyDescriptor assembly = base.apply(descriptor, repositories, resolvers);
+            if (BuildStep.locate(descriptor.configuration(), "bom.properties") == null) {
+                return assembly;
+            }
+            return assembly.mapBuild(delegate -> (sub, inherited) -> {
+                delegate.accept(sub, inherited);
+                sub.addStep("bom", new Bom(hashFunction), inherited.sequencedKeySet().stream());
             });
         }
     }

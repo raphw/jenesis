@@ -48,6 +48,8 @@ public class ModularStaging implements BuildStep {
                     prefix, "documentation", false, ".jar", inventoryFile);
             Path jmod = single(Inventory.paths(inventory, argument.folder(), prefix + ".jmod"),
                     prefix, "jmod", false, ".jmod", inventoryFile);
+            Path bom = single(Inventory.paths(inventory, argument.folder(), prefix + ".bomfile"),
+                    prefix, "bomfile", false, ".properties", inventoryFile);
             String pomRelative = inventory.getProperty(prefix + ".pom");
             Path pom = pomRelative == null ? null : argument.folder().resolve(pomRelative).normalize();
             String version = inventory.getProperty(prefix + ".version");
@@ -60,6 +62,7 @@ public class ModularStaging implements BuildStep {
             link(javadoc, target.resolve(moduleName + "-javadoc.jar"));
             link(jmod, target.resolve(moduleName + ".jmod"));
             link(pom, target.resolve(moduleName + ".pom"));
+            link(bom, target.resolve(moduleName + ".properties"));
         }
         return CompletableFuture.completedStage(new BuildStepResult(true));
     }

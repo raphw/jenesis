@@ -33,6 +33,7 @@ public class Inventory implements BuildStep {
                 Path.of(METADATA),
                 Path.of(POM),
                 Path.of(ARTIFACTS),
+                Path.of(Bom.BOM),
                 Path.of(SOURCES),
                 Path.of(DOCUMENTATION),
                 Path.of(DEPENDENCIES),
@@ -65,6 +66,7 @@ public class Inventory implements BuildStep {
         Path nativeBinary = null;
         Path metadataImage = null;
         SequencedSet<Path> artifacts = new LinkedHashSet<>();
+        SequencedSet<Path> bomArtifacts = new LinkedHashSet<>();
         SequencedSet<Path> sources = new LinkedHashSet<>();
         SequencedSet<Path> documentation = new LinkedHashSet<>();
         SequencedSet<Path> jmods = new LinkedHashSet<>();
@@ -115,6 +117,7 @@ public class Inventory implements BuildStep {
                 pomFile = pomCandidate;
             }
             collect(folder.resolve(ARTIFACTS), artifacts);
+            collect(folder.resolve(Bom.BOM), bomArtifacts);
             collect(folder.resolve(SOURCES), sources);
             collect(folder.resolve(DOCUMENTATION), documentation);
             Path packages = folder.resolve(JPackage.PACKAGES);
@@ -204,6 +207,7 @@ public class Inventory implements BuildStep {
             inventory.setProperty(prefix + "bom." + bomIndex++, entry.getKey() + " " + entry.getValue());
         }
         writePaths(inventory, context, prefix + "artifacts", artifacts);
+        writePaths(inventory, context, prefix + "bomfile", bomArtifacts);
         writePaths(inventory, context, prefix + "sources", sources);
         writePaths(inventory, context, prefix + "documentation", documentation);
         writePaths(inventory, context, prefix + "jmod", jmods);

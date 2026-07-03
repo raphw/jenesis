@@ -62,6 +62,24 @@ public class ModularStagingTest {
     }
 
     @Test
+    public void stages_bom_as_module_properties() throws IOException {
+        Path folder = Files.createDirectory(source.resolve("foo"));
+        SequencedProperties inventory = new SequencedProperties();
+        inventory.setProperty("module-foo.module", "demo.foo");
+        inventory.setProperty("module-foo.version", "1.0.0");
+        inventory.setProperty("module-foo.artifacts.0", "artifacts/classes.jar");
+        inventory.setProperty("module-foo.bomfile.0", "bom/bom-demo.foo.properties");
+        inventory.store(folder.resolve(Inventory.INVENTORY));
+        Files.writeString(Files.createDirectory(folder.resolve("artifacts")).resolve("classes.jar"), "jar");
+        Files.writeString(Files.createDirectory(folder.resolve("bom")).resolve("bom-demo.foo.properties"), "a = 1.0\n");
+
+        run(false, folder);
+
+        assertThat(next.resolve("demo.foo/1.0.0/demo.foo.jar")).hasContent("jar");
+        assertThat(next.resolve("demo.foo/1.0.0/demo.foo.properties")).hasContent("a = 1.0\n");
+    }
+
+    @Test
     public void inserts_version_segment_when_inventory_version_is_set() throws IOException {
         Path inv = inventory("jenesis", "build.jenesis", null, "1.0.0",
                 "classes.jar", "sources.jar", "javadoc.jar");

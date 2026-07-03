@@ -254,7 +254,8 @@ public class Dependencies implements BuildStep {
                 }
                 if (!version.isEmpty()) {
                     resolvedBoms.setProperty("bom/" + reference + "/" + version,
-                            context.next().relativize(bom.file()).toString().replace(File.separatorChar, '/'));
+                            context.next().toAbsolutePath().relativize(bom.file().toAbsolutePath())
+                                    .toString().replace(File.separatorChar, '/'));
                 }
                 bomEntries(SequencedProperties.ofFiles(bom.file()), group).forEach(managed::putIfAbsent);
             }
