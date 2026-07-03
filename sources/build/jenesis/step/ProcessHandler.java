@@ -11,6 +11,18 @@ public sealed interface ProcessHandler permits ProcessHandler.OfTool, ProcessHan
     record Tee(Executor executor, Consumer<String> out, Consumer<String> err) {
     }
 
+    private static Charset encoding() {
+        String name = System.getProperty("native.encoding");
+        if (name == null) {
+            return Charset.defaultCharset();
+        }
+        try {
+            return Charset.forName(name);
+        } catch (IllegalArgumentException _) {
+            return Charset.defaultCharset();
+        }
+    }
+
     enum Factory {
         TOOL {
             @Override
@@ -71,13 +83,13 @@ public sealed interface ProcessHandler permits ProcessHandler.OfTool, ProcessHan
         @Override
         public int execute(Path output, Path error, Tee tee) throws IOException {
             if (tee == null) {
-                try (PrintWriter out = new PrintWriter(Files.newBufferedWriter(output));
-                     PrintWriter err = new PrintWriter(Files.newBufferedWriter(error))) {
+                try (PrintWriter out = new PrintWriter(Files.newBufferedWriter(output, encoding()));
+                     PrintWriter err = new PrintWriter(Files.newBufferedWriter(error, encoding()))) {
                     return toolProvider.run(out, err, commands.toArray(String[]::new));
                 }
             }
-            try (PrintWriter out = new PrintWriter(new LineTee(Files.newBufferedWriter(output), tee.out()), true);
-                 PrintWriter err = new PrintWriter(new LineTee(Files.newBufferedWriter(error), tee.err()), true)) {
+            try (PrintWriter out = new PrintWriter(new LineTee(Files.newBufferedWriter(output, encoding()), tee.out()), true);
+                 PrintWriter err = new PrintWriter(new LineTee(Files.newBufferedWriter(error, encoding()), tee.err()), true)) {
                 return toolProvider.run(out, err, commands.toArray(String[]::new));
             }
         }
@@ -244,8 +256,8 @@ public sealed interface ProcessHandler permits ProcessHandler.OfTool, ProcessHan
         }
 
         private static void drain(InputStream stream, Path file, Consumer<String> consumer) throws IOException {
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, Charset.defaultCharset()));
-                 BufferedWriter writer = Files.newBufferedWriter(file, Charset.defaultCharset())) {
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, encoding()));
+                 BufferedWriter writer = Files.newBufferedWriter(file, encoding())) {
                 String line;
                 while ((line = reader.readLine()) != null) {
                     writer.write(line);

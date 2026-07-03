@@ -12,6 +12,8 @@ public abstract class ProcessBuildStep implements BuildStep {
 
     public static final String PROCESS = "process/";
 
+    private static final Charset NATIVE_ENCODING = nativeEncoding();
+
     static {
         if (System.getProperty("java.home") == null) {
             String home = System.getenv("JAVA_HOME");
@@ -36,6 +38,18 @@ public abstract class ProcessBuildStep implements BuildStep {
         this.command = command;
         this.factory = factory;
         this.verbose = verbose;
+    }
+
+    private static Charset nativeEncoding() {
+        String name = System.getProperty("native.encoding");
+        if (name == null) {
+            return Charset.defaultCharset();
+        }
+        try {
+            return Charset.forName(name);
+        } catch (IllegalArgumentException _) {
+            return Charset.defaultCharset();
+        }
     }
 
     protected static boolean printing(String command) {
@@ -125,8 +139,8 @@ public abstract class ProcessBuildStep implements BuildStep {
                         if (acceptableExitCode(exitCode, executor, context, arguments)) {
                             future.complete(new BuildStepResult(true));
                         } else {
-                            String outputString = Files.exists(output) ? Files.readString(output) : "";
-                            String errorString = Files.exists(error) ? Files.readString(error) : "";
+                            String outputString = Files.exists(output) ? new String(Files.readAllBytes(output), NATIVE_ENCODING) : "";
+                            String errorString = Files.exists(error) ? new String(Files.readAllBytes(error), NATIVE_ENCODING) : "";
                             throw new IllegalStateException("Unexpected exit code: " + exitCode + "\n"
                                     + "To reproduce, execute:\n " + String.join(" ", handler.commands())
                                     + (outputString.isBlank() ? "" : ("\n\nOutput:\n" + outputString))

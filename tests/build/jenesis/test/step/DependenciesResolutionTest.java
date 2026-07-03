@@ -37,10 +37,13 @@ public class DependenciesResolutionTest {
     private Repository files(Map<String, String> contents) {
         return (_, coordinate) -> {
             String content = contents.getOrDefault(coordinate, coordinate);
+            int colon = coordinate.lastIndexOf(':');
+            String identifier = colon < 0 ? coordinate : coordinate.substring(0, colon);
+            String type = colon < 0 ? "jar" : coordinate.substring(colon + 1);
             Path file;
             try {
                 file = Files.write(
-                        artifacts.resolve(coordinate.replace('/', '-') + ".jar"),
+                        artifacts.resolve(identifier.replace('/', '-') + "." + type),
                         content.getBytes(StandardCharsets.UTF_8));
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
