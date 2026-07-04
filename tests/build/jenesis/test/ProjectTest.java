@@ -211,6 +211,25 @@ public class ProjectTest {
     }
 
     @Test
+    public void scoped_configuration_folders_precede_the_module_and_project_folders() throws IOException {
+        Path scoped = Files.createDirectories(root.resolve("module/src/main/build.jenesis"));
+        Path module = Files.createDirectories(root.resolve("module/build.jenesis"));
+        Path shared = Files.createDirectories(root.resolve("config"));
+        SequencedSet<Path> folders = Project.Layout.configurations(
+                Arrays.asList(
+                        root.resolve("module/src/main/build.jenesis"),
+                        root.resolve("module/src/main/missing"),
+                        root.resolve("module/build.jenesis"),
+                        null),
+                new LinkedHashSet<>(List.of(shared)),
+                Collections.emptyNavigableSet());
+        assertThat(folders).containsExactly(
+                scoped.toAbsolutePath().normalize(),
+                module.toAbsolutePath().normalize(),
+                shared.toAbsolutePath().normalize());
+    }
+
+    @Test
     public void configuration_folders_are_absolute_deduplicated_and_must_exist() throws IOException {
         Path existing = Files.createDirectories(root.resolve("module").resolve("config"));
         SequencedSet<Path> folders = Project.Layout.configurations(

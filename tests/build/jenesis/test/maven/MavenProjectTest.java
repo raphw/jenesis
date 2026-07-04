@@ -1031,4 +1031,30 @@ public class MavenProjectTest {
                 results.get("maven/module-/manifests").resolve(BuildStep.MODULE));
         assertThat(mainModule.getProperty("main")).isNull();
     }
+
+    @Test
+    public void module_descriptor_searches_the_scoped_configuration_folder_first() {
+        MavenProject.MavenModuleDescriptor main = new MavenProject.MavenModuleDescriptor("module-app",
+                Collections.emptyNavigableSet(),
+                Collections.emptyNavigableSet(),
+                Collections.emptyNavigableSet(),
+                Path.of("app"));
+        assertThat(main.configurations()).containsExactly(
+                Path.of("app/src/main/build.jenesis"),
+                Path.of("app/build.jenesis"));
+        MavenProject.MavenModuleDescriptor test = new MavenProject.MavenModuleDescriptor("test-module-app",
+                Collections.emptyNavigableSet(),
+                Collections.emptyNavigableSet(),
+                Collections.emptyNavigableSet(),
+                Path.of("app"));
+        assertThat(test.configurations()).containsExactly(
+                Path.of("app/src/test/build.jenesis"),
+                Path.of("app/build.jenesis"));
+        MavenProject.MavenModuleDescriptor unlocated = new MavenProject.MavenModuleDescriptor("module-app",
+                Collections.emptyNavigableSet(),
+                Collections.emptyNavigableSet(),
+                Collections.emptyNavigableSet(),
+                null);
+        assertThat(unlocated.configurations()).isEmpty();
+    }
 }

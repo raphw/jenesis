@@ -310,9 +310,13 @@ public class Dependencies implements BuildStep {
                             pins.forEach(bom::putIfAbsent);
                         } else {
                             pins.forEach((coordinate, value) -> {
-                                if (value.startsWith(":")) {
-                                    int space = value.indexOf(' ');
-                                    String qualified = space < 0 ? value : value.substring(0, space);
+                                int space = value.indexOf(' ');
+                                String qualified = space < 0 ? value : value.substring(0, space);
+                                if (coordinates.containsKey(coordinate)) {
+                                    // A declaration without a version of its own has the managed version as its
+                                    // only source, so ignoring it cannot float anything and only breaks resolution.
+                                    bom.putIfAbsent(coordinate, qualified);
+                                } else if (qualified.startsWith(":")) {
                                     int divider = qualified.indexOf(':', 1);
                                     bom.putIfAbsent(coordinate, divider < 0
                                             ? qualified

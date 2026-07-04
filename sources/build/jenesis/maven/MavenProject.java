@@ -664,6 +664,17 @@ public class MavenProject implements BuildExecutorModule {
                                         SequencedSet<String> spdx,
                                         Path location) implements ProjectModule {
 
+        public List<Path> configurations() {
+            if (location == null) {
+                return Collections.emptyList();
+            }
+            return List.of(
+                    location.resolve("src")
+                            .resolve(name.startsWith("test-") ? "test" : "main")
+                            .resolve("build.jenesis"),
+                    location.resolve("build.jenesis"));
+        }
+
         @Override
         public SequencedSet<String> sources() {
             return of(BuildExecutorModule.PREVIOUS + SOURCES);

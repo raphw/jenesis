@@ -73,17 +73,18 @@ public record Project(
                                        Project project,
                                        MultiProjectAssembler<? super ProjectModuleDescriptor> assembler) throws IOException;
 
-        private static Path mavenConfigurationFolder(Path location) {
-            return location == null ? null : location.resolve("build.jenesis");
-        }
 
         private static Path modularConfigurationFolder(Path location) {
             return location == null ? null : location.resolve("META-INF").resolve("build.jenesis");
         }
 
         static SequencedSet<Path> configurations(Path local, SequencedSet<Path> folders, SequencedSet<Path> profiles) {
+            return configurations(Collections.singletonList(local), folders, profiles);
+        }
+
+        static SequencedSet<Path> configurations(List<Path> locals, SequencedSet<Path> folders, SequencedSet<Path> profiles) {
             LinkedHashSet<Path> base = new LinkedHashSet<>();
-            Stream.concat(Stream.of(local), folders.stream())
+            Stream.concat(locals.stream(), folders.stream())
                     .filter(folder -> folder != null)
                     .map(folder -> folder.toAbsolutePath().normalize())
                     .forEach(base::add);
@@ -106,7 +107,7 @@ public record Project(
 
         static SequencedSet<Path> licenseFiles(Project project, String file) {
             SequencedSet<Path> located = new LinkedHashSet<>();
-            for (Path folder : configurations(null, project.configuration(), project.profiles())) {
+            for (Path folder : configurations((Path) null, project.configuration(), project.profiles())) {
                 Path candidate = folder.resolve(file);
                 if (Files.isRegularFile(candidate)) {
                     located.add(candidate);
@@ -140,7 +141,7 @@ public record Project(
                                 Layout.licenseFiles(project, Dependencies.SPDX),
                                 (descriptor, mergedRepos, mergedResolvers) -> pomAware.apply(
                                         new ProjectModuleDescriptor(descriptor,
-                                                configurations(mavenConfigurationFolder(descriptor.location()), project.configuration(), project.profiles()),
+                                                configurations(descriptor.configurations(), project.configuration(), project.profiles()),
                                                 project.tests(),
                                                 project.sources(),
                                                 project.documentation(),
@@ -485,8 +486,9 @@ public record Project(
                     
                     %{header}Pinning (-Djenesis.dependency.pin=<mode>):%{reset}
                       %{name}strict%{reset} fails the build on any unpinned artifact; %{name}ignore%{reset} floats
-                      versions to the latest and skips checksum verification (refresh the
-                      pins by running the %{name}pin%{reset} step under it); %{name}versions%{reset} keeps the
+                      versions to the latest and skips checksum verification, keeping a
+                      managed version only where the declaration itself has none (refresh
+                      the pins by running the %{name}pin%{reset} step under it); %{name}versions%{reset} keeps the
                       pinned versions but skips checksum verification. Unset keeps existing
                       pins but tolerates missing ones.
 
@@ -584,7 +586,8 @@ public record Project(
                                                        default: the configuration locations) instead; local
                                                        @jenesis.pin lines override BOM entries
 
-                    %{header}Build-configuration files (in a module's build.jenesis config location; presence activates, contents configure):%{reset}
+                    %{header}Build-configuration files (in a module's build.jenesis config location; presence activates, contents configure;
+                    MAVEN modules also read src/main/build.jenesis and src/test/build.jenesis for main- or test-scoped configuration):%{reset}
                       %{name}packaging.properties%{reset}    Extra deliverables: jmod/jlink/bundle/launcher/native (booleans), jpackage=<type>
                       %{name}sbom.properties%{reset}         CycloneDX SBOM format=json|xml|none (SBOM is on by default; -Djenesis.sbom.cyclonedx=false disables)
                       %{name}bom.properties%{reset}          Publish the module's resolved closure as a repository BOM, <module>/<version>/<module>.properties (Jenesis repository only)
@@ -967,7 +970,9 @@ public record Project(
                       -Djenesis.dependency.pin=strict|versions|ignore
                                                   strict fails on any unpinned
                                                   artifact; ignore floats to the
-                                                  latest and skips checksums
+                                                  latest and skips checksums,
+                                                  keeping a managed version only
+                                                  where the declaration has none
                                                   (refresh pins via the pin step);
                                                   versions keeps pinned versions
                                                   but skips checksum verification.

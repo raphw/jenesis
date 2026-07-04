@@ -527,13 +527,14 @@ public class DependenciesResolutionTest {
     }
 
     @Test
-    public void ignore_pinning_keeps_classifier_selection_floating() throws IOException {
+    public void ignore_pinning_keeps_classifiers_and_versionless_declaration_management() throws IOException {
         SequencedProperties requires = new SequencedProperties();
         requires.setProperty("main/compile/foo/bar", "");
         requires.store(dependencies.resolve(BuildStep.REQUIRES));
         SequencedProperties versions = new SequencedProperties();
         versions.setProperty("main/foo/bar", ":win:1.0 SHA-256/aaaa");
         versions.setProperty("main/foo/plain", "2.0 SHA-256/bbbb");
+        versions.setProperty("main/foo/transitive", ":mac:3.0 SHA-256/cccc");
         versions.store(dependencies.resolve(BuildStep.VERSIONS));
         SequencedMap<String, String> received = new LinkedHashMap<>();
         BuildStepResult result = new Dependencies(Map.of("foo", files(Map.of())), Map.of("foo", (executor, prefix, repositories, descriptors, pins, _) -> {
@@ -549,7 +550,34 @@ public class DependenciesResolutionTest {
                         Map.of(Path.of(BuildStep.REQUIRES), Checksum.of(ChecksumStatus.ADDED),
                                 Path.of(BuildStep.VERSIONS), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        assertThat(received).containsOnly(Map.entry("bar", ":win"));
+        assertThat(received).containsOnly(Map.entry("bar", ":win:1.0"), Map.entry("transitive", ":mac"));
+    }
+
+    @Test
+    public void ignore_pinning_keeps_managed_version_only_for_versionless_declaration() throws IOException {
+        SequencedProperties requires = new SequencedProperties();
+        requires.setProperty("main/compile/foo/bar", "");
+        requires.setProperty("main/compile/foo/other/2.0", "");
+        requires.store(dependencies.resolve(BuildStep.REQUIRES));
+        SequencedProperties versions = new SequencedProperties();
+        versions.setProperty("main/foo/bar", "1.0 SHA-256/aaaa");
+        versions.setProperty("main/foo/other", "1.5 SHA-256/bbbb");
+        versions.store(dependencies.resolve(BuildStep.VERSIONS));
+        SequencedMap<String, String> received = new LinkedHashMap<>();
+        BuildStepResult result = new Dependencies(Map.of("foo", files(Map.of())), Map.of("foo", (executor, prefix, repositories, descriptors, pins, _) -> {
+            received.putAll(pins);
+            SequencedMap<String, String> resolved = new LinkedHashMap<>();
+            descriptors.sequencedKeySet().forEach(descriptor -> resolved.put(prefix + "/" + descriptor, ""));
+            return new Resolver.Resolution(Resolver.materializeAll(executor, repositories, prefix, resolved), List.of(), new LinkedHashMap<>());
+        })).pinning(Pinning.IGNORE).apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
+                        dependencies,
+                        Map.of(Path.of(BuildStep.REQUIRES), Checksum.of(ChecksumStatus.ADDED),
+                                Path.of(BuildStep.VERSIONS), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        assertThat(received).containsOnly(Map.entry("bar", "1.0"));
     }
 
     @Test
@@ -799,7 +827,7 @@ public class DependenciesResolutionTest {
     }
 
     @Test
-    public void ignore_pinning_floats_bom_entries_and_skips_validation() throws IOException {
+    public void ignore_pinning_skips_bom_validation_and_keeps_versionless_declaration_entries() throws IOException {
         SequencedProperties requires = new SequencedProperties();
         requires.setProperty("main/compile/module/bar", "");
         requires.store(dependencies.resolve(BuildStep.REQUIRES));
@@ -825,7 +853,7 @@ public class DependenciesResolutionTest {
                         Map.of(Path.of(BuildStep.REQUIRES), Checksum.of(ChecksumStatus.ADDED),
                                 Path.of(BuildStep.BOMS), Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
         assertThat(result.next()).isTrue();
-        assertThat(received).isEmpty();
+        assertThat(received).containsOnly(Map.entry("bar", "1.0"));
     }
 
     @Test
