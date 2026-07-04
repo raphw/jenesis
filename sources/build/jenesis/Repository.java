@@ -15,11 +15,19 @@ public interface Repository {
     }
 
     default Repository cached(Path folder) {
+        return cached(folder, false);
+    }
+
+    default Repository materialized(Path folder) {
+        return cached(folder, true);
+    }
+
+    private Repository cached(Path folder, boolean snapshot) {
         if (folder == null) {
             return this;
         }
         boolean verbose = Boolean.getBoolean("jenesis.print.fetch");
-        return cached(folder, verbose ? target -> System.out.printf("%s%-11s%s %s%n",
+        return cached(folder, snapshot, verbose ? target -> System.out.printf("%s%-11s%s %s%n",
                 BuildExecutorCallback.YELLOW,
                 "[FETCHED]",
                 BuildExecutorCallback.RESET,
@@ -28,6 +36,10 @@ public interface Repository {
     }
 
     default Repository cached(Path folder, Consumer<Path> callback) {
+        return cached(folder, false, callback);
+    }
+
+    private Repository cached(Path folder, boolean snapshot, Consumer<Path> callback) {
         if (folder == null) {
             return this;
         }
@@ -47,9 +59,12 @@ public interface Repository {
                             return null;
                         }
                         Path file = item.file().orElse(null);
-                        if (file != null && (item.internal() || item.local())) {
-                            // A local item is referenced in place but its flag is not propagated, so an
-                            // outer cache still snapshots it; internal propagates to keep its pinning exemption.
+                        if (file != null && (item.internal() || !snapshot && item.local())) {
+                            // A cache references a local item in place so a republished artifact is picked
+                            // up on the next resolution, while a snapshot links it into the folder so a
+                            // build output stays deterministic and copyable; the local flag is not
+                            // propagated, so an outer snapshot still materializes a cached item. Internal
+                            // items always stay in place and propagate to keep their pinning exemption.
                             if (item.internal()) {
                                 internal.add(key);
                             }

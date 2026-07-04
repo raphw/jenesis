@@ -45,6 +45,17 @@ public interface JenesisRepository extends Repository {
     }
 
     @Override
+    default JenesisRepository materialized(Path folder) {
+        if (folder == null) {
+            return this;
+        }
+        Repository materialized = Repository.super.materialized(folder);
+        return (executor, module, classifier, version, type) -> materialized.fetch(
+                executor,
+                coordinate(module, classifier, version, type));
+    }
+
+    @Override
     default JenesisRepository prepend(Repository repository) {
         JenesisRepository jenesisRepository = of(repository);
         return (executor, module, classifier, version, type) -> {

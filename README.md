@@ -2578,6 +2578,14 @@ build-step outputs by content hash; this section is only about the artifact cach
 project on the user's machine). The path defaults to `.jenesis/artifacts/` at the project root and can be
 relocated via `Project.artifacts(Path)` or `-Djenesis.project.artifacts=<path>`.
 
+The cache exists to avoid re-downloading through repositories that do not cache a download themselves (a
+Jenesis repository fetch, unlike a Maven fetch, does not pass through `~/.m2/repository`), so a fresh rebuild -
+a `rebuild` run or a deleted `target/` folder - still works offline. It deliberately references **local** files
+in place instead of snapshotting them, so a locally republished artifact is picked up by the next resolution.
+The complement sits at the step level: each dependency step **materializes** every resolved file into its own
+`resolved/` output folder (`Repository.materialized(...)`, the snapshotting sibling of `Repository.cached(...)`),
+so `target/` is deterministic and copyable and never references `~/.m2` or another mutable local location.
+
 What lives there today: hardlinked artifacts fetched through any `JenesisModuleRepository` wrapped with
 `.cached(.jenesis/artifacts/)`. `Layout.MODULAR` wires its `module` prefix this way to cache the module jars it
 resolves; `Layout.MODULAR_TO_MAVEN` also wraps the permissive `JenesisModuleRepository.of(JenesisRepository.Scope.ARTIFACT)` it hands to

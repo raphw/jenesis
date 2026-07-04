@@ -21,10 +21,15 @@ public interface MavenRepository extends Repository {
 
     @Override
     default MavenRepository cached(Path folder) {
-        if (folder == null) {
-            return this;
-        }
-        Repository cached = Repository.super.cached(folder);
+        return folder == null ? this : caching(Repository.super.cached(folder));
+    }
+
+    @Override
+    default MavenRepository materialized(Path folder) {
+        return folder == null ? this : caching(Repository.super.materialized(folder));
+    }
+
+    private MavenRepository caching(Repository cached) {
         return new MavenRepository() {
             @Override
             public Optional<RepositoryItem> fetch(Executor executor,

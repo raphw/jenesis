@@ -166,6 +166,50 @@ public class RepositoryTest {
     }
 
     @Test
+    public void materialized_snapshots_local_items_into_the_folder() throws IOException {
+        Path source = Files.writeString(folder.resolve("local.jar"), "local");
+        Path snapshot = Files.createDirectory(folder.resolve("snapshot"));
+        Repository underlying = (_, _) -> Optional.of(new RepositoryItem() {
+            @Override
+            public Optional<Path> file() {
+                return Optional.of(source);
+            }
+
+            @Override
+            public boolean local() {
+                return true;
+            }
+
+            @Override
+            public InputStream toInputStream() throws IOException {
+                return Files.newInputStream(source);
+            }
+        });
+
+        Optional<RepositoryItem> item = underlying.materialized(snapshot).fetch(Runnable::run, "module/foo/1.0");
+
+        assertThat(item).isPresent();
+        assertThat(item.get().file()).isPresent();
+        assertThat(item.get().file().get().getParent()).isEqualTo(snapshot);
+        assertThat(item.get().file().get()).hasContent("local");
+        assertThat(snapshot.toFile().list()).isNotEmpty();
+    }
+
+    @Test
+    public void materialized_keeps_internal_items_in_place_and_preserves_the_flag() throws IOException {
+        Path source = Files.writeString(folder.resolve("live.jar"), "live");
+        Path snapshot = Files.createDirectory(folder.resolve("snapshot"));
+        Repository underlying = (_, _) -> Optional.of(RepositoryItem.ofFile(source, true));
+
+        Optional<RepositoryItem> item = underlying.materialized(snapshot).fetch(Runnable::run, "module/foo/1.0");
+
+        assertThat(item).isPresent();
+        assertThat(item.get().internal()).isTrue();
+        assertThat(item.get().file()).contains(source);
+        assertThat(snapshot.toFile().list()).isEmpty();
+    }
+
+    @Test
     public void cached_failed_stream_copy_leaves_no_file_at_the_target() throws IOException {
         Path cache = Files.createDirectory(folder.resolve("cache"));
         RepositoryItem failing = () -> new InputStream() {

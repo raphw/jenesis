@@ -211,7 +211,7 @@ public class Dependencies implements BuildStep {
                     return Files.exists(file) ? Optional.of(RepositoryItem.ofFile(file)) : Optional.empty();
                 });
             }
-            wrapped.put(name, effective.cached(libs));
+            wrapped.put(name, effective.materialized(libs));
         });
         if (!bomTokens.isEmpty()) {
             SequencedMap<String, String> managed = new LinkedHashMap<>();
