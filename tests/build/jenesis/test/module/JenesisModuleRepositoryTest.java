@@ -2,8 +2,10 @@ package build.jenesis.test.module;
 
 import module java.base;
 import module org.junit.jupiter.api;
+import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
 import build.jenesis.module.JenesisModuleRepository;
+import build.jenesis.module.JenesisRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -253,6 +255,145 @@ public class JenesisModuleRepositoryTest {
         assertThat(item).isPresent();
         try (InputStream stream = item.orElseThrow().toInputStream()) {
             assertThat(new String(stream.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("classes");
+        }
+    }
+
+    @Test
+    public void factory_queries_comma_separated_repositories_in_declared_order() throws IOException {
+        Files.writeString(Files
+                .createDirectories(root.resolve("first/module/build.jenesis"))
+                .resolve("build.jenesis.jar"), "first-classes");
+        Files.writeString(Files
+                .createDirectories(root.resolve("second/module/build.jenesis"))
+                .resolve("build.jenesis.jar"), "second-classes");
+        System.setProperty("jenesis.module.uri",
+                root.resolve("first").toUri() + "," + root.resolve("second").toUri());
+        try {
+            Optional<RepositoryItem> item = JenesisModuleRepository.of(JenesisRepository.Scope.MODULE).fetch(Runnable::run, "build.jenesis");
+
+            assertThat(item).isPresent();
+            try (InputStream stream = item.orElseThrow().toInputStream()) {
+                assertThat(new String(stream.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("first-classes");
+            }
+        } finally {
+            System.clearProperty("jenesis.module.uri");
+        }
+    }
+
+    @Test
+    public void factory_falls_back_to_later_repository_on_miss() throws IOException {
+        Files.writeString(Files
+                .createDirectories(root.resolve("second/module/build.jenesis"))
+                .resolve("build.jenesis.jar"), "second-classes");
+        System.setProperty("jenesis.module.uri",
+                root.resolve("first").toUri() + "," + root.resolve("second").toUri());
+        try {
+            Optional<RepositoryItem> item = JenesisModuleRepository.of(JenesisRepository.Scope.MODULE).fetch(Runnable::run, "build.jenesis");
+
+            assertThat(item).isPresent();
+            try (InputStream stream = item.orElseThrow().toInputStream()) {
+                assertThat(new String(stream.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("second-classes");
+            }
+        } finally {
+            System.clearProperty("jenesis.module.uri");
+        }
+    }
+
+    @Test
+    public void factory_filter_argument_restricts_repository_to_matching_module_ids() throws IOException {
+        Files.writeString(Files
+                .createDirectories(root.resolve("first/module/corp.mod"))
+                .resolve("corp.mod.jar"), "first-corp");
+        Files.writeString(Files
+                .createDirectories(root.resolve("first/module/other.mod"))
+                .resolve("other.mod.jar"), "first-other");
+        Files.writeString(Files
+                .createDirectories(root.resolve("second/module/corp.mod"))
+                .resolve("corp.mod.jar"), "second-corp");
+        Files.writeString(Files
+                .createDirectories(root.resolve("second/module/other.mod"))
+                .resolve("other.mod.jar"), "second-other");
+        System.setProperty("jenesis.module.uri",
+                root.resolve("first").toUri() + "|corp.mod," + root.resolve("second").toUri());
+        try {
+            Repository merged = JenesisModuleRepository.of(JenesisRepository.Scope.MODULE);
+            try (InputStream stream = merged.fetch(Runnable::run, "corp.mod").orElseThrow().toInputStream()) {
+                assertThat(new String(stream.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("first-corp");
+            }
+            try (InputStream stream = merged.fetch(Runnable::run, "other.mod").orElseThrow().toInputStream()) {
+                assertThat(new String(stream.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("second-other");
+            }
+        } finally {
+            System.clearProperty("jenesis.module.uri");
+        }
+    }
+
+    @Test
+    public void factory_artifact_scope_reads_the_artifact_subtree() throws IOException {
+        Files.writeString(Files
+                .createDirectories(root.resolve("first/artifact/build.jenesis"))
+                .resolve("build.jenesis.jar"), "artifact-classes");
+        System.setProperty("jenesis.module.uri", root.resolve("first").toUri().toString());
+        try {
+            Optional<RepositoryItem> item = JenesisModuleRepository.of(JenesisRepository.Scope.ARTIFACT)
+                    .fetch(Runnable::run, "build.jenesis");
+
+            assertThat(item).isPresent();
+            try (InputStream stream = item.orElseThrow().toInputStream()) {
+                assertThat(new String(stream.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("artifact-classes");
+            }
+        } finally {
+            System.clearProperty("jenesis.module.uri");
+        }
+    }
+
+    @Test
+    public void factory_resolves_named_reference_entries() throws IOException {
+        Files.writeString(Files
+                .createDirectories(root.resolve("first/module/build.jenesis"))
+                .resolve("build.jenesis.jar"), "referenced-classes");
+        System.setProperty("jenesis.module.uri", "@corp.test.modules");
+        System.setProperty("corp.test.modules", root.resolve("first").toUri().toString());
+        try {
+            Optional<RepositoryItem> item = JenesisModuleRepository.of(JenesisRepository.Scope.MODULE)
+                    .fetch(Runnable::run, "build.jenesis");
+
+            assertThat(item).isPresent();
+            try (InputStream stream = item.orElseThrow().toInputStream()) {
+                assertThat(new String(stream.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("referenced-classes");
+            }
+        } finally {
+            System.clearProperty("jenesis.module.uri");
+            System.clearProperty("corp.test.modules");
+        }
+    }
+
+    @Test
+    public void factory_filter_matches_versioned_sub_modules_on_dot_boundary() throws IOException {
+        Files.writeString(Files
+                .createDirectories(root.resolve("first/module/corp.mod/1.0"))
+                .resolve("corp.mod.jar"), "first-corp");
+        Files.writeString(Files
+                .createDirectories(root.resolve("first/module/corporate.mod/1.0"))
+                .resolve("corporate.mod.jar"), "first-corporate");
+        Files.writeString(Files
+                .createDirectories(root.resolve("second/module/corp.mod/1.0"))
+                .resolve("corp.mod.jar"), "second-corp");
+        Files.writeString(Files
+                .createDirectories(root.resolve("second/module/corporate.mod/1.0"))
+                .resolve("corporate.mod.jar"), "second-corporate");
+        System.setProperty("jenesis.module.uri",
+                root.resolve("first").toUri() + "|corp," + root.resolve("second").toUri());
+        try {
+            Repository merged = JenesisModuleRepository.of(JenesisRepository.Scope.MODULE);
+            try (InputStream stream = merged.fetch(Runnable::run, "corp.mod/1.0").orElseThrow().toInputStream()) {
+                assertThat(new String(stream.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("first-corp");
+            }
+            try (InputStream stream = merged.fetch(Runnable::run, "corporate.mod/1.0").orElseThrow().toInputStream()) {
+                assertThat(new String(stream.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("second-corporate");
+            }
+        } finally {
+            System.clearProperty("jenesis.module.uri");
         }
     }
 }

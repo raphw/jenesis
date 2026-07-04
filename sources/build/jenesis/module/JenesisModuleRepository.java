@@ -4,20 +4,104 @@ import module java.base;
 import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
 
-public class JenesisModuleRepository implements Repository {
+public class JenesisModuleRepository implements JenesisRepository {
 
     private final URI root;
     private final String token;
 
-    public JenesisModuleRepository(boolean requireNamedModules) {
-        String uri = System.getProperty("jenesis.module.uri", System.getenv("JENESIS_REPOSITORY_URI"));
-        if (uri == null) {
-            uri = "https://repo.jenesis.build/";
-        } else if (!uri.endsWith("/")) {
-            uri = uri + "/";
+    public static JenesisRepository of(Scope scope) {
+        String token = System.getProperty("jenesis.module.token", System.getenv("JENESIS_REPOSITORY_TOKEN"));
+        String property = System.getProperty("jenesis.module.uri");
+        String environment = System.getenv("JENESIS_REPOSITORY_URI");
+        Set<String> visited = new HashSet<>();
+        String text;
+        if (property != null) {
+            text = property;
+        } else if (environment != null) {
+            text = environment;
+            visited.add("JENESIS_REPOSITORY_URI");
+        } else {
+            text = "https://repo.jenesis.build/";
         }
-        this.root = URI.create(uri + (requireNamedModules ? "module/" : "artifact/"));
-        this.token = System.getProperty("jenesis.module.token", System.getenv("JENESIS_REPOSITORY_TOKEN"));
+        JenesisRepository repository = chain(text, visited, scope, token, null);
+        if (repository == null) {
+            throw new IllegalStateException("No Jenesis module repository is configured by: " + text);
+        }
+        return repository;
+    }
+
+    private static JenesisRepository chain(String text,
+                                           Set<String> visited,
+                                           Scope scope,
+                                           String token,
+                                           JenesisRepository repository) {
+        for (String entry : text.split(",")) {
+            String candidate = entry.strip();
+            if (candidate.isEmpty()) {
+                continue;
+            }
+            int separator = candidate.indexOf('|');
+            String location = (separator < 0 ? candidate : candidate.substring(0, separator)).strip();
+            if (location.isEmpty()) {
+                throw new IllegalStateException("No URI in Jenesis module repository entry: " + candidate);
+            }
+            JenesisRepository current;
+            if (location.startsWith("@")) {
+                String name = location.substring(1);
+                String value;
+                if (name.isEmpty()) {
+                    String environment = System.getenv("JENESIS_REPOSITORY_URI");
+                    if (environment != null && visited.add("JENESIS_REPOSITORY_URI")) {
+                        name = "JENESIS_REPOSITORY_URI";
+                        value = environment;
+                    } else {
+                        name = null;
+                        value = "https://repo.jenesis.build/";
+                    }
+                } else {
+                    value = System.getProperty(name, System.getenv(name));
+                    if (value == null) {
+                        throw new IllegalStateException("Unresolved repository reference: @" + name);
+                    }
+                    if (!visited.add(name)) {
+                        throw new IllegalStateException("Circular repository reference: @" + name);
+                    }
+                }
+                current = chain(value, visited, scope, token, null);
+                if (name != null) {
+                    visited.remove(name);
+                }
+                if (current == null) {
+                    throw new IllegalStateException("No Jenesis module repository is configured by: " + value);
+                }
+            } else {
+                current = new JenesisModuleRepository(
+                        URI.create((location.endsWith("/") ? location : location + "/")
+                                + (scope == Scope.MODULE ? "module/" : "artifact/")),
+                        token);
+            }
+            List<String> modules = new ArrayList<>();
+            if (separator >= 0) {
+                for (String argument : candidate.substring(separator + 1).split("\\|")) {
+                    String module = argument.strip();
+                    if (!module.isEmpty()) {
+                        modules.add(module);
+                    }
+                }
+            }
+            if (!modules.isEmpty()) {
+                current = current.filter(value -> {
+                    for (String module : modules) {
+                        if (value.equals(module) || value.startsWith(module + ".")) {
+                            return true;
+                        }
+                    }
+                    return false;
+                });
+            }
+            repository = repository == null ? current : current.prepend(repository);
+        }
+        return repository;
     }
 
     public JenesisModuleRepository(URI root) {
@@ -39,37 +123,22 @@ public class JenesisModuleRepository implements Repository {
     }
 
     @Override
-    public Optional<RepositoryItem> fetch(Executor executor, String coordinate) throws IOException {
-        int colon = coordinate.lastIndexOf(':');
-        String type = colon < 0 ? "jar" : coordinate.substring(colon + 1);
-        String identifier = colon < 0 ? coordinate : coordinate.substring(0, colon);
-        Optional<RepositoryItem> item = fetch(identifier, type);
-        if (item.isEmpty() && type.equals("jmod")) {
-            return fetch(identifier, "jar");
-        }
-        return item;
-    }
-
-    private Optional<RepositoryItem> fetch(String identifier, String type) throws IOException {
-        int slash = identifier.indexOf('/');
-        String moduleName = slash < 0 ? identifier : identifier.substring(0, slash);
-        String version = slash < 0 ? null : identifier.substring(slash + 1);
-        int dash = moduleName.indexOf('-');
-        String classifier = dash < 0 ? null : moduleName.substring(dash + 1);
-        if (dash >= 0) {
-            moduleName = moduleName.substring(0, dash);
-        }
-        requireSafeSegment("module name", moduleName);
+    public Optional<RepositoryItem> fetch(Executor executor,
+                                          String module,
+                                          String classifier,
+                                          String version,
+                                          String type) throws IOException {
+        requireSafeSegment("module name", module);
         if (classifier != null) {
             requireSafeSegment("classifier", classifier);
         }
         if (version != null) {
             requireSafeSegment("version", version);
         }
-        String fileName = (classifier == null ? moduleName : moduleName + "-" + classifier) + "." + type;
+        String fileName = (classifier == null ? module : module + "-" + classifier) + "." + type;
         String relative = version == null
-                ? moduleName + "/" + fileName
-                : moduleName + "/" + version + "/" + fileName;
+                ? module + "/" + fileName
+                : module + "/" + version + "/" + fileName;
         URI base = root.normalize();
         URI uri = base.resolve(relative).normalize();
         URI contained = base.relativize(uri);

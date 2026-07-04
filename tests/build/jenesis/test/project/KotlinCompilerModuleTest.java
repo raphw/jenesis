@@ -45,7 +45,7 @@ public class KotlinCompilerModuleTest {
         executor.addModule(
                 "kotlin",
                 new KotlinCompilerModule(
-                        Map.of("maven", mavenCentral()),
+                        Map.of("maven", MavenDefaultRepository.of()),
                         Map.of("maven", new MavenPomResolver())),
                 "project");
         executor.execute();
@@ -92,7 +92,7 @@ public class KotlinCompilerModuleTest {
         executor.addModule(
                 "kotlin",
                 new KotlinCompilerModule(
-                        Map.of("maven", mavenCentral()),
+                        Map.of("maven", MavenDefaultRepository.of()),
                         Map.of("maven", new MavenPomResolver()))
                         .includeResources(false),
                 "project");
@@ -130,7 +130,7 @@ public class KotlinCompilerModuleTest {
         executor.addModule(
                 "kotlin",
                 new KotlinCompilerModule(
-                        Map.of("maven", mavenCentral()),
+                        Map.of("maven", MavenDefaultRepository.of()),
                         Map.of("maven", new MavenPomResolver())),
                 "project");
         executor.execute();
@@ -168,7 +168,7 @@ public class KotlinCompilerModuleTest {
         executor.addModule(
                 "kotlin",
                 new KotlinCompilerModule(
-                        Map.of("maven", mavenCentral()),
+                        Map.of("maven", MavenDefaultRepository.of()),
                         Map.of("maven", new MavenPomResolver())),
                 "project");
         executor.execute();
@@ -211,7 +211,7 @@ public class KotlinCompilerModuleTest {
         executor.addModule(
                 "kotlin",
                 new KotlinCompilerModule(
-                        Map.of("maven", mavenCentral()),
+                        Map.of("maven", MavenDefaultRepository.of()),
                         Map.of("maven", new MavenPomResolver())),
                 "project");
         executor.execute();
@@ -239,7 +239,7 @@ public class KotlinCompilerModuleTest {
         executor.addModule(
                 "kotlin",
                 new KotlinCompilerModule(
-                        Map.of("maven", mavenCentral()),
+                        Map.of("maven", MavenDefaultRepository.of()),
                         Map.of("maven", new MavenPomResolver())),
                 "project");
         executor.execute();
@@ -378,10 +378,6 @@ public class KotlinCompilerModuleTest {
                     coordinate.getBytes(StandardCharsets.UTF_8));
             return Optional.of(RepositoryItem.ofFile(file));
         };
-    }
-
-    private static Repository mavenCentral() {
-        return new MavenDefaultRepository();
     }
 
     private static List<URL> collectJarUrls(Path folder) throws IOException {

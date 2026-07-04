@@ -12,6 +12,7 @@ import build.jenesis.Repository;
 import build.jenesis.Resolver;
 import build.jenesis.SequencedProperties;
 import build.jenesis.module.JenesisModuleRepository;
+import build.jenesis.module.JenesisRepository;
 import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModuleInfo;
 import build.jenesis.module.ModuleInfoParser;
@@ -41,7 +42,7 @@ public class InternalModule implements BuildExecutorModule {
                           Path source) {
         this(prefix,
                 source,
-                Map.of(prefix, new JenesisModuleRepository(true).prepend(JenesisModuleRepository.ofLocal())),
+                Map.of(prefix, JenesisModuleRepository.of(JenesisRepository.Scope.MODULE).prepend(JenesisModuleRepository.ofLocal())),
                 Map.of(prefix, new ModularJarResolver(true)),
                 Collections.emptyNavigableSet(),
                 null,

@@ -13,6 +13,7 @@ import build.jenesis.maven.PinPom;
 import build.jenesis.maven.Pom;
 import build.jenesis.module.JenesisModuleRepository;
 import build.jenesis.module.JenesisModuleRepositoryExport;
+import build.jenesis.module.JenesisRepository;
 import build.jenesis.module.ModularJarResolver;
 import build.jenesis.module.ModularProject;
 import build.jenesis.module.ModularStaging;
@@ -122,7 +123,7 @@ public record Project(
             executor.addModule(BUILD, (sub, inherited) -> {
                 Map<String, Repository> repositories = new LinkedHashMap<>(project.repositories());
                 repositories.putIfAbsent("maven",
-                        new MavenDefaultRepository()
+                        MavenDefaultRepository.of()
                                 .cached(project.artifacts() == null ? null : Files.createDirectories(project.artifacts())));
                 Map<String, Resolver> resolvers = new LinkedHashMap<>(project.resolvers());
                 resolvers.putIfAbsent("maven", new MavenPomResolver());
@@ -184,7 +185,7 @@ public record Project(
             executor.addModule(BUILD, (sub, inherited) -> {
                 Map<String, Repository> repositories = new LinkedHashMap<>(project.repositories());
                 repositories.putIfAbsent("module",
-                        new JenesisModuleRepository(true)
+                        JenesisModuleRepository.of(JenesisRepository.Scope.MODULE)
                                 .cached(project.artifacts() == null ? null : Files.createDirectories(project.artifacts()))
                                 .prepend(JenesisModuleRepository.ofLocal()));
                 Map<String, Resolver> resolvers = new LinkedHashMap<>(project.resolvers());
@@ -257,10 +258,10 @@ public record Project(
             executor.addModule(BUILD, (sub, inherited) -> {
                 Map<String, Repository> repositories = new LinkedHashMap<>(project.repositories());
                 repositories.putIfAbsent("maven",
-                        new MavenDefaultRepository()
+                        MavenDefaultRepository.of()
                                 .cached(project.artifacts() == null ? null : Files.createDirectories(project.artifacts())));
                 repositories.putIfAbsent("module",
-                        new JenesisModuleRepository(false)
+                        JenesisModuleRepository.of(JenesisRepository.Scope.ARTIFACT)
                                 .cached(project.artifacts() == null ? null : Files.createDirectories(project.artifacts()))
                                 .prepend(JenesisModuleRepository.ofLocal()));
                 Map<String, Resolver> resolvers = new LinkedHashMap<>(project.resolvers());
@@ -513,6 +514,12 @@ public record Project(
                       %{name}local%{reset} (on-disk cache) and %{name}token%{reset} (bearer credential) under
                       %{name}jenesis.maven.<key>%{reset} and %{name}jenesis.module.<key>%{reset}; each falls back to the
                       %{name}MAVEN_REPOSITORY_<KEY>%{reset} / %{name}JENESIS_REPOSITORY_<KEY>%{reset} environment variable.
+                      The %{name}uri%{reset} accepts a comma-separated list queried left to right; a
+                      %{name}<url>|<id>|...%{reset} entry only serves group ids (Maven) or module ids
+                      (Jenesis) that equal an %{name}<id>%{reset} or sit below it at a dot boundary.
+                      An %{name}@%{reset} entry splices in the default configuration (the environment
+                      value, else the built-in default) and %{name}@<name>%{reset} the value of that
+                      property or environment variable; unresolved or circular references fail.
 
                     %{header}Tests (-Djenesis.test.<key>=<value>):%{reset}
                       %{name}skip%{reset}                             Skip executing tests
@@ -934,10 +941,16 @@ public record Project(
                                                   inferred tools' config files
                                                   (default root; empty uses only
                                                   each module's build.jenesis/).
+                                                  Path-separated; an @ entry
+                                                  splices the default, @<name> a
+                                                  property or env value.
                       boms                        Path-separated locations of
                                                   local bom-<name>.properties
                                                   files (default: configuration;
-                                                  never profile-resolved).
+                                                  never profile-resolved). An @
+                                                  entry splices the configuration
+                                                  locations, @<name> a property
+                                                  or env value.
                       version                     Stamp version onto every
                                                   produced artifact.
                       digest                      Algorithm for pin and
@@ -993,10 +1006,19 @@ public record Project(
                       -Djenesis.maven.uri|local|token     Maven repository remote
                                                   URL, local cache and bearer token
                                                   (env fallbacks
-                                                  MAVEN_REPOSITORY_URI/LOCAL/TOKEN).
+                                                  MAVEN_REPOSITORY_URI/LOCAL/TOKEN);
+                                                  a comma-separated URL list is
+                                                  queried left to right, and a
+                                                  <url>|<group>|... entry only
+                                                  serves matching group ids. An @
+                                                  entry splices the default (env
+                                                  value, then built-in), @<name>
+                                                  a property or env value.
                       -Djenesis.module.uri|local|token    Jenesis module repository,
                                                   likewise (env fallbacks
-                                                  JENESIS_REPOSITORY_URI/LOCAL/TOKEN).
+                                                  JENESIS_REPOSITORY_URI/LOCAL/TOKEN);
+                                                  a <url>|<module>|... entry only
+                                                  serves matching module ids.
 
                     Build cache:
                       -Djenesis.cache.uri=<uri>           Reuse step outputs across
@@ -1330,29 +1352,21 @@ public record Project(
         SequencedSet<Path> resolvedConfiguration;
         if (configurationOverride == null) {
             resolvedConfiguration = new LinkedHashSet<>(List.of(resolvedRoot));
-        } else if (configurationOverride.isEmpty()) {
-            resolvedConfiguration = Collections.emptyNavigableSet();
         } else {
-            Path configurationRoot = resolvedRoot;
-            resolvedConfiguration = Arrays.stream(configurationOverride.split(Pattern.quote(File.pathSeparator)))
-                    .map(String::trim)
-                    .filter(value -> !value.isEmpty())
-                    .map(value -> configurationRoot.resolve(Path.of(value)))
-                    .collect(Collectors.toCollection(LinkedHashSet::new));
+            resolvedConfiguration = new LinkedHashSet<>();
+            locations(configurationOverride,
+                    resolvedRoot,
+                    new LinkedHashSet<>(List.of(resolvedRoot)),
+                    new HashSet<>(),
+                    resolvedConfiguration);
         }
         String bomsOverride = System.getProperty("jenesis.project.boms");
         SequencedSet<Path> resolvedBoms;
         if (bomsOverride == null) {
             resolvedBoms = resolvedConfiguration;
-        } else if (bomsOverride.isEmpty()) {
-            resolvedBoms = Collections.emptyNavigableSet();
         } else {
-            Path bomsRoot = resolvedRoot;
-            resolvedBoms = Arrays.stream(bomsOverride.split(Pattern.quote(File.pathSeparator)))
-                    .map(String::trim)
-                    .filter(value -> !value.isEmpty())
-                    .map(value -> bomsRoot.resolve(Path.of(value)))
-                    .collect(Collectors.toCollection(LinkedHashSet::new));
+            resolvedBoms = new LinkedHashSet<>();
+            locations(bomsOverride, resolvedRoot, resolvedConfiguration, new HashSet<>(), resolvedBoms);
         }
         String profilesOverride = System.getProperty("jenesis.project.properties");
         SequencedSet<Path> resolvedProfiles = profilesOverride == null
@@ -1422,6 +1436,37 @@ public record Project(
                 BuildExecutor.Configuration::new,
                 Map.of(),
                 Map.of());
+    }
+
+    private static void locations(String text,
+                                  Path root,
+                                  SequencedSet<Path> defaults,
+                                  Set<String> visited,
+                                  SequencedSet<Path> target) {
+        for (String entry : text.split(Pattern.quote(File.pathSeparator))) {
+            String candidate = entry.trim();
+            if (candidate.isEmpty()) {
+                continue;
+            }
+            if (candidate.startsWith("@")) {
+                String name = candidate.substring(1);
+                if (name.isEmpty()) {
+                    target.addAll(defaults);
+                } else {
+                    String value = System.getProperty(name, System.getenv(name));
+                    if (value == null) {
+                        throw new IllegalStateException("Unresolved location reference: @" + name);
+                    }
+                    if (!visited.add(name)) {
+                        throw new IllegalStateException("Circular location reference: @" + name);
+                    }
+                    locations(value, root, defaults, visited, target);
+                    visited.remove(name);
+                }
+            } else {
+                target.add(root.resolve(Path.of(candidate)));
+            }
+        }
     }
 
     public Project root(Path root) {

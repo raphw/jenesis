@@ -81,7 +81,7 @@ public class MavenProject implements BuildExecutorModule {
         return make(root,
                 "main",
                 "maven",
-                Map.of("maven", new MavenDefaultRepository()),
+                Map.of("maven", MavenDefaultRepository.of()),
                 Map.of("maven", new MavenPomResolver()),
                 null,
                 Collections.emptyNavigableSet(),

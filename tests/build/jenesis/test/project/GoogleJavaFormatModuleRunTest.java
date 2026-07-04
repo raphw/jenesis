@@ -8,7 +8,6 @@ import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepHashFunction;
 import build.jenesis.HashDigestFunction;
-import build.jenesis.Repository;
 import build.jenesis.SequencedProperties;
 import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenPomResolver;
@@ -84,13 +83,9 @@ public class GoogleJavaFormatModuleRunTest {
         executor.addSource("project", project);
         executor.addModule(
                 "google-java-format",
-                new GoogleJavaFormatModule(Map.of("maven", mavenCentral()), Map.of("maven", new MavenPomResolver()))
+                new GoogleJavaFormatModule(Map.of("maven", MavenDefaultRepository.of()), Map.of("maven", new MavenPomResolver()))
                         .verify(verify),
                 "project");
         return executor;
-    }
-
-    private static Repository mavenCentral() {
-        return new MavenDefaultRepository();
     }
 }

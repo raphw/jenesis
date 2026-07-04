@@ -9,7 +9,6 @@ import build.jenesis.BuildStep;
 import build.jenesis.BuildStepHashFunction;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.Resolver;
-import build.jenesis.Repository;
 import build.jenesis.SequencedProperties;
 import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenPomResolver;
@@ -44,7 +43,7 @@ public class GroovyCompilerModuleTest {
         executor.addModule(
                 "groovy",
                 new GroovyCompilerModule(
-                        Map.of("maven", mavenCentral()),
+                        Map.of("maven", MavenDefaultRepository.of()),
                         Map.of("maven", new MavenPomResolver())),
                 "project");
         executor.execute();
@@ -91,7 +90,7 @@ public class GroovyCompilerModuleTest {
         executor.addModule(
                 "groovy",
                 new GroovyCompilerModule(
-                        Map.of("maven", mavenCentral()),
+                        Map.of("maven", MavenDefaultRepository.of()),
                         Map.of("maven", new MavenPomResolver()))
                         .includeResources(false),
                 "project");
@@ -141,7 +140,7 @@ public class GroovyCompilerModuleTest {
         executor.addModule(
                 "groovy",
                 new GroovyCompilerModule(
-                        Map.of("maven", mavenCentral()),
+                        Map.of("maven", MavenDefaultRepository.of()),
                         Map.of("maven", new MavenPomResolver())),
                 "project", "classes");
         executor.execute();
@@ -240,10 +239,6 @@ public class GroovyCompilerModuleTest {
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false);
-    }
-
-    private static Repository mavenCentral() {
-        return new MavenDefaultRepository();
     }
 
     private static List<URL> collectJarUrls(Path folder) throws IOException {

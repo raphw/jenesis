@@ -8,7 +8,6 @@ import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepHashFunction;
 import build.jenesis.HashDigestFunction;
-import build.jenesis.Repository;
 import build.jenesis.SequencedProperties;
 import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenPomResolver;
@@ -47,7 +46,7 @@ public class DetektModuleRunTest {
         executor.addSource("project", project);
         executor.addModule(
                 "detekt",
-                new DetektModule(Map.of("maven", mavenCentral()), Map.of("maven", new MavenPomResolver())),
+                new DetektModule(Map.of("maven", MavenDefaultRepository.of()), Map.of("maven", new MavenPomResolver())),
                 "project");
         executor.execute();
 
@@ -68,9 +67,5 @@ public class DetektModuleRunTest {
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false);
-    }
-
-    private static Repository mavenCentral() {
-        return new MavenDefaultRepository();
     }
 }

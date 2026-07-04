@@ -7,6 +7,7 @@ import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
 import build.jenesis.Resolver;
 import build.jenesis.module.JenesisModuleRepository;
+import build.jenesis.module.JenesisRepository;
 import build.jenesis.module.ModularJarResolver;
 import build.jenesis.project.AssemblyDescriptor;
 import build.jenesis.project.ExternalModule;
@@ -63,7 +64,7 @@ public class Demo {
                     ? Optional.of(RepositoryItem.ofFile(pluginJar))
                     : Optional.empty();
         };
-        Repository repository = new JenesisModuleRepository(true)
+        Repository repository = JenesisModuleRepository.of(JenesisRepository.Scope.MODULE)
                 .prepend(JenesisModuleRepository.ofLocal())
                 .prepend(local);
 

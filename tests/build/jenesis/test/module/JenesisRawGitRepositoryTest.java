@@ -4,6 +4,7 @@ import module java.base;
 import module org.junit.jupiter.api;
 import build.jenesis.RepositoryItem;
 import build.jenesis.module.JenesisRawGitRepository;
+import build.jenesis.module.JenesisRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -103,13 +104,26 @@ public class JenesisRawGitRepositoryTest {
     }
 
     @Test
+    public void groups_restricts_to_matching_resolved_group_ids() throws IOException {
+        writeTsv("widget", "modules.tsv", "1.0\tcom.example\twidget-core\t1.0");
+        writeArtifact("com.example", "widget-core", "1.0", "jar", "v1");
+
+        assertThat(content(named()
+                .groups(groupId -> groupId.equals("com.example"))
+                .fetch(Runnable::run, "widget"))).isEqualTo("v1");
+        assertThat(named()
+                .groups(groupId -> groupId.equals("org.other"))
+                .fetch(Runnable::run, "widget")).isEmpty();
+    }
+
+    @Test
     public void normalises_bases_supplied_without_a_trailing_slash() throws IOException {
         writeTsv("widget", "modules.tsv", "1.0\tcom.example\twidget-core\t1.0");
         writeArtifact("com.example", "widget-core", "1.0", "jar", "v1");
         URI dataNoSlash = URI.create(data.toUri().toString().replaceAll("/$", ""));
         URI mavenNoSlash = URI.create(maven.toUri().toString().replaceAll("/$", ""));
 
-        JenesisRawGitRepository repository = new JenesisRawGitRepository(true, dataNoSlash, mavenNoSlash);
+        JenesisRawGitRepository repository = new JenesisRawGitRepository(JenesisRepository.Scope.MODULE, dataNoSlash, mavenNoSlash);
 
         assertThat(content(repository.fetch(Runnable::run, "widget"))).isEqualTo("v1");
     }
@@ -144,11 +158,11 @@ public class JenesisRawGitRepositoryTest {
     }
 
     private JenesisRawGitRepository named() {
-        return new JenesisRawGitRepository(true, data.toUri(), maven.toUri());
+        return new JenesisRawGitRepository(JenesisRepository.Scope.MODULE, data.toUri(), maven.toUri());
     }
 
     private JenesisRawGitRepository artifact() {
-        return new JenesisRawGitRepository(false, data.toUri(), maven.toUri());
+        return new JenesisRawGitRepository(JenesisRepository.Scope.ARTIFACT, data.toUri(), maven.toUri());
     }
 
     private void writeTsv(String moduleName, String fileName, String... rows) throws IOException {

@@ -91,6 +91,33 @@ public interface MavenRepository extends Repository {
         };
     }
 
+    default MavenRepository filter(Predicate<String> predicate) {
+        return new MavenRepository() {
+            @Override
+            public Optional<RepositoryItem> fetch(Executor executor,
+                                                  String groupId,
+                                                  String artifactId,
+                                                  String version,
+                                                  String type,
+                                                  String classifier,
+                                                  String checksum) throws IOException {
+                return predicate.test(groupId)
+                        ? MavenRepository.this.fetch(executor, groupId, artifactId, version, type, classifier, checksum)
+                        : Optional.empty();
+            }
+
+            @Override
+            public Optional<RepositoryItem> fetchMetadata(Executor executor,
+                                                          String groupId,
+                                                          String artifactId,
+                                                          String checksum) throws IOException {
+                return predicate.test(groupId)
+                        ? MavenRepository.this.fetchMetadata(executor, groupId, artifactId, checksum)
+                        : Optional.empty();
+            }
+        };
+    }
+
     Optional<RepositoryItem> fetch(Executor executor,
                                    String groupId,
                                    String artifactId,

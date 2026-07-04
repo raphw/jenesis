@@ -9,7 +9,6 @@ import build.jenesis.BuildExecutorCallback;
 import build.jenesis.BuildStep;
 import build.jenesis.BuildStepHashFunction;
 import build.jenesis.HashDigestFunction;
-import build.jenesis.Repository;
 import build.jenesis.SequencedProperties;
 import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenPomResolver;
@@ -94,14 +93,14 @@ public class JaCoCoModuleRunTest {
         executor.addSource("sources", sources);
         executor.addModule(
                 "test",
-                new TestModule(Map.of("maven", mavenCentral()), Map.of("maven", new MavenPomResolver()))
+                new TestModule(Map.of("maven", MavenDefaultRepository.of()), Map.of("maven", new MavenPomResolver()))
                         .observe(new JaCoCo())
                         .isTest(candidate -> candidate.endsWith("CoveredTest"))
                         .jarsOnly(false),
                 "dependencies", "classes");
         executor.addModule(
                 "coverage",
-                new JaCoCoModule(Map.of("maven", mavenCentral()), Map.of("maven", new MavenPomResolver())),
+                new JaCoCoModule(Map.of("maven", MavenDefaultRepository.of()), Map.of("maven", new MavenPomResolver())),
                 "test", "classes", "sources", "dependencies");
         executor.execute();
 
@@ -125,10 +124,6 @@ public class JaCoCoModuleRunTest {
                 new HashDigestFunction("MD5"),
                 BuildStepHashFunction.ofSerializationDigest("MD5"),
                 BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false);
-    }
-
-    private static Repository mavenCentral() {
-        return new MavenDefaultRepository();
     }
 
     private static void compileSources(Path classesDir, List<Path> classpath, Map<String, String> units)

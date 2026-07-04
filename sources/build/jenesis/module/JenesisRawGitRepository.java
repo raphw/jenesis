@@ -3,38 +3,143 @@ package build.jenesis.module;
 import module java.base;
 import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
-public class JenesisRawGitRepository implements Repository {
+public class JenesisRawGitRepository implements JenesisRepository {
 
     private static final String GITHUB_DATA =
             "https://raw.githubusercontent.com/raphw/jenesis-modules/main/data/modules/";
 
-    private final boolean requireNamedModules;
+    private final Scope scope;
     private final URI data;
     private final URI repository;
     private final String token;
+    private final Predicate<String> predicate;
 
-    public JenesisRawGitRepository(boolean requireNamedModules) {
-        this(requireNamedModules, URI.create(GITHUB_DATA), mavenRepository(),
-                System.getProperty("jenesis.maven.token", System.getenv("MAVEN_REPOSITORY_TOKEN")));
+    public JenesisRawGitRepository(Scope scope, URI data, URI repository) {
+        this(scope, data, repository, null);
     }
 
-    public JenesisRawGitRepository(boolean requireNamedModules, URI data, URI repository) {
-        this(requireNamedModules, data, repository, null);
+    public JenesisRawGitRepository(Scope scope, URI data, URI repository, String token) {
+        this(scope, trailingSlash(data), trailingSlash(repository), token, _ -> true);
     }
 
-    public JenesisRawGitRepository(boolean requireNamedModules, URI data, URI repository, String token) {
-        this.requireNamedModules = requireNamedModules;
-        this.data = trailingSlash(data);
-        this.repository = trailingSlash(repository);
+    private JenesisRawGitRepository(Scope scope,
+                                    URI data,
+                                    URI repository,
+                                    String token,
+                                    Predicate<String> predicate) {
+        this.scope = scope;
+        this.data = data;
+        this.repository = repository;
         this.token = token;
+        this.predicate = predicate;
     }
 
-    private static URI mavenRepository() {
-        String environment = System.getProperty("jenesis.maven.uri", System.getenv("MAVEN_REPOSITORY_URI"));
-        if (environment != null && !environment.endsWith("/")) {
-            environment += "/";
+    public JenesisRawGitRepository groups(Predicate<String> predicate) {
+        return new JenesisRawGitRepository(scope, data, repository, token, predicate);
+    }
+
+    public static JenesisRepository of(Scope scope) {
+        String token = System.getProperty("jenesis.maven.token", System.getenv("MAVEN_REPOSITORY_TOKEN"));
+        String property = System.getProperty("jenesis.maven.uri");
+        String environment = System.getenv("MAVEN_REPOSITORY_URI");
+        Set<String> visited = new HashSet<>();
+        String text;
+        if (property != null) {
+            text = property;
+        } else if (environment != null) {
+            text = environment;
+            visited.add("MAVEN_REPOSITORY_URI");
+        } else {
+            text = "https://repo1.maven.org/maven2/";
         }
-        return URI.create(environment == null ? "https://repo1.maven.org/maven2/" : environment);
+        JenesisRepository repository = chain(text, visited, scope, token, null, null);
+        if (repository == null) {
+            throw new IllegalStateException("No Maven repository is configured by: " + text);
+        }
+        return repository;
+    }
+
+    private static JenesisRepository chain(String text,
+                                           Set<String> visited,
+                                           Scope scope,
+                                           String token,
+                                           Predicate<String> inherited,
+                                           JenesisRepository repository) {
+        for (String entry : text.split(",")) {
+            String candidate = entry.strip();
+            if (candidate.isEmpty()) {
+                continue;
+            }
+            int separator = candidate.indexOf('|');
+            String location = (separator < 0 ? candidate : candidate.substring(0, separator)).strip();
+            if (location.isEmpty()) {
+                throw new IllegalStateException("No URI in Maven repository entry: " + candidate);
+            }
+            List<String> groups = new ArrayList<>();
+            if (separator >= 0) {
+                for (String argument : candidate.substring(separator + 1).split("\\|")) {
+                    String group = argument.strip();
+                    if (!group.isEmpty()) {
+                        groups.add(group);
+                    }
+                }
+            }
+            Predicate<String> own = groups.isEmpty() ? null : value -> {
+                for (String group : groups) {
+                    if (value.equals(group) || value.startsWith(group + ".")) {
+                        return true;
+                    }
+                }
+                return false;
+            };
+            Predicate<String> effective;
+            if (inherited == null) {
+                effective = own;
+            } else if (own == null) {
+                effective = inherited;
+            } else {
+                Predicate<String> combining = own;
+                effective = value -> inherited.test(value) && combining.test(value);
+            }
+            JenesisRepository current;
+            if (location.startsWith("@")) {
+                String name = location.substring(1);
+                String value;
+                if (name.isEmpty()) {
+                    String environment = System.getenv("MAVEN_REPOSITORY_URI");
+                    if (environment != null && visited.add("MAVEN_REPOSITORY_URI")) {
+                        name = "MAVEN_REPOSITORY_URI";
+                        value = environment;
+                    } else {
+                        name = null;
+                        value = "https://repo1.maven.org/maven2/";
+                    }
+                } else {
+                    value = System.getProperty(name, System.getenv(name));
+                    if (value == null) {
+                        throw new IllegalStateException("Unresolved repository reference: @" + name);
+                    }
+                    if (!visited.add(name)) {
+                        throw new IllegalStateException("Circular repository reference: @" + name);
+                    }
+                }
+                current = chain(value, visited, scope, token, effective, null);
+                if (name != null) {
+                    visited.remove(name);
+                }
+                if (current == null) {
+                    throw new IllegalStateException("No Maven repository is configured by: " + value);
+                }
+            } else {
+                JenesisRawGitRepository base = new JenesisRawGitRepository(scope,
+                        URI.create(GITHUB_DATA),
+                        URI.create(location),
+                        token);
+                current = effective == null ? base : base.groups(effective);
+            }
+            repository = repository == null ? current : current.prepend(repository);
+        }
+        return repository;
     }
 
     private static URI trailingSlash(URI uri) {
@@ -43,36 +148,20 @@ public class JenesisRawGitRepository implements Repository {
     }
 
     @Override
-    public Optional<RepositoryItem> fetch(Executor executor, String coordinate) throws IOException {
-        int colon = coordinate.lastIndexOf(':');
-        String type = colon < 0 ? "jar" : coordinate.substring(colon + 1);
-        String identifier = colon < 0 ? coordinate : coordinate.substring(0, colon);
-        Optional<RepositoryItem> item = fetch(identifier, type);
-        if (item.isEmpty() && type.equals("jmod")) {
-            return fetch(identifier, "jar");
-        }
-        return item;
-    }
-
-    private Optional<RepositoryItem> fetch(String identifier, String type) throws IOException {
-        int slash = identifier.indexOf('/');
-        String moduleName = slash < 0 ? identifier : identifier.substring(0, slash);
-        String version = slash < 0 ? null : identifier.substring(slash + 1);
-        // Module names cannot contain a dash, so a dash always introduces a classifier.
-        int dash = moduleName.indexOf('-');
-        String classifier = dash < 0 ? null : moduleName.substring(dash + 1);
-        if (dash >= 0) {
-            moduleName = moduleName.substring(0, dash);
-        }
-        requireSafeSegment("module name", moduleName);
+    public Optional<RepositoryItem> fetch(Executor executor,
+                                          String module,
+                                          String classifier,
+                                          String version,
+                                          String type) throws IOException {
+        requireSafeSegment("module name", module);
         if (classifier != null) {
             requireSafeSegment("classifier", classifier);
         }
         if (version != null) {
             requireSafeSegment("version", version);
         }
-        Coordinate resolved = resolve(moduleName, classifier, version);
-        if (resolved == null) {
+        Coordinate resolved = resolve(module, classifier, version);
+        if (resolved == null || !predicate.test(resolved.groupId())) {
             return Optional.empty();
         }
         String path = resolved.groupId().replace('.', '/')
@@ -84,7 +173,7 @@ public class JenesisRawGitRepository implements Repository {
     }
 
     private Coordinate resolve(String moduleName, String classifier, String version) throws IOException {
-        String tsvName = (requireNamedModules ? "modules" : "artifacts")
+        String tsvName = (scope == Scope.MODULE ? "modules" : "artifacts")
                 + (classifier == null ? "" : "-" + classifier) + ".tsv";
         URI tsvUri = data.resolve(moduleName.replace('.', '/') + "/" + tsvName);
         Optional<InputStream> stream = open(tsvUri, null);
@@ -108,7 +197,7 @@ public class JenesisRawGitRepository implements Repository {
             if (columns.length < 4) {
                 continue;
             }
-            Coordinate row = requireNamedModules
+            Coordinate row = scope == Scope.MODULE
                     ? new Coordinate(columns[1], columns[2], columns[3])
                     : new Coordinate(columns[2], columns[3], columns[0]);
             if (newest == null) {

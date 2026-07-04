@@ -469,4 +469,261 @@ public class MavenDefaultRepositoryTest {
         }
         assertThat(dependency).content().isEqualTo("foo");
     }
+
+    @Test
+    public void factory_queries_comma_separated_repositories_in_declared_order() throws IOException {
+        Files.writeString(Files
+                .createDirectories(repository.resolve("first/group/artifact/1"))
+                .resolve("artifact-1.jar"), "first-content");
+        Files.writeString(Files
+                .createDirectories(repository.resolve("second/group/artifact/1"))
+                .resolve("artifact-1.jar"), "second-content");
+        System.setProperty("jenesis.maven.uri",
+                repository.resolve("first").toUri() + "," + repository.resolve("second").toUri());
+        System.setProperty("jenesis.maven.local", local.toString());
+        try {
+            Optional<RepositoryItem> item = MavenDefaultRepository.of().fetch(Runnable::run,
+                    "group",
+                    "artifact",
+                    "1",
+                    "jar",
+                    null,
+                    null);
+            assertThat(item).isPresent();
+            try (InputStream stream = item.orElseThrow().toInputStream()) {
+                assertThat(new String(stream.readAllBytes())).isEqualTo("first-content");
+            }
+        } finally {
+            System.clearProperty("jenesis.maven.uri");
+            System.clearProperty("jenesis.maven.local");
+        }
+    }
+
+    @Test
+    public void factory_falls_back_to_later_repository_on_miss() throws IOException {
+        Files.createDirectories(repository.resolve("first"));
+        Files.writeString(Files
+                .createDirectories(repository.resolve("second/group/artifact/1"))
+                .resolve("artifact-1.jar"), "second-content");
+        System.setProperty("jenesis.maven.uri",
+                repository.resolve("first").toUri() + "," + repository.resolve("second").toUri());
+        System.setProperty("jenesis.maven.local", local.toString());
+        try {
+            Optional<RepositoryItem> item = MavenDefaultRepository.of().fetch(Runnable::run,
+                    "group",
+                    "artifact",
+                    "1",
+                    "jar",
+                    null,
+                    null);
+            assertThat(item).isPresent();
+            try (InputStream stream = item.orElseThrow().toInputStream()) {
+                assertThat(new String(stream.readAllBytes())).isEqualTo("second-content");
+            }
+        } finally {
+            System.clearProperty("jenesis.maven.uri");
+            System.clearProperty("jenesis.maven.local");
+        }
+    }
+
+    @Test
+    public void factory_filter_argument_restricts_repository_to_matching_group_ids() throws IOException {
+        Files.writeString(Files
+                .createDirectories(repository.resolve("first/special/artifact/1"))
+                .resolve("artifact-1.jar"), "first-special");
+        Files.writeString(Files
+                .createDirectories(repository.resolve("first/group/artifact/1"))
+                .resolve("artifact-1.jar"), "first-group");
+        Files.writeString(Files
+                .createDirectories(repository.resolve("second/special/artifact/1"))
+                .resolve("artifact-1.jar"), "second-special");
+        Files.writeString(Files
+                .createDirectories(repository.resolve("second/group/artifact/1"))
+                .resolve("artifact-1.jar"), "second-group");
+        System.setProperty("jenesis.maven.uri",
+                repository.resolve("first").toUri() + "|special," + repository.resolve("second").toUri());
+        System.setProperty("jenesis.maven.local", local.toString());
+        try {
+            MavenRepository merged = MavenDefaultRepository.of();
+            try (InputStream stream = merged.fetch(Runnable::run, "special", "artifact", "1", "jar", null, null)
+                    .orElseThrow().toInputStream()) {
+                assertThat(new String(stream.readAllBytes())).isEqualTo("first-special");
+            }
+            try (InputStream stream = merged.fetch(Runnable::run, "group", "artifact", "1", "jar", null, null)
+                    .orElseThrow().toInputStream()) {
+                assertThat(new String(stream.readAllBytes())).isEqualTo("second-group");
+            }
+        } finally {
+            System.clearProperty("jenesis.maven.uri");
+            System.clearProperty("jenesis.maven.local");
+        }
+    }
+
+    @Test
+    public void factory_filter_matches_sub_groups_on_dot_boundary() throws IOException {
+        Files.writeString(Files
+                .createDirectories(repository.resolve("first/special/sub/artifact/1"))
+                .resolve("artifact-1.jar"), "first-sub");
+        Files.writeString(Files
+                .createDirectories(repository.resolve("first/specialx/artifact/1"))
+                .resolve("artifact-1.jar"), "first-specialx");
+        Files.writeString(Files
+                .createDirectories(repository.resolve("second/special/sub/artifact/1"))
+                .resolve("artifact-1.jar"), "second-sub");
+        Files.writeString(Files
+                .createDirectories(repository.resolve("second/specialx/artifact/1"))
+                .resolve("artifact-1.jar"), "second-specialx");
+        System.setProperty("jenesis.maven.uri",
+                repository.resolve("first").toUri() + "|special," + repository.resolve("second").toUri());
+        System.setProperty("jenesis.maven.local", local.toString());
+        try {
+            MavenRepository merged = MavenDefaultRepository.of();
+            try (InputStream stream = merged.fetch(Runnable::run, "special.sub", "artifact", "1", "jar", null, null)
+                    .orElseThrow().toInputStream()) {
+                assertThat(new String(stream.readAllBytes())).isEqualTo("first-sub");
+            }
+            try (InputStream stream = merged.fetch(Runnable::run, "specialx", "artifact", "1", "jar", null, null)
+                    .orElseThrow().toInputStream()) {
+                assertThat(new String(stream.readAllBytes())).isEqualTo("second-specialx");
+            }
+        } finally {
+            System.clearProperty("jenesis.maven.uri");
+            System.clearProperty("jenesis.maven.local");
+        }
+    }
+
+    @Test
+    public void factory_resolves_named_reference_entries() throws IOException {
+        Files.writeString(Files
+                .createDirectories(repository.resolve("first/group/artifact/1"))
+                .resolve("artifact-1.jar"), "first-content");
+        Files.writeString(Files
+                .createDirectories(repository.resolve("second/group/artifact/1"))
+                .resolve("artifact-1.jar"), "second-content");
+        System.setProperty("jenesis.maven.uri", "@corp.test.mirrors");
+        System.setProperty("corp.test.mirrors",
+                repository.resolve("first").toUri() + "," + repository.resolve("second").toUri());
+        System.setProperty("jenesis.maven.local", local.toString());
+        try {
+            Optional<RepositoryItem> item = MavenDefaultRepository.of().fetch(Runnable::run,
+                    "group",
+                    "artifact",
+                    "1",
+                    "jar",
+                    null,
+                    null);
+            assertThat(item).isPresent();
+            try (InputStream stream = item.orElseThrow().toInputStream()) {
+                assertThat(new String(stream.readAllBytes())).isEqualTo("first-content");
+            }
+        } finally {
+            System.clearProperty("jenesis.maven.uri");
+            System.clearProperty("corp.test.mirrors");
+            System.clearProperty("jenesis.maven.local");
+        }
+    }
+
+    @Test
+    public void factory_filter_wraps_a_reference_expansion() throws IOException {
+        Files.writeString(Files
+                .createDirectories(repository.resolve("first/special/artifact/1"))
+                .resolve("artifact-1.jar"), "first-special");
+        Files.writeString(Files
+                .createDirectories(repository.resolve("first/group/artifact/1"))
+                .resolve("artifact-1.jar"), "first-group");
+        Files.writeString(Files
+                .createDirectories(repository.resolve("second/group/artifact/1"))
+                .resolve("artifact-1.jar"), "second-group");
+        System.setProperty("jenesis.maven.uri",
+                "@corp.test.mirrors|special," + repository.resolve("second").toUri());
+        System.setProperty("corp.test.mirrors", repository.resolve("first").toUri().toString());
+        System.setProperty("jenesis.maven.local", local.toString());
+        try {
+            MavenRepository merged = MavenDefaultRepository.of();
+            try (InputStream stream = merged.fetch(Runnable::run, "special", "artifact", "1", "jar", null, null)
+                    .orElseThrow().toInputStream()) {
+                assertThat(new String(stream.readAllBytes())).isEqualTo("first-special");
+            }
+            try (InputStream stream = merged.fetch(Runnable::run, "group", "artifact", "1", "jar", null, null)
+                    .orElseThrow().toInputStream()) {
+                assertThat(new String(stream.readAllBytes())).isEqualTo("second-group");
+            }
+        } finally {
+            System.clearProperty("jenesis.maven.uri");
+            System.clearProperty("corp.test.mirrors");
+            System.clearProperty("jenesis.maven.local");
+        }
+    }
+
+    @Test
+    public void factory_splices_the_default_for_a_bare_reference() throws IOException {
+        Files.writeString(Files
+                .createDirectories(repository.resolve("first/group/artifact/1"))
+                .resolve("artifact-1.jar"), "first-content");
+        System.setProperty("jenesis.maven.uri", repository.resolve("first").toUri() + ",@");
+        System.setProperty("jenesis.maven.local", local.toString());
+        try {
+            Optional<RepositoryItem> item = MavenDefaultRepository.of().fetch(Runnable::run,
+                    "group",
+                    "artifact",
+                    "1",
+                    "jar",
+                    null,
+                    null);
+            assertThat(item).isPresent();
+            try (InputStream stream = item.orElseThrow().toInputStream()) {
+                assertThat(new String(stream.readAllBytes())).isEqualTo("first-content");
+            }
+        } finally {
+            System.clearProperty("jenesis.maven.uri");
+            System.clearProperty("jenesis.maven.local");
+        }
+    }
+
+    @Test
+    public void factory_fails_on_unresolved_reference() {
+        System.setProperty("jenesis.maven.uri", "@corp.test.unset");
+        System.setProperty("jenesis.maven.local", local.toString());
+        try {
+            assertThatThrownBy(MavenDefaultRepository::of)
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("Unresolved repository reference: @corp.test.unset");
+        } finally {
+            System.clearProperty("jenesis.maven.uri");
+            System.clearProperty("jenesis.maven.local");
+        }
+    }
+
+    @Test
+    public void factory_fails_on_circular_reference() {
+        System.setProperty("jenesis.maven.uri", "@corp.test.left");
+        System.setProperty("corp.test.left", "@corp.test.right");
+        System.setProperty("corp.test.right", "@corp.test.left");
+        System.setProperty("jenesis.maven.local", local.toString());
+        try {
+            assertThatThrownBy(MavenDefaultRepository::of)
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("Circular repository reference: @corp.test.left");
+        } finally {
+            System.clearProperty("jenesis.maven.uri");
+            System.clearProperty("corp.test.left");
+            System.clearProperty("corp.test.right");
+            System.clearProperty("jenesis.maven.local");
+        }
+    }
+
+    @Test
+    public void filtered_repository_hides_metadata_of_non_matching_groups() throws IOException {
+        Files.writeString(Files
+                .createDirectories(repository.resolve("group/artifact"))
+                .resolve("maven-metadata.xml"), "meta");
+        assertThat(new MavenDefaultRepository(repository.toUri(), null, Map.of(), _ -> {})
+                .filter(groupId -> groupId.equals("other"))
+                .fetchMetadata(Runnable::run, "group", "artifact", null)).isEmpty();
+        try (InputStream stream = new MavenDefaultRepository(repository.toUri(), null, Map.of(), _ -> {})
+                .filter(groupId -> groupId.equals("group"))
+                .fetchMetadata(Runnable::run, "group", "artifact", null).orElseThrow().toInputStream()) {
+            assertThat(new String(stream.readAllBytes())).isEqualTo("meta");
+        }
+    }
 }

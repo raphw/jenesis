@@ -170,6 +170,47 @@ public class ProjectTest {
     }
 
     @Test
+    public void configuration_reference_splices_the_default_root() {
+        System.setProperty("jenesis.project.configuration", "shared" + File.pathSeparator + "@");
+        assertThat(new Project().configuration())
+                .containsExactly(Path.of(".").resolve("shared"), Path.of("."));
+    }
+
+    @Test
+    public void configuration_named_reference_splices_a_property_value() {
+        System.setProperty("jenesis.test.sample.key", "shared" + File.pathSeparator + "extra");
+        System.setProperty("jenesis.project.configuration", "@jenesis.test.sample.key" + File.pathSeparator + "@");
+        assertThat(new Project().configuration())
+                .containsExactly(Path.of(".").resolve("shared"), Path.of(".").resolve("extra"), Path.of("."));
+    }
+
+    @Test
+    public void configuration_fails_on_unresolved_reference() {
+        System.setProperty("jenesis.project.configuration", "@jenesis.test.sample.unset");
+        assertThatThrownBy(() -> new Project())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Unresolved location reference: @jenesis.test.sample.unset");
+    }
+
+    @Test
+    public void configuration_fails_on_circular_reference() {
+        System.setProperty("jenesis.test.sample.a", "@jenesis.test.sample.b");
+        System.setProperty("jenesis.test.sample.b", "@jenesis.test.sample.a");
+        System.setProperty("jenesis.project.configuration", "@jenesis.test.sample.a");
+        assertThatThrownBy(() -> new Project())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Circular location reference: @jenesis.test.sample.a");
+    }
+
+    @Test
+    public void boms_reference_splices_the_configuration() {
+        System.setProperty("jenesis.project.configuration", "config");
+        System.setProperty("jenesis.project.boms", "platform" + File.pathSeparator + "@");
+        assertThat(new Project().boms())
+                .containsExactly(Path.of(".").resolve("platform"), Path.of(".").resolve("config"));
+    }
+
+    @Test
     public void configuration_folders_are_absolute_deduplicated_and_must_exist() throws IOException {
         Path existing = Files.createDirectories(root.resolve("module").resolve("config"));
         SequencedSet<Path> folders = Project.Layout.configurations(
