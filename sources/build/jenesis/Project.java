@@ -1978,6 +1978,9 @@ public record Project(
     public static void loadJenesisProperties(Path path) throws IOException {
         Path base = path.resolve("jenesis.properties");
         SequencedProperties project = Files.isRegularFile(base) ? SequencedProperties.ofFiles(base) : null;
+        if (project != null) {
+            requireApplicable(base, project, false);
+        }
         String location = System.getProperty("jenesis.project.global");
         if (location == null && project != null) {
             location = project.getProperty("jenesis.project.global");
@@ -1991,6 +1994,9 @@ public record Project(
             home = Path.of(location).resolve(".jenesis");
             Path file = home.resolve("jenesis.properties");
             user = Files.isRegularFile(file) ? SequencedProperties.ofFiles(file) : null;
+            if (user != null) {
+                requireApplicable(file, user, true);
+            }
         }
         Set<Path> loaded = new LinkedHashSet<>();
         Deque<Path> pending = new ArrayDeque<>();
@@ -2018,8 +2024,22 @@ public record Project(
                 continue;
             }
             SequencedProperties properties = SequencedProperties.ofFiles(file);
+            requireApplicable(file, properties, true);
             addProfiles(pending, base, properties.getProperty("jenesis.project.properties"));
             apply(properties);
+        }
+    }
+
+    private static void requireApplicable(Path file, SequencedProperties properties, boolean located) {
+        if (properties.getProperty("jenesis.project.root") != null) {
+            throw new IllegalStateException("jenesis.project.root cannot be set in " + file
+                    + ": the project root locates this file, so it is resolved before the file is read"
+                    + " (pass -Djenesis.project.root on the command line instead)");
+        }
+        if (located && properties.getProperty("jenesis.project.global") != null) {
+            throw new IllegalStateException("jenesis.project.global cannot be set in " + file
+                    + ": the user-global location is resolved from the command line or the project's"
+                    + " jenesis.properties before this file is read");
         }
     }
 

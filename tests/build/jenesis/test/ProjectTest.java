@@ -35,6 +35,7 @@ public class ProjectTest {
         System.clearProperty("jenesis.project.cache");
         System.clearProperty("jenesis.project.digest");
         System.clearProperty("jenesis.project.properties");
+        System.clearProperty("jenesis.project.global");
         System.clearProperty("jenesis.test.sample.key");
         System.clearProperty("jenesis.test.sample.a");
         System.clearProperty("jenesis.test.sample.b");
@@ -574,6 +575,53 @@ public class ProjectTest {
         assertThat(System.getProperty("jenesis.test.sample.b")).isEqualTo("fromA");
         assertThat(System.getProperty("jenesis.test.sample.c")).isEqualTo("fromB");
         assertThat(System.getProperty("jenesis.test.sample.d")).isEqualTo("fromC");
+    }
+
+    @Test
+    public void load_jenesis_properties_rejects_root_in_the_project_file() throws IOException {
+        Files.writeString(root.resolve("jenesis.properties"), "jenesis.project.root=elsewhere\n");
+        assertThatThrownBy(() -> Project.loadJenesisProperties(root))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("jenesis.project.root cannot be set in");
+    }
+
+    @Test
+    public void load_jenesis_properties_rejects_root_in_a_profile() throws IOException {
+        Files.writeString(root.resolve("jenesis.properties"), "jenesis.project.properties=ci\n");
+        Files.writeString(root.resolve("jenesis-ci.properties"), "jenesis.project.root=elsewhere\n");
+        assertThatThrownBy(() -> Project.loadJenesisProperties(root))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("jenesis.project.root cannot be set in");
+    }
+
+    @Test
+    public void load_jenesis_properties_rejects_global_in_a_profile() throws IOException {
+        Files.writeString(root.resolve("jenesis.properties"), "jenesis.project.properties=ci\n");
+        Files.writeString(root.resolve("jenesis-ci.properties"), "jenesis.project.global=elsewhere\n");
+        assertThatThrownBy(() -> Project.loadJenesisProperties(root))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("jenesis.project.global cannot be set in");
+    }
+
+    @Test
+    public void load_jenesis_properties_rejects_global_in_the_user_global_file() throws IOException {
+        Path home = Files.createDirectories(root.resolve("home/.jenesis"));
+        Files.writeString(home.resolve("jenesis.properties"), "jenesis.project.global=elsewhere\n");
+        Files.writeString(root.resolve("jenesis.properties"),
+                "jenesis.project.global=" + root.resolve("home").toString().replace('\\', '/') + "\n");
+        assertThatThrownBy(() -> Project.loadJenesisProperties(root))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("jenesis.project.global cannot be set in");
+    }
+
+    @Test
+    public void load_jenesis_properties_accepts_global_in_the_project_file() throws IOException {
+        Path home = Files.createDirectories(root.resolve("home/.jenesis"));
+        Files.writeString(home.resolve("jenesis.properties"), "jenesis.test.sample.key=fromGlobal\n");
+        Files.writeString(root.resolve("jenesis.properties"),
+                "jenesis.project.global=" + root.resolve("home").toString().replace('\\', '/') + "\n");
+        Project.loadJenesisProperties(root);
+        assertThat(System.getProperty("jenesis.test.sample.key")).isEqualTo("fromGlobal");
     }
 
     @Test
