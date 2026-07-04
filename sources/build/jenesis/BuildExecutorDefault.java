@@ -141,7 +141,13 @@ class BuildExecutorDefault implements BuildExecutor {
                         location + identity,
                         new LinkedHashSet<>(summaries.keySet()));
                 if (!consistent || step.shouldRun(arguments)) {
-                    Path next = Files.createTempDirectory(target, BuildExecutorModule.encode(identity));
+                    // The tilde suffix cannot collide with a step folder since URLEncoder never emits a
+                    // bare tilde; a stale staging folder left by a crashed run is replaced.
+                    Path next = target.resolve(BuildExecutorModule.encode(identity) + "~");
+                    if (Files.exists(next)) {
+                        Files.walkFileTree(next, new RecursiveFolderDeletion(null));
+                    }
+                    Files.createDirectory(next);
                     Path nextOutput = Files.createDirectory(next.resolve("output"));
                     Path nextSupplement = Files.createDirectory(next.resolve("supplement"));
                     long fetchStarted = System.nanoTime();

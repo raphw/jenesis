@@ -64,6 +64,22 @@ public class BuildExecutorTest implements Serializable {
     }
 
     @Test
+    public void replaces_a_stale_staging_folder_from_a_crashed_run() throws IOException {
+        Path stale = Files.createDirectories(root.resolve("step~").resolve("output"));
+        Files.writeString(stale.resolve("junk"), "junk");
+        Files.writeString(source.resolve("file"), "foo");
+        buildExecutor.addSource("source", source);
+        buildExecutor.addStep("step", (_, context, _) -> {
+            Files.writeString(context.next().resolve("file"), "fresh");
+            return CompletableFuture.completedStage(new BuildStepResult(true));
+        }, "source");
+        buildExecutor.execute(Runnable::run).toCompletableFuture().join();
+        assertThat(root.resolve("step").resolve("output").resolve("file")).content().isEqualTo("fresh");
+        assertThat(root.resolve("step").resolve("output").resolve("junk")).doesNotExist();
+        assertThat(root.resolve("step~")).doesNotExist();
+    }
+
+    @Test
     public void does_not_except_non_alphanumeric() {
         assertThatThrownBy(() -> buildExecutor.addStep("foo/bar", (_, _, _) -> {
             throw new AssertionError();
