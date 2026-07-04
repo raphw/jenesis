@@ -21,13 +21,12 @@ import build.jenesis.project.InferredMultiProjectAssembler;
 public class DemoLauncher {
 
     static void main(String[] args) throws Exception {
-        // Select the launcher target through a packaging.properties (launcher=true) written
-        // to a configuration location of its own, the same key a project would commit; the
-        // stock assembler then wires the launcher module with no extra configuration.
-        Path configuration = Files.createTempDirectory("packaging-");
-        Files.writeString(configuration.resolve("packaging.properties"), "launcher=true\n");
+        // Select the launcher target through the committed launcher profile: the profile's
+        // build.jenesis/launcher/packaging.properties (launcher=true) outranks the plain
+        // packaging.properties (jpackage), so the same project builds an app image by
+        // default and the executable jar under this profile.
         Project project = new Project()
-                .configuration(configuration)
+                .profiles(Path.of("launcher"))
                 .assembler(new InferredMultiProjectAssembler());
         project.build("build");
 
