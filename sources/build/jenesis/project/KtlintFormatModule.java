@@ -114,10 +114,19 @@ public class KtlintFormatModule implements BuildExecutorModule {
         }
 
         @Override
+        protected Path config(Path folder) {
+            Path candidate = folder.resolve(".editorconfig");
+            return Files.isRegularFile(candidate) ? candidate : null;
+        }
+
+        @Override
         protected List<String> command(List<String> jars, Path config, List<String> files, boolean verify) {
             List<String> commands = new ArrayList<>(List.of(
                     "-cp", String.join(File.pathSeparator, jars),
                     "com.pinterest.ktlint.Main"));
+            if (config != null) {
+                commands.add("--editorconfig=" + config);
+            }
             if (!verify) {
                 commands.add("-F");
             }

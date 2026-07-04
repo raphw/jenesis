@@ -154,11 +154,22 @@ public class KtlintModule implements BuildExecutorModule {
                 throw new IllegalStateException("No ktlint jars resolved upstream of the ktlint step");
             }
             files.sort(null);
+            Path config = null;
+            for (BuildStepArgument argument : arguments.values()) {
+                Path candidate = argument.folder().resolve(".editorconfig");
+                if (Files.isRegularFile(candidate)) {
+                    config = candidate;
+                    break;
+                }
+            }
             Path report = Files.createDirectories(context.next().resolve(BuildStep.REPORTS + "ktlint")).resolve("ktlint-report.xml");
             List<String> commands = new ArrayList<>(List.of(
                     "-cp", String.join(File.pathSeparator, jars),
                     "com.pinterest.ktlint.Main",
                     "--reporter=checkstyle,output=" + report));
+            if (config != null) {
+                commands.add("--editorconfig=" + config);
+            }
             commands.addAll(files);
             return CompletableFuture.completedStage(commands);
         }

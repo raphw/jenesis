@@ -20,7 +20,7 @@ public class KtlintModuleRunTest {
     private static final String VERSION = "1.5.0";
 
     @TempDir
-    private Path root, project;
+    private Path root, project, configuration;
 
     @Test
     public void downloads_the_pinned_ktlint_and_writes_a_report() throws IOException {
@@ -57,6 +57,41 @@ public class KtlintModuleRunTest {
         Path report = root.resolve("ktlint").resolve("check").resolve("output").resolve("reports").resolve("ktlint").resolve("ktlint-report.xml");
         assertThat(report).isNotEmptyFile();
         assertThat(report).content().contains("Sample.kt");
+    }
+
+    @Test
+    public void editorconfig_from_a_configuration_folder_is_passed_to_ktlint() throws IOException {
+        SequencedProperties versions = new SequencedProperties();
+        versions.setProperty("ktlint/maven/com.pinterest.ktlint/ktlint-cli", VERSION);
+        versions.store(project.resolve(BuildStep.VERSIONS));
+        Path sampleDir = Files.createDirectories(project.resolve(BuildStep.SOURCES + "sample"));
+        Files.writeString(sampleDir.resolve("Sample.kt"), """
+                package sample
+
+                fun main() {
+                  println("hello")
+                }
+                """);
+        Files.writeString(configuration.resolve(".editorconfig"), """
+                root = true
+                [*.kt]
+                indent_size = 2
+                """);
+
+        BuildExecutor executor = newExecutor();
+        executor.addSource("project", project);
+        executor.addSource("configuration", configuration);
+        executor.addModule(
+                "ktlint",
+                new KtlintModule(Map.of("maven", MavenDefaultRepository.of()), Map.of("maven", new MavenPomResolver()))
+                        .strict(true),
+                "project",
+                "configuration");
+        executor.execute();
+
+        Path report = root.resolve("ktlint").resolve("check").resolve("output").resolve("reports").resolve("ktlint").resolve("ktlint-report.xml");
+        assertThat(report).isNotEmptyFile();
+        assertThat(report).content().doesNotContain("<error");
     }
 
     private BuildExecutor newExecutor() throws IOException {
