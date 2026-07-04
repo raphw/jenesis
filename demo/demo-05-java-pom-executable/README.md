@@ -19,7 +19,7 @@ receive on its command line:
 
 `Demo.java` builds the `stage` goal with the stock
 `new Project().assembler(new InferredMultiProjectAssembler())` - packaging is
-selected by the committed `packaging.properties` at this demo's root, which sets
+selected by the committed `build.jenesis/packaging.properties`, which sets
 `jpackage=app-image` - then reads the image folder from the `stage/packages` entry
 of the map that `build("stage")` returns (a fixed build target) and launches the
 produced platform launcher with your arguments. The packaged app prints:
@@ -77,8 +77,8 @@ the package phase - the cross-module level that runs after every module's build 
 which produces an application image for every module declaring a main class (modules
 without one are skipped). The `jpackage` value is the `jpackage --type` (`app-image`,
 `deb`, `rpm`, `dmg`, `pkg`, `exe`, `msi`); an absent or empty value means no jpackage
-step, so the type is always explicit - this demo commits a `packaging.properties` at
-its root with `jpackage=app-image`, a self-contained launcher plus bundled runtime
+step, so the type is always explicit - this demo commits a `build.jenesis/packaging.properties`
+with `jpackage=app-image`, a self-contained launcher plus bundled runtime
 that needs no platform-native tooling. `--name` / `--main-jar` / `--main-class` are
 derived automatically (the name from the artifactId, here `java-pom-executable`).
 
@@ -123,10 +123,10 @@ A `launcher=true` line in `packaging.properties` turns the bundle into a **singl
 executable jar** you run with `java -jar foo.jar`, by shading the published
 `build.jenesis:build.jenesis.launcher` into the jar root as its `Main-Class` and
 exploding each dependency into a `classpath/<jar>/` subfolder (this app is
-non-modular, so everything is class path). `build/DemoLauncher.java` writes a
-`packaging.properties` with `launcher=true` into a temporary configuration directory,
-points the build at it with `Project.configuration(...)`, then builds it and runs the
-produced jar:
+non-modular, so everything is class path). `build/DemoLauncher.java` activates the
+committed `launcher` profile with `Project.profiles(...)`: the profile's
+`build.jenesis/launcher/packaging.properties` (`launcher=true`) outranks the module's
+own `packaging.properties`, then the demo builds and runs the produced jar:
 
     java build/DemoLauncher.java ada lovelace
 
