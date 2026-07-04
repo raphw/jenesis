@@ -139,8 +139,9 @@ public class ProjectTest {
     }
 
     @Test
-    public void configuration_defaults_to_the_root() {
-        assertThat(new Project().configuration()).containsExactly(Path.of("."));
+    public void configuration_defaults_to_build_jenesis_under_the_root() {
+        assertThat(new Project().configuration())
+                .containsExactly(Path.of(".").resolve("build.jenesis"));
     }
 
     @Test
@@ -151,7 +152,8 @@ public class ProjectTest {
 
     @Test
     public void boms_default_to_the_configuration() {
-        assertThat(new Project().boms()).containsExactly(Path.of("."));
+        assertThat(new Project().boms())
+                .containsExactly(Path.of(".").resolve("build.jenesis"));
         System.setProperty("jenesis.project.configuration", "config");
         assertThat(new Project().boms()).containsExactly(Path.of(".").resolve("config"));
     }
@@ -170,10 +172,10 @@ public class ProjectTest {
     }
 
     @Test
-    public void configuration_reference_splices_the_default_root() {
+    public void configuration_reference_splices_the_default() {
         System.setProperty("jenesis.project.configuration", "shared" + File.pathSeparator + "@");
         assertThat(new Project().configuration())
-                .containsExactly(Path.of(".").resolve("shared"), Path.of("."));
+                .containsExactly(Path.of(".").resolve("shared"), Path.of(".").resolve("build.jenesis"));
     }
 
     @Test
@@ -181,7 +183,9 @@ public class ProjectTest {
         System.setProperty("jenesis.test.sample.key", "shared" + File.pathSeparator + "extra");
         System.setProperty("jenesis.project.configuration", "@jenesis.test.sample.key" + File.pathSeparator + "@");
         assertThat(new Project().configuration())
-                .containsExactly(Path.of(".").resolve("shared"), Path.of(".").resolve("extra"), Path.of("."));
+                .containsExactly(Path.of(".").resolve("shared"),
+                        Path.of(".").resolve("extra"),
+                        Path.of(".").resolve("build.jenesis"));
     }
 
     @Test

@@ -13,8 +13,8 @@ demo: where that freezes the resolved graph into a bill of materials, this enfor
 a policy over the same graph. A sibling compliance gate applies the other check,
 scanning the same graph against the OSV.dev advisory database.
 
-The check is off until its property file exists in the configuration directory (the
-project root by default): the license check reads `licensing.properties`. The file's
+The check is off until its property file exists in the configuration directory
+(`build.jenesis/` under the project root by default): the license check reads `licensing.properties`. The file's
 presence enables the step; its contents configure it.
 
 Run it
@@ -87,7 +87,7 @@ The normalization and classification above draw on comprehensive built-in tables
 so no configuration is required - the Apache and GPL licenses here are recognised
 already. To teach the resolver about a license it does not know (a differently
 worded name, or an identifier that lacks a category), drop an optional
-`spdx.properties` in the configuration directory (the project root by default). It
+`spdx.properties` in the configuration directory (`build.jenesis/` under the project root by default). It
 uses one prefixed key space:
 
 - `alias/<declared name> = <SPDX id>` normalizes a license name as written in a POM

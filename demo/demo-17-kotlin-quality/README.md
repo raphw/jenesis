@@ -5,7 +5,7 @@ The Kotlin counterpart to `../demo-11-java-quality`, following the Kotlin demo
 that precedes it. A small pure-Kotlin module is linted by detekt and ktlint, and
 ktlint doubles as a formatter that verifies the source layout. As with the Java
 demo, no build script is involved: each tool turns on because its configuration
-file is present at the project root.
+file is present in the `build.jenesis/` configuration directory.
 
 Build it
 --------

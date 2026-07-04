@@ -63,7 +63,7 @@ How it is wired
 Bundling is opt-in through a `bundle` key in a `packaging.properties` file, read from
 the configuration location (a module's `META-INF/build.jenesis/` folder - or
 `build.jenesis/` in a Maven layout - falling back to the project-wide configuration
-directory, the project root by default; the first match wins, so a module-local file
+directory, `build.jenesis/` under the project root by default; the first match wins, so a module-local file
 overrides a project-wide one). When `bundle=true`, `InferredMultiProjectAssembler`
 wires a `bundle` step into the package phase - the cross-module level that runs after
 every module's build - producing a `bundle.zip` for every module declaring a main

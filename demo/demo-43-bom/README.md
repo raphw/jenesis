@@ -14,7 +14,7 @@ the BOM says *which version* and *which bytes*:
     }
 
 Local BOMs are files named `bom-<name>.properties` in the project's BOM
-location - by default the configuration location, i.e. the project root. A
+location - by default the configuration location, i.e. `build.jenesis/` under the project root. A
 dash can never occur in a Java module name, so the file reference is
 structurally distinct from a module coordinate. Here `bom-platform.properties`
 carries the pins:

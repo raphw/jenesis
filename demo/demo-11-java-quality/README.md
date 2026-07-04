@@ -3,7 +3,7 @@ Java code-quality demo
 
 Wire the inferred code-quality tools into a single modular Java project. There
 is no build script and no plugin to configure: a tool turns itself on when its
-configuration file is present at the project root. This demo ships four of them,
+configuration file is present in the `build.jenesis/` configuration directory. This demo ships four of them,
 so Checkstyle and PMD lint the sources, SpotBugs analyses the compiled classes,
 and `google-java-format` verifies the source layout. Each tool resolves in its
 own group, independently of the module's own dependencies (here, none).
@@ -27,8 +27,8 @@ reuse the cache.
 Layout
 ------
 
-The configuration files sit at the project root - the *configuration directory*,
-which defaults to the root and can be moved with
+The configuration files sit in the *configuration directory*, which defaults to
+`build.jenesis/` under the project root and can be moved with
 `-Djenesis.project.configuration=<dir>`:
 
     demo/demo-11-java-quality
@@ -56,7 +56,7 @@ build script:
 Jenesis binds the matched file from the configuration directory into the build
 graph so the tool finds it. That binding is what lets a root-level filter reach
 SpotBugs, which runs *after* `javac` and so only ever sees compiled classes, not
-the project root. The Java formatter is selected by a `javaformat.properties` file
+the configuration directory. The Java formatter is selected by a `javaformat.properties` file
 naming the formatter:
 
     formatter=google

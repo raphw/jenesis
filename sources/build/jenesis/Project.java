@@ -943,13 +943,18 @@ public record Project(
                       sources, documentation      Assemble sources / javadoc jars.
                       metadata                    Path-separated list of extra
                                                   metadata files.
-                      configuration               Directory searched for the
+                      configuration               Directories searched for the
                                                   inferred tools' config files
-                                                  (default root; empty uses only
-                                                  each module's build.jenesis/).
-                                                  Path-separated; an @ entry
-                                                  splices the default, @<name> a
-                                                  property or env value.
+                                                  (default build.jenesis/ under
+                                                  the root; the bare root is not
+                                                  searched, so a conventional
+                                                  file dropped there cannot
+                                                  alter the build; empty uses
+                                                  only each module's own
+                                                  folders). Path-separated; an @
+                                                  entry splices the default,
+                                                  @<name> a property or env
+                                                  value.
                       boms                        Path-separated locations of
                                                   local bom-<name>.properties
                                                   files (default: configuration;
@@ -1357,14 +1362,16 @@ public record Project(
             }
         }
         String configurationOverride = System.getProperty("jenesis.project.configuration");
+        SequencedSet<Path> defaultConfiguration = new LinkedHashSet<>(List.of(
+                resolvedRoot.resolve("build.jenesis")));
         SequencedSet<Path> resolvedConfiguration;
         if (configurationOverride == null) {
-            resolvedConfiguration = new LinkedHashSet<>(List.of(resolvedRoot));
+            resolvedConfiguration = defaultConfiguration;
         } else {
             resolvedConfiguration = new LinkedHashSet<>();
             locations(configurationOverride,
                     resolvedRoot,
-                    new LinkedHashSet<>(List.of(resolvedRoot)),
+                    defaultConfiguration,
                     new HashSet<>(),
                     resolvedConfiguration);
         }

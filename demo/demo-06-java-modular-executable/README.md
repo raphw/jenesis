@@ -80,8 +80,8 @@ How packaging fits the build
 Packaging is opt-in through a `packaging.properties` file. Jenesis reads it from the
 same configuration location the inferred linters, formatters, and SBOM use: a
 module's `META-INF/build.jenesis/` folder (or `build.jenesis/` in a Maven layout),
-falling back to the project-wide configuration directory (the project root by
-default). The first match wins, so a module-local file selects packaging for one
+falling back to the project-wide configuration directory (`build.jenesis/` under
+the project root by default). The first match wins, so a module-local file selects packaging for one
 module while a project-wide one selects it for all modules at once. When its
 `jpackage` key is set, `InferredMultiProjectAssembler` wires a `jpackage` step into
 the package phase - the cross-module level that runs after every module's build -

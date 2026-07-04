@@ -7,7 +7,7 @@ location. This module needs one: its entry point reflects on a method's
 parameter and asserts the name survived compilation, which only holds when
 `javac` is given `-parameters` - a flag Jenesis does not pass by default.
 
-The `process-javac.properties` at the project root supplies it:
+The `process-javac.properties` in the `build.jenesis/` configuration directory supplies it:
 
     -parameters=
 
@@ -31,7 +31,7 @@ class still compiles, but the parameter name is erased to `arg0`,
 How it works
 ------------
 
-A configuration location (the project root by default, or a profile subfolder)
+A configuration location (`build.jenesis/` under the project root by default, or a profile subfolder)
 may carry a `process-<command>.properties` file named after any external tool the
 build runs: `javac`, `kotlinc`, `scalac`, `jar`, `jmod`, `jlink`, `jpackage`, or
 `native-image`. Each key is a flag and its value the flag's argument; an empty

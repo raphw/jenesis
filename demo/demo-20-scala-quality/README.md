@@ -5,7 +5,7 @@ The Scala counterpart to `../demo-11-java-quality`, following the Scala demo tha
 precedes it. A small Scala module is linted by Scalastyle and scalafmt, and
 scalafmt doubles as a formatter that verifies the source layout. As elsewhere,
 there is no build script: a tool turns on when its configuration file is present
-at the project root.
+in the `build.jenesis/` configuration directory.
 
 Build it
 --------

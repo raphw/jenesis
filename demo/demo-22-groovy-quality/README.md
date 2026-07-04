@@ -5,7 +5,7 @@ The Groovy counterpart to `../demo-11-java-quality`, following the Groovy demo
 that precedes it. A `codenarc.xml` activates CodeNarc, which lints the Groovy
 sources. There is no inferred Groovy formatter, so unlike the Java, Kotlin, and
 Scala demos this one is lint-only. As elsewhere, there is no build script: the
-tool turns on because its configuration file is present at the project root.
+tool turns on because its configuration file is present in the `build.jenesis/` configuration directory.
 
 Build it
 --------
