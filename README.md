@@ -1099,9 +1099,14 @@ the host JVM:
 A minimal image is built on demand the first time and cached for subsequent runs. To target a different image,
 add `-Djenesis.project.docker.image=<reference>`.
 
-By default only the project root (plus the JDK and the read-only local repositories) is mounted into the
-container, so anything the build needs from outside the root - a `build/jenesis` symlinked to a shared engine
-checkout, a sibling source tree, a generated-sources directory - is invisible inside it. Add those paths with
+Every location the project is configured with is represented inside the container at its host path: the
+project root (writable), the JDK and the local Maven/Jenesis repositories (read-only, with
+`MAVEN_REPOSITORY_LOCAL`/`JENESIS_REPOSITORY_LOCAL` forwarded so the in-container JVM finds them despite its
+different home), out-of-root `target`/`artifacts` locations (writable), out-of-root configuration and BOM
+folders and the folders of `jenesis.project.metadata` files (read-only), and an out-of-root
+`jenesis.project.cache` or `file://` `jenesis.cache.uri` cache (writable, created on the host first so it is
+not left root-owned). Anything else the build needs from outside the root - a `build/jenesis` symlinked to a
+shared engine checkout, a sibling source tree, a generated-sources directory - is invisible inside it. Add those paths with
 `-Djenesis.project.docker.mount=<host>[:<container>],...`: a bare `host` is mounted at the **same** path inside
 the container (`host:host`), which is what a symlink or absolute path reference needs to resolve, while
 `host:container` remaps it. These mounts are **read-only** (the build should not write outside its own tree); use
