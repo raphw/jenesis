@@ -34,7 +34,9 @@ How it works
 A configuration location (`build.jenesis/` under the project root by default, or a profile subfolder)
 may carry a `process-<command>.properties` file named after any external tool the
 build runs: `javac`, `kotlinc`, `scalac`, `jar`, `jmod`, `jlink`, `jpackage`, or
-`native-image`. Each key is a flag and its value the flag's argument; an empty
+`native-image`. `process-java.properties` applies to every forked `java` process,
+while `process-test.properties` targets only the forked test JVM, merged over the
+`java` file with test keys winning. Each key is a flag and its value the flag's argument; an empty
 value (as here) emits a bare flag, and a value with embedded newlines repeats the
 flag once per line.
 

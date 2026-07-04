@@ -141,7 +141,8 @@ then the module-local folder, then the project-wide folders - profile beats plai
 
 A configuration location may also carry a `process-<command>.properties` file to pass extra arguments to any external
 tool the build runs under that name - mainly `javac`, `kotlinc`, and `scalac`, but equally `jar`, `jmod`, `jlink`,
-`jpackage`, or `native-image`. Each key is a flag and its value the flag's argument (an empty value emits a bare flag,
+`jpackage`, or `native-image`. Since several steps fork a `java` process, `process-java.properties` applies to all of
+them; `process-test.properties` targets only the forked test JVM, merged over the `java` file with test keys winning. Each key is a flag and its value the flag's argument (an empty value emits a bare flag,
 a `\n`-separated value repeats the flag). The `prepare` step resolves each command's file by **first match** across the
 configuration locations - like `packaging.properties`, so a profile's file (or an empty one) shadows the general config
 and can switch inherited flags back off - then merges it into the `process/<command>.properties` the build already
@@ -987,7 +988,8 @@ What lives in these folders - presence activates, contents configure:
 - **Compliance**: `licensing.properties`, `vulnerability.properties`.
 - **Test observability**, read by the test side (hence `src/test/build.jenesis/` in the MAVEN layout):
   `jacoco.properties`, `graal.properties`, `pitest.properties`.
-- **Forked-tool arguments**: `process-<command>.properties` (javac, kotlinc, scalac, and so on).
+- **Forked-tool arguments**: `process-<command>.properties` (javac, kotlinc, scalac, and so on); `process-test.properties`
+  addresses only the forked test JVM, since a bare `process-java.properties` applies to every forked `java` process.
 - **License normalization**: `spdx.properties`, merged from every location rather than first-hit.
 - **BOM emission** (modular layouts): `bom.properties`.
 

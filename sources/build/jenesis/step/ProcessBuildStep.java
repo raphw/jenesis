@@ -59,6 +59,10 @@ public abstract class ProcessBuildStep implements BuildStep {
                 : Boolean.parseBoolean(specific);
     }
 
+    protected List<String> commands() {
+        return List.of(command);
+    }
+
     protected ProcessHandler.Tee tee(Executor executor, ProcessHandler handler) {
         if (!verbose) {
             return null;
@@ -94,11 +98,13 @@ public abstract class ProcessBuildStep implements BuildStep {
         SequencedMap<String, SequencedMap<String, String>> properties = new LinkedHashMap<>();
         for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
             SequencedMap<String, String> folderMap = new LinkedHashMap<>();
-            Path file = entry.getValue().folder().resolve(PROCESS + command + ".properties");
-            if (Files.exists(file)) {
-                SequencedProperties loaded = SequencedProperties.ofFiles(file);
-                for (String key : loaded.stringPropertyNames()) {
-                    folderMap.put(key, loaded.getProperty(key));
+            for (String name : commands()) {
+                Path file = entry.getValue().folder().resolve(PROCESS + name + ".properties");
+                if (Files.exists(file)) {
+                    SequencedProperties loaded = SequencedProperties.ofFiles(file);
+                    for (String key : loaded.stringPropertyNames()) {
+                        folderMap.put(key, loaded.getProperty(key));
+                    }
                 }
             }
             properties.put(entry.getKey(), folderMap);

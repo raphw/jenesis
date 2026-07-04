@@ -598,7 +598,8 @@ public record Project(
                       %{name}pitest.properties%{reset}       PIT mutation testing
                       %{name}javaformat.properties%{reset}   Java source formatter=google|palantir
                       %{name}spdx.properties%{reset}         Extend the license alias/category tables
-                      %{name}process-<tool>.properties%{reset} Extra command-line arguments merged into a forked tool (javac, javadoc, jar, jlink, jpackage, ...)
+                      %{name}process-<tool>.properties%{reset} Extra command-line arguments merged into a forked tool (javac, javadoc, jar, jlink, jpackage, ...);
+                                                 process-test.properties targets only the forked test JVM, merged over process-java.properties
                       The inferred linters and other formatters activate instead from their own native config
                       files (checkstyle.xml, pmd.xml, spotbugs-exclude.xml, .editorconfig, .scalafmt.conf, ...).
 
@@ -929,7 +930,10 @@ public record Project(
                       spdx.properties           Extend the license alias/category tables.
                       process-<tool>.properties Extra command-line arguments merged
                                                 into a forked tool (javac, javadoc,
-                                                jar, jlink, jpackage, ...).
+                                                jar, jlink, jpackage, ...);
+                                                process-test.properties targets only
+                                                the forked test JVM, merged over
+                                                process-java.properties.
                     The inferred linters and the ktlint/scalafmt formatters activate
                     instead from their own native config files (checkstyle.xml,
                     pmd.xml, spotbugs-exclude.xml, .editorconfig, .scalafmt.conf, ...).

@@ -576,6 +576,11 @@ public class TestModule implements BuildExecutorModule {
         }
 
         @Override
+        protected List<String> commands() {
+            return List.of("java", "test");
+        }
+
+        @Override
         public boolean shouldRun(SequencedMap<String, BuildStepArgument> arguments) {
             return filter != null || tag != null || super.shouldRun(arguments);
         }
