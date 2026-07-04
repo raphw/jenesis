@@ -297,6 +297,7 @@ public class MavenPomResolver implements MavenResolver {
                     value = override == null ? entry.getValue() : merge(override, entry.getValue());
                     value = merge(value, current.pom().managedDependencies().get(entry.getKey()));
                 }
+                value = defaultScope(value);
                 if (!current.root() && Objects.equals(Boolean.TRUE, value.optional())) {
                     continue;
                 }
@@ -438,7 +439,7 @@ public class MavenPomResolver implements MavenResolver {
             SequencedMap<MavenDependencyKey, MavenDependencyValue> managedDependencies = new LinkedHashMap<>();
             for (Map.Entry<DependencyKey, DependencyValue> entry : pom.managedDependencies().entrySet()) {
                 MavenDependencyKey key = entry.getKey().resolve(pom.properties());
-                MavenDependencyValue value = entry.getValue().resolveManaged(pom.properties());
+                MavenDependencyValue value = entry.getValue().resolve(pom.properties());
                 if (value.scope() == MavenDependencyScope.IMPORT) {
                     flattenImport(executor,
                             MavenRepository.of(repository),
@@ -455,8 +456,8 @@ public class MavenPomResolver implements MavenResolver {
             }
             pom.dependencies().forEach((key, value) -> {
                 MavenDependencyKey resolvedKey = key.resolve(pom.properties());
-                dependencies.put(resolvedKey, merge(value.resolve(pom.properties()),
-                        managedDependencies.get(resolvedKey)));
+                dependencies.put(resolvedKey, defaultScope(merge(value.resolve(pom.properties()),
+                        managedDependencies.get(resolvedKey))));
             });
             results.put(root.relativize(module), new MavenLocalPom(property(pom.groupId(), pom.properties()),
                     property(pom.artifactId(), pom.properties()),
@@ -740,7 +741,7 @@ public class MavenPomResolver implements MavenResolver {
         SequencedMap<MavenDependencyKey, MavenDependencyValue> dependencies = new LinkedHashMap<>();
         for (Map.Entry<DependencyKey, DependencyValue> entry : pom.managedDependencies().entrySet()) {
             MavenDependencyKey key = entry.getKey().resolve(pom.properties());
-            MavenDependencyValue value = entry.getValue().resolveManaged(pom.properties());
+            MavenDependencyValue value = entry.getValue().resolve(pom.properties());
             if (value.scope() == MavenDependencyScope.IMPORT) {
                 flattenImport(executor,
                         repository,
@@ -783,7 +784,7 @@ public class MavenPomResolver implements MavenResolver {
                 unresolved);
         for (Map.Entry<DependencyKey, DependencyValue> entry : imported.managedDependencies().entrySet()) {
             MavenDependencyKey importKey = entry.getKey().resolve(imported.properties());
-            MavenDependencyValue importValue = entry.getValue().resolveManaged(imported.properties());
+            MavenDependencyValue importValue = entry.getValue().resolve(imported.properties());
             if (importValue.scope() == MavenDependencyScope.IMPORT) {
                 flattenImport(executor,
                         repository,
@@ -1006,6 +1007,15 @@ public class MavenPomResolver implements MavenResolver {
                 || MavenDefaultVersionNegotiator.isRange(version);
     }
 
+    private static MavenDependencyValue defaultScope(MavenDependencyValue value) {
+        return value.scope() == null ? new MavenDependencyValue(value.version(),
+                MavenDependencyScope.COMPILE,
+                value.systemPath(),
+                value.exclusions(),
+                value.optional(),
+                value.checksum()) : value;
+    }
+
     private static MavenDependencyValue merge(MavenDependencyValue left, MavenDependencyValue right) {
         return right == null ? left : new MavenDependencyValue(
                 left.version() == null ? right.version() : left.version(),
@@ -1039,19 +1049,13 @@ public class MavenPomResolver implements MavenResolver {
                                    String optional,
                                    String checksum) {
         private MavenDependencyValue resolve(Map<String, String> properties) {
-            return resolve(properties, true);
-        }
-
-        private MavenDependencyValue resolveManaged(Map<String, String> properties) {
-            return resolve(properties, false);
-        }
-
-        private MavenDependencyValue resolve(Map<String, String> properties, boolean defaultScope) {
+            // A dependency without a scope must keep it undefined until the managed scopes have been merged,
+            // where an explicit management entry wins over the compile default.
             String resolvedScope = property(scope, properties);
             String resolvedVersion = property(version, properties);
             MavenDependencyKey.validate("version", resolvedVersion);
             return new MavenDependencyValue(resolvedVersion,
-                    resolvedScope == null && !defaultScope ? null : MavenDependencyScope.of(resolvedScope),
+                    resolvedScope == null ? null : MavenDependencyScope.of(resolvedScope),
                     systemPath == null ? null : Path.of(property(systemPath, properties)),
                     exclusions == null ? null : exclusions.stream().map(exclusion -> new MavenDependencyName(
                             property(exclusion.groupId(), properties),
