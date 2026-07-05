@@ -56,3 +56,8 @@ deploy:
         applyMavenCentralRules: true
         stagingRepositories:
           - target/stage/maven/output
+
+# Broadcast the release on SDKMAN's channels (same vendor credentials as the packager).
+announce:
+  sdkman:
+    active: ALWAYS
