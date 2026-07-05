@@ -64,6 +64,63 @@ public class BuildExecutorTest implements Serializable {
     }
 
     @Test
+    public void the_same_jvm_may_build_the_same_target_repeatedly() throws IOException {
+        BuildExecutor second = BuildExecutor.of(root,
+                Duration.ZERO,
+                hash,
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
+                BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false);
+        Files.writeString(source.resolve("file"), "foo");
+        second.addSource("source", source);
+        second.addStep("step", (_, context, _) -> {
+            Files.writeString(context.next().resolve("file"), "again");
+            return CompletableFuture.completedStage(new BuildStepResult(true));
+        }, "source");
+        second.execute(Runnable::run).toCompletableFuture().join();
+        assertThat(root.resolve("step").resolve("output").resolve("file")).content().isEqualTo("again");
+    }
+
+    @Test
+    public void a_foreign_build_process_on_the_same_target_is_rejected() throws IOException, InterruptedException {
+        Path holder = source2.resolve("LockHolder.java");
+        Files.writeString(holder, """
+                import java.nio.channels.FileChannel;
+                import java.nio.file.Path;
+                import java.nio.file.StandardOpenOption;
+
+                public class LockHolder {
+                    public static void main(String[] args) throws Exception {
+                        FileChannel channel = FileChannel.open(Path.of(args[0]),
+                                StandardOpenOption.CREATE,
+                                StandardOpenOption.WRITE);
+                        channel.lock();
+                        System.out.println("locked");
+                        Thread.sleep(60_000);
+                    }
+                }
+                """);
+        Path lockFile = source2.resolve("target").resolve(".jenesis.lock");
+        Files.createDirectories(lockFile.getParent());
+        Process process = new ProcessBuilder(
+                Path.of(System.getProperty("java.home"), "bin", "java").toString(),
+                holder.toString(),
+                lockFile.toString()).redirectErrorStream(true).start();
+        try (BufferedReader reader = process.inputReader()) {
+            assertThat(reader.readLine()).isEqualTo("locked");
+            assertThatThrownBy(() -> BuildExecutor.of(source2.resolve("target"),
+                    Duration.ZERO,
+                    hash,
+                    BuildStepHashFunction.ofSerializationDigest("MD5"),
+                    BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("Another build process is already building");
+        } finally {
+            process.destroyForcibly();
+            process.waitFor();
+        }
+    }
+
+    @Test
     public void replaces_a_stale_staging_folder_from_a_crashed_run() throws IOException {
         Path stale = Files.createDirectories(root.resolve("step~").resolve("output"));
         Files.writeString(stale.resolve("junk"), "junk");
