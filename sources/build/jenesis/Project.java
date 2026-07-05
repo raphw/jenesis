@@ -1020,6 +1020,16 @@ public record Project(
                                                   accepted, and a credential is
                                                   never forwarded across a
                                                   redirect to another host.
+                      -Djenesis.repository.retries        Retries after a failed
+                                                  fetch (default 2): HTTP 429 and
+                                                  5xx responses and dropped
+                                                  connections are retried with
+                                                  exponential backoff, honoring
+                                                  Retry-After. 0 disables.
+                      -Djenesis.repository.backoff        Initial backoff in
+                                                  milliseconds between retries,
+                                                  doubling per attempt (default
+                                                  125).
                       -Djenesis.maven.uri|local|token     Maven repository remote
                                                   URL, local cache and bearer token
                                                   (env fallbacks

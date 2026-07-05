@@ -8,6 +8,7 @@ public class JenesisModuleRepository implements JenesisRepository {
 
     private final URI root;
     private final String token;
+    private final Repository.Retry retry;
 
     public static JenesisRepository of(Scope scope) {
         String token = System.getProperty("jenesis.module.token", System.getenv("JENESIS_REPOSITORY_TOKEN"));
@@ -109,9 +110,18 @@ public class JenesisModuleRepository implements JenesisRepository {
     }
 
     public JenesisModuleRepository(URI root, String token) {
+        this(root, token, Repository.Retry.of());
+    }
+
+    private JenesisModuleRepository(URI root, String token, Repository.Retry retry) {
         String text = root.toString();
         this.root = text.endsWith("/") ? root : URI.create(text + "/");
         this.token = token;
+        this.retry = retry;
+    }
+
+    public JenesisModuleRepository retry(Repository.Retry retry) {
+        return new JenesisModuleRepository(root, token, retry);
     }
 
     public static JenesisModuleRepository ofLocal() {
@@ -151,32 +161,13 @@ public class JenesisModuleRepository implements JenesisRepository {
                     ? Optional.of(RepositoryItem.ofFile(file, true))
                     : Optional.empty();
         }
-        InputStream stream = null;
-        IOException failure = null;
-        for (int attempt = 0; attempt < 4; attempt++) {
-            try {
-                stream = Repository.open(uri, token);
-                failure = null;
-                break;
-            } catch (FileNotFoundException _) {
-                return Optional.empty();
-            } catch (IOException e) {
-                failure = e;
-                if (attempt < 3) {
-                    try {
-                        Thread.sleep(500L << attempt);
-                    } catch (InterruptedException interrupted) {
-                        Thread.currentThread().interrupt();
-                        throw new IOException("Interrupted while fetching " + uri, interrupted);
-                    }
-                }
-            }
+        InputStream stream;
+        try {
+            stream = Repository.open(uri, token, retry);
+        } catch (FileNotFoundException _) {
+            return Optional.empty();
         }
-        if (failure != null) {
-            throw failure;
-        }
-        InputStream fetched = stream;
-        return Optional.of(() -> fetched);
+        return Optional.of(() -> stream);
     }
 
     private static void requireSafeSegment(String role, String value) {

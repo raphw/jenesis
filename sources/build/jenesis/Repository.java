@@ -104,40 +104,105 @@ public interface Repository {
     }
 
     static InputStream open(URI uri, String token) throws IOException {
+        return open(uri, token, Retry.of());
+    }
+
+    static InputStream open(URI uri, String token, Retry retry) throws IOException {
         boolean insecure = Boolean.getBoolean("jenesis.repository.insecure");
-        URI current = uri;
-        for (int redirect = 0; redirect < 8; redirect++) {
-            String scheme = current.getScheme();
-            if (scheme != null && !scheme.equals("https") && !scheme.equals("file") && !insecure) {
-                throw new IllegalStateException("Refusing to fetch over insecure scheme '"
-                        + scheme
-                        + "': "
-                        + current
-                        + " (set -Djenesis.repository.insecure=true to allow plaintext repositories)");
-            }
-            URLConnection connection = current.toURL().openConnection();
-            if (!(connection instanceof HttpURLConnection http)) {
-                return connection.getInputStream();
-            }
-            http.setInstanceFollowRedirects(false);
-            http.setRequestProperty("User-Agent", "Jenesis");
-            // Redirects are followed by hand so the credential is only ever sent to the
-            // origin it was configured for, never to whatever host a redirect points at.
-            if (token != null && sameOrigin(uri, current)) {
-                http.setRequestProperty("Authorization", token);
-            }
-            int status = http.getResponseCode();
-            if (status >= 300 && status < 400) {
-                String location = http.getHeaderField("Location");
-                if (location != null) {
-                    http.getInputStream().close();
-                    current = current.resolve(location);
-                    continue;
+        attempts:
+        for (int attempt = 0; ; attempt++) {
+            URI current = uri;
+            try {
+                for (int redirect = 0; redirect < 8; redirect++) {
+                    String scheme = current.getScheme();
+                    if (scheme != null && !scheme.equals("https") && !scheme.equals("file") && !insecure) {
+                        throw new IllegalStateException("Refusing to fetch over insecure scheme '"
+                                + scheme
+                                + "': "
+                                + current
+                                + " (set -Djenesis.repository.insecure=true to allow plaintext repositories)");
+                    }
+                    URLConnection connection = current.toURL().openConnection();
+                    if (!(connection instanceof HttpURLConnection http)) {
+                        return connection.getInputStream();
+                    }
+                    http.setInstanceFollowRedirects(false);
+                    http.setRequestProperty("User-Agent", "Jenesis");
+                    // Redirects are followed by hand so the credential is only ever sent to the
+                    // origin it was configured for, never to whatever host a redirect points at.
+                    if (token != null && sameOrigin(uri, current)) {
+                        http.setRequestProperty("Authorization", token);
+                    }
+                    int status = http.getResponseCode();
+                    if (status >= 300 && status < 400) {
+                        String location = http.getHeaderField("Location");
+                        if (location != null) {
+                            http.getInputStream().close();
+                            current = current.resolve(location);
+                            continue;
+                        }
+                    }
+                    if ((status == 429 || status >= 500) && attempt < retry.retries()) {
+                        long delay = retry.backoff().toMillis() << attempt;
+                        String after = http.getHeaderField("Retry-After");
+                        if (after != null) {
+                            try {
+                                // The advertised wait is capped so a hostile server cannot stall the build.
+                                delay = Math.min(Long.parseLong(after.trim()), 30) * 1000;
+                            } catch (NumberFormatException _) {
+                            }
+                        }
+                        InputStream error = http.getErrorStream();
+                        if (error != null) {
+                            error.close();
+                        }
+                        pause(delay, uri);
+                        continue attempts;
+                    }
+                    return http.getInputStream();
                 }
+                throw new IOException("Exceeded redirect limit fetching " + uri);
+            } catch (SocketException | SocketTimeoutException e) {
+                if (attempt >= retry.retries()) {
+                    throw e;
+                }
+                pause(retry.backoff().toMillis() << attempt, uri);
             }
-            return http.getInputStream();
         }
-        throw new IOException("Exceeded redirect limit fetching " + uri);
+    }
+
+    private static void pause(long delay, URI uri) throws InterruptedIOException {
+        try {
+            Thread.sleep(delay);
+        } catch (InterruptedException _) {
+            Thread.currentThread().interrupt();
+            throw new InterruptedIOException("Interrupted while retrying " + uri);
+        }
+    }
+
+    record Retry(int retries, Duration backoff) {
+
+        public Retry {
+            if (retries < 0) {
+                throw new IllegalArgumentException("Retries cannot be negative: " + retries);
+            }
+            if (backoff.isNegative()) {
+                throw new IllegalArgumentException("Backoff cannot be negative: " + backoff);
+            }
+        }
+
+        public static Retry of() {
+            return new Retry(Integer.getInteger("jenesis.repository.retries", 2),
+                    Duration.ofMillis(Long.getLong("jenesis.repository.backoff", 125)));
+        }
+
+        public Retry retries(int retries) {
+            return new Retry(retries, backoff);
+        }
+
+        public Retry backoff(Duration backoff) {
+            return new Retry(retries, backoff);
+        }
     }
 
     private static boolean sameOrigin(URI left, URI right) {

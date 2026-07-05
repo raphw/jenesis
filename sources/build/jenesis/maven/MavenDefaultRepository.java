@@ -13,6 +13,7 @@ public class MavenDefaultRepository implements MavenRepository {
     private final Map<String, URI> validations;
     private final Consumer<String> callback;
     private final String token;
+    private final Repository.Retry retry;
 
     public static MavenRepository of() {
         Path local;
@@ -142,12 +143,26 @@ public class MavenDefaultRepository implements MavenRepository {
                                   Map<String, URI> validations,
                                   Consumer<String> callback,
                                   String token) {
+        this(repository, local, validations, callback, token, Repository.Retry.of());
+    }
+
+    private MavenDefaultRepository(URI repository,
+                                   Path local,
+                                   Map<String, URI> validations,
+                                   Consumer<String> callback,
+                                   String token,
+                                   Repository.Retry retry) {
         this.repository = repository;
         this.local = local;
         this.writable = local != null && Files.isWritable(local);
         this.validations = validations;
         this.callback = callback;
         this.token = token;
+        this.retry = retry;
+    }
+
+    public MavenDefaultRepository retry(Repository.Retry retry) {
+        return new MavenDefaultRepository(repository, local, validations, callback, token, retry);
     }
 
     @SuppressWarnings("unchecked")
@@ -330,38 +345,37 @@ public class MavenDefaultRepository implements MavenRepository {
                 digests,
                 path.substring(dash + 1, dot),
                 path.substring(dot),
-                token);
+                token,
+                retry);
     }
 
-    private static InputStream openStream(URI uri, String token) throws IOException {
-        return Repository.open(uri, token);
+    private static InputStream openStream(URI uri, String token, Repository.Retry retry) throws IOException {
+        return Repository.open(uri, token, retry);
     }
 
     private static Optional<Path> download(URI uri,
                                            Map<LazyRepositoryItem, MessageDigest> digests,
                                            String prefix,
                                            String suffix,
-                                           String token) throws IOException {
+                                           String token,
+                                           Repository.Retry retry) throws IOException {
         Path temporary = Files.createTempFile(prefix, suffix);
         try {
-            IOException failure = null;
-            for (int attempt = 0; attempt < 4; attempt++) {
-                try (InputStream stream = openStream(uri, token)) {
+            // The opened response retries internally; this loop additionally covers a
+            // connection that drops while the body is being copied.
+            for (int attempt = 0; ; attempt++) {
+                try (InputStream stream = openStream(uri, token, retry)) {
                     Files.copy(stream, temporary, StandardCopyOption.REPLACE_EXISTING);
-                    failure = null;
                     break;
                 } catch (FileNotFoundException _) {
                     Files.deleteIfExists(temporary);
                     return Optional.empty();
-                } catch (IOException e) {
-                    failure = e;
-                    if (attempt < 3) {
-                        Thread.sleep(500L << attempt);
+                } catch (SocketException | SocketTimeoutException e) {
+                    if (attempt >= retry.retries()) {
+                        throw e;
                     }
+                    Thread.sleep(retry.backoff().toMillis() << attempt);
                 }
-            }
-            if (failure != null) {
-                throw failure;
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -478,7 +492,8 @@ public class MavenDefaultRepository implements MavenRepository {
                                 Map<LazyRepositoryItem, MessageDigest> digests,
                                 String prefix,
                                 String suffix,
-                                String token) implements LazyRepositoryItem {
+                                String token,
+                                Repository.Retry retry) implements LazyRepositoryItem {
 
         @Override
         public void storeIfNotPresent(byte[] bytes) throws IOException {
@@ -501,7 +516,7 @@ public class MavenDefaultRepository implements MavenRepository {
 
         @Override
         public Optional<InputStream> toLazyInputStream() throws IOException {
-            Optional<Path> temporary = download(uri, digests, prefix, suffix, token);
+            Optional<Path> temporary = download(uri, digests, prefix, suffix, token, retry);
             if (temporary.isEmpty()) {
                 return Optional.empty();
             }
@@ -530,7 +545,7 @@ public class MavenDefaultRepository implements MavenRepository {
             if (path == null) {
                 return LazyRepositoryItem.super.materialize();
             }
-            Optional<Path> temporary = download(uri, digests, prefix, suffix, token);
+            Optional<Path> temporary = download(uri, digests, prefix, suffix, token, retry);
             if (temporary.isEmpty()) {
                 return Optional.empty();
             }

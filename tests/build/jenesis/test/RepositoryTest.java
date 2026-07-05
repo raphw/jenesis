@@ -1,6 +1,7 @@
 package build.jenesis.test;
 
 import module java.base;
+import module jdk.httpserver;
 import module org.junit.jupiter.api;
 import build.jenesis.Repository;
 import build.jenesis.RepositoryItem;
@@ -13,6 +14,103 @@ public class RepositoryTest {
 
     @TempDir
     private Path folder;
+
+    @AfterEach
+    public void clear() {
+        System.clearProperty("jenesis.repository.insecure");
+        System.clearProperty("jenesis.repository.retries");
+        System.clearProperty("jenesis.repository.backoff");
+    }
+
+    private HttpServer serve(IntFunction<Integer> statusOfHit, Map<String, String> headers, AtomicInteger hits) throws IOException {
+        HttpServer server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+        server.createContext("/", exchange -> {
+            int status = statusOfHit.apply(hits.incrementAndGet());
+            headers.forEach((key, value) -> exchange.getResponseHeaders().set(key, value));
+            byte[] body = status == 200 ? "payload".getBytes(StandardCharsets.UTF_8) : new byte[0];
+            exchange.sendResponseHeaders(status, status == 200 ? body.length : -1);
+            if (status == 200) {
+                try (OutputStream out = exchange.getResponseBody()) {
+                    out.write(body);
+                }
+            }
+            exchange.close();
+        });
+        server.start();
+        return server;
+    }
+
+    @Test
+    public void open_retries_a_server_error_until_success() throws IOException {
+        System.setProperty("jenesis.repository.insecure", "true");
+        AtomicInteger hits = new AtomicInteger();
+        HttpServer server = serve(hit -> hit < 3 ? 502 : 200, Map.of(), hits);
+        try {
+            URI uri = URI.create("http://localhost:" + server.getAddress().getPort() + "/artifact.jar");
+            try (InputStream stream = Repository.open(uri, null, new Repository.Retry(2, Duration.ofMillis(1)))) {
+                assertThat(new String(stream.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("payload");
+            }
+            assertThat(hits.get()).isEqualTo(3);
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    public void open_gives_up_after_the_configured_retries() throws IOException {
+        System.setProperty("jenesis.repository.insecure", "true");
+        AtomicInteger hits = new AtomicInteger();
+        HttpServer server = serve(_ -> 502, Map.of(), hits);
+        try {
+            URI uri = URI.create("http://localhost:" + server.getAddress().getPort() + "/artifact.jar");
+            assertThatThrownBy(() -> Repository.open(uri, null, new Repository.Retry(1, Duration.ofMillis(1))).close())
+                    .isInstanceOf(IOException.class)
+                    .hasMessageContaining("502");
+            assertThat(hits.get()).isEqualTo(2);
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    public void open_does_not_retry_a_missing_resource() throws IOException {
+        System.setProperty("jenesis.repository.insecure", "true");
+        AtomicInteger hits = new AtomicInteger();
+        HttpServer server = serve(_ -> 404, Map.of(), hits);
+        try {
+            URI uri = URI.create("http://localhost:" + server.getAddress().getPort() + "/artifact.jar");
+            assertThatThrownBy(() -> Repository.open(uri, null, new Repository.Retry(2, Duration.ofMillis(1))).close())
+                    .isInstanceOf(FileNotFoundException.class);
+            assertThat(hits.get()).isEqualTo(1);
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    public void open_honors_the_retry_after_header() throws IOException {
+        System.setProperty("jenesis.repository.insecure", "true");
+        AtomicInteger hits = new AtomicInteger();
+        HttpServer server = serve(hit -> hit < 2 ? 429 : 200, Map.of("Retry-After", "0"), hits);
+        try {
+            URI uri = URI.create("http://localhost:" + server.getAddress().getPort() + "/artifact.jar");
+            try (InputStream stream = Repository.open(uri, null, new Repository.Retry(2, Duration.ofSeconds(30)))) {
+                assertThat(new String(stream.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("payload");
+            }
+            assertThat(hits.get()).isEqualTo(2);
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    public void retry_defaults_read_the_system_properties() {
+        System.setProperty("jenesis.repository.retries", "7");
+        System.setProperty("jenesis.repository.backoff", "9");
+        assertThat(Repository.Retry.of()).isEqualTo(new Repository.Retry(7, Duration.ofMillis(9)));
+        assertThat(Repository.Retry.of().retries(1)).isEqualTo(new Repository.Retry(1, Duration.ofMillis(9)));
+        assertThat(Repository.Retry.of().backoff(Duration.ofMillis(2))).isEqualTo(new Repository.Retry(7, Duration.ofMillis(2)));
+    }
 
     @Test
     public void ofProperties_passes_folder_to_resolver_for_relative_values() throws IOException {

@@ -13,29 +13,36 @@ public class JenesisRawGitRepository implements JenesisRepository {
     private final URI repository;
     private final String token;
     private final Predicate<String> predicate;
+    private final Repository.Retry retry;
 
     public JenesisRawGitRepository(Scope scope, URI data, URI repository) {
         this(scope, data, repository, null);
     }
 
     public JenesisRawGitRepository(Scope scope, URI data, URI repository, String token) {
-        this(scope, trailingSlash(data), trailingSlash(repository), token, _ -> true);
+        this(scope, trailingSlash(data), trailingSlash(repository), token, _ -> true, Repository.Retry.of());
     }
 
     private JenesisRawGitRepository(Scope scope,
                                     URI data,
                                     URI repository,
                                     String token,
-                                    Predicate<String> predicate) {
+                                    Predicate<String> predicate,
+                                    Repository.Retry retry) {
         this.scope = scope;
         this.data = data;
         this.repository = repository;
         this.token = token;
         this.predicate = predicate;
+        this.retry = retry;
     }
 
     public JenesisRawGitRepository groups(Predicate<String> predicate) {
-        return new JenesisRawGitRepository(scope, data, repository, token, predicate);
+        return new JenesisRawGitRepository(scope, data, repository, token, predicate, retry);
+    }
+
+    public JenesisRawGitRepository retry(Repository.Retry retry) {
+        return new JenesisRawGitRepository(scope, data, repository, token, predicate, retry);
     }
 
     public static JenesisRepository of(Scope scope) {
@@ -169,14 +176,14 @@ public class JenesisRawGitRepository implements JenesisRepository {
                 + "/" + resolved.version()
                 + "/" + resolved.artifactId() + "-" + resolved.version()
                 + (classifier == null ? "" : "-" + classifier) + "." + type;
-        return open(repository.resolve(path), token).map(stream -> (RepositoryItem) () -> stream);
+        return open(repository.resolve(path), token, retry).map(stream -> (RepositoryItem) () -> stream);
     }
 
     private Coordinate resolve(String moduleName, String classifier, String version) throws IOException {
         String tsvName = (scope == Scope.MODULE ? "modules" : "artifacts")
                 + (classifier == null ? "" : "-" + classifier) + ".tsv";
         URI tsvUri = data.resolve(moduleName.replace('.', '/') + "/" + tsvName);
-        Optional<InputStream> stream = open(tsvUri, null);
+        Optional<InputStream> stream = open(tsvUri, null, retry);
         if (stream.isEmpty()) {
             return null;
         }
@@ -213,26 +220,12 @@ public class JenesisRawGitRepository implements JenesisRepository {
         return null;
     }
 
-    private static Optional<InputStream> open(URI uri, String token) throws IOException {
-        IOException failure = null;
-        for (int attempt = 0; attempt < 4; attempt++) {
-            try {
-                return Optional.of(Repository.open(uri, token));
-            } catch (FileNotFoundException _) {
-                return Optional.empty();
-            } catch (IOException e) {
-                failure = e;
-                if (attempt < 3) {
-                    try {
-                        Thread.sleep(500L << attempt);
-                    } catch (InterruptedException interrupted) {
-                        Thread.currentThread().interrupt();
-                        throw new IOException("Interrupted while fetching " + uri, interrupted);
-                    }
-                }
-            }
+    private static Optional<InputStream> open(URI uri, String token, Repository.Retry retry) throws IOException {
+        try {
+            return Optional.of(Repository.open(uri, token, retry));
+        } catch (FileNotFoundException _) {
+            return Optional.empty();
         }
-        throw failure;
     }
 
     private static void requireSafeSegment(String role, String value) {
