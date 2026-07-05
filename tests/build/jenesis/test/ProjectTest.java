@@ -82,7 +82,7 @@ public class ProjectTest {
 
     @Test
     public void build_throws_when_no_descriptor_is_detected() {
-        assertThatThrownBy(() -> new Project().root(root).build())
+        assertThatThrownBy(() -> new Project().root(root).target(root.resolve("target")).build())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("No build descriptor found");
     }
