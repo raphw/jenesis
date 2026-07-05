@@ -10,6 +10,7 @@ project:
       groupId: build.jenesis
       artifactId: jenesis
       version: '25'
+      mainClass: build.jenesis.Project
 
 signing:
   active: ALWAYS
@@ -29,9 +30,22 @@ release:
 
 files:
   artifacts:
-    - path: 'sdk/jenesis-{{projectVersion}}.zip'
     - path: 'target/stage/maven/output/build/jenesis/build.jenesis/{{projectVersion}}/build.jenesis-{{projectVersion}}.jar'
     - path: 'target/stage/maven/output/build/jenesis/build.jenesis/{{projectVersion}}/build.jenesis-{{projectVersion}}-sources.jar'
+
+# The sdk zip is the distribution artifact: uploaded to the GitHub release like any
+# file, and then published to SDKMAN by the packager (release + set as default -
+# what the sdkman-release-action and sdkman-default-action steps used to do).
+distributions:
+  jenesis:
+    type: JAVA_BINARY
+    artifacts:
+      - path: 'sdk/jenesis-{{projectVersion}}.zip'
+    sdkman:
+      active: ALWAYS
+      candidate: jenesis
+      command: MAJOR
+      releaseNotesUrl: 'https://github.com/raphw/jenesis/releases/tag/v{{projectVersion}}'
 
 deploy:
   maven:
