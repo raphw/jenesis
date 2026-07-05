@@ -39,8 +39,10 @@ demo selects its own:
     detekt.yml       -> detekt (lints the Kotlin sources)
     .editorconfig    -> ktlint (lints the sources, and formats them)
 
-detekt runs with `--config detekt.yml`; ktlint reads `.editorconfig` for its
-rules. Both lint the `.kt` sources in parallel with compilation and write an XML
+detekt runs with `--config detekt.yml`; ktlint receives `.editorconfig` as
+`--editorconfig`, so the located file's rules apply as defaults no matter which
+configuration folder it lives in (an `.editorconfig` beside the sources still
+wins for the properties it sets, per editorconfig layering). Both lint the `.kt` sources in parallel with compilation and write an XML
 report under their step's output folder. By default they are report-only.
 
 Formatting: verify, and how to reformat

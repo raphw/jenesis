@@ -462,7 +462,7 @@ public record Project(
                       %{name}layout%{reset}                           auto, maven, modular, or modular_to_maven
                       %{name}sources%{reset}, %{name}documentation%{reset}           Assemble source/javadoc jars
                       %{name}metadata%{reset}                         Path-separated list of extra metadata files
-                      %{name}configuration%{reset}                    Directory the inferred tools search for config files (default: root; empty skips it)
+                      %{name}configuration%{reset}                    Directories the inferred tools search for config files (default: build.jenesis/ under the root; empty skips them; @ splices the default)
                       %{name}boms%{reset}                             Path-separated locations of local bom-<name>.properties files (default: configuration)
                       %{name}version%{reset}                          Project version
                       %{name}digest%{reset}                           Algorithm for pin and dependency checksums (default: SHA-256)
@@ -515,6 +515,12 @@ public record Project(
                                                       by default only %{name}https://%{reset} and %{name}file://%{reset} are
                                                       accepted and a credential is never forwarded
                                                       across a redirect to another host
+                      %{name}retries%{reset}                           Retries after a failed fetch (default %{name}2%{reset}):
+                                                      HTTP 429 and 5xx responses and dropped connections
+                                                      are retried with exponential backoff, honoring
+                                                      %{name}Retry-After%{reset}; %{name}0%{reset} disables
+                      %{name}backoff%{reset}                           Initial wait in milliseconds between retries,
+                                                      doubling per attempt (default %{name}125%{reset})
                       The Maven and Jenesis module repositories take a %{name}uri%{reset} (remote),
                       %{name}local%{reset} (on-disk cache) and %{name}token%{reset} (bearer credential) under
                       %{name}jenesis.maven.<key>%{reset} and %{name}jenesis.module.<key>%{reset}; each falls back to the
@@ -731,6 +737,16 @@ public record Project(
                     repeat work it would otherwise skip. Browse this path when
                     debugging a selector or diffing a behaviour change, but
                     leave its contents in place.
+                    
+                    Run only one build at a time against a target: the build
+                    root carries an exclusive lock (`.jenesis.lock`), and a
+                    second build process fails fast with "Another build process
+                    is already building ..." rather than the two corrupting
+                    each other's staged steps. Folders whose name ends in `~`
+                    are a running step's staging area, atomically renamed into
+                    place on success; ignore them when inspecting, and expect a
+                    crashed build's leftover staging to be replaced on the next
+                    run.
                     
                     4. Derive a selector from target/ for minimal recreation
                     --------------------------------------------------------
