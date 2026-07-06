@@ -1,6 +1,7 @@
 package build.jenesis;
 
 import module java.base;
+import build.jenesis.docker.DockerizedJava;
 import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenDefaultVersionNegotiator;
 import build.jenesis.maven.MavenModuleResolver;
@@ -10,7 +11,8 @@ import build.jenesis.module.JenesisModuleRepository;
 import build.jenesis.module.ModularJarResolver;
 
 /**
- * Resolves and runs the main entry point of a published module: {@code jpx [--modular] <name>[/<checksum>][@<version>] [argument...]}.
+ * Resolves and runs the main entry point of a published module:
+ * {@code jpx [--modular] [--docker[=<image>]] <name>[/<checksum>][@<version>] [argument...]}.
  * The name is either a module name or a {@code groupId:artifactId} pair - a module name cannot contain a colon,
  * so the two forms are distinguishable. A module name resolves like the {@code modular_to_maven} layout: the
  * module's Maven coordinates are discovered through the module repository and the dependency graph is read from
@@ -20,7 +22,9 @@ import build.jenesis.module.ModularJarResolver;
  * dependency closure is installed to {@code ~/.jenesis/jpx/<name>@<version>/} together with a
  * {@code jpx.properties} launch descriptor; the descriptor is written last, so its absence marks a broken
  * installation that is redone on the next run. An optional checksum pins the installation: it must be a prefix
- * of the deterministic digest over all installed jars that {@code jpx.properties} records.
+ * of the deterministic digest over all installed jars that {@code jpx.properties} records. With {@code --docker}
+ * only the launched process is containerized - resolution and installation always happen on the host - with the
+ * installation and the host's Java home mounted read-only into the container.
  */
 public record Jpx(Path storage,
                   Map<String, Repository> repositories,
@@ -111,16 +115,72 @@ public record Jpx(Path storage,
         }
     }
 
+    public static final String HELP = """
+            Usage: jpx [--modular] [--docker[=<image>]] <target> [argument...]
+
+            Runs the main entry point of a published module, resolving and installing
+            it on first use.
+
+            Target:
+              <module-name>[@<version>]           a module, its coordinates discovered as
+                                                  a POM, the graph read from Maven metadata
+              <groupId>:<artifactId>[@<version>]  Maven coordinates, resolved directly
+              <name>/<checksum>[@<version>]       additionally verifies the installed jars
+                                                  against a SHA-256 prefix (32+ hex chars)
+
+            Without a version, the latest installed version is preferred, then the latest
+            release is resolved. Installations live in ~/.jenesis/jpx/<name>@<version>/
+            beside a jpx.properties descriptor listing paths, entry point and checksum.
+
+            Options:
+              --modular           resolve purely over module descriptors, walking requires
+                                  clauses; every module must then be explicitly named
+              --docker[=<image>]  run the program in a Docker container; resolution and
+                                  installation still happen on the host, the installation
+                                  and the host's Java home are mounted read-only. Without
+                                  an image, a minimal hardened image is used
+              --help              print this help""";
+
     public static void main(String... arguments) throws IOException, InterruptedException {
-        boolean modular = arguments.length > 0 && arguments[0].equals("--modular");
-        int target = modular ? 1 : 0;
+        boolean modular = false, dockerized = false;
+        String image = null;
+        int target = 0;
+        while (target < arguments.length && arguments[target].startsWith("--")) {
+            switch (arguments[target]) {
+                case "--modular" -> modular = true;
+                case "--docker" -> dockerized = true;
+                case "--help" -> {
+                    System.out.println(HELP);
+                    System.exit(0);
+                }
+                default -> {
+                    if (arguments[target].startsWith("--docker=")) {
+                        dockerized = true;
+                        image = arguments[target].substring("--docker=".length());
+                    } else {
+                        System.err.println("Unknown option: " + arguments[target]);
+                        System.err.println(HELP);
+                        System.exit(64);
+                    }
+                }
+            }
+            target++;
+        }
         if (arguments.length == target) {
-            System.err.println("Usage: jpx [--modular] <module-name|groupId:artifactId>[/<checksum>][@<version>] [argument...]");
+            System.err.println(HELP);
             System.exit(64);
         }
         Jpx jpx = of();
         Path folder = jpx.install(Command.of(arguments[target]), modular);
-        System.exit(jpx.launch(folder, List.of(arguments).subList(target + 1, arguments.length)));
+        List<String> remaining = List.of(arguments).subList(target + 1, arguments.length);
+        if (dockerized) {
+            Path workingDirectory = Path.of("").toAbsolutePath();
+            System.exit(jpx.launch(folder, remaining, image == null
+                    ? new DockerizedJava(workingDirectory)
+                    : new DockerizedJava(workingDirectory, image)));
+        } else {
+            System.exit(jpx.launch(folder, remaining));
+        }
     }
 
     /**
@@ -285,9 +345,24 @@ public record Jpx(Path storage,
      * Launches the installed program with the given arguments and returns its exit code.
      */
     public int launch(Path folder, List<String> arguments) throws IOException, InterruptedException {
-        SequencedProperties properties = SequencedProperties.ofFiles(folder.resolve(PROPERTIES));
         List<String> command = new ArrayList<>();
         command.add(Path.of(System.getProperty("java.home"), "bin", File.separatorChar == '\\' ? "java.exe" : "java").toString());
+        command.addAll(javaArguments(folder, arguments));
+        return new ProcessBuilder(command).inheritIO().start().waitFor();
+    }
+
+    /**
+     * Launches the installed program in a Docker container and returns its exit code. Only the run is
+     * containerized - the installation was resolved on the host - so the container needs no network and
+     * no credentials: the installation folder is mounted read-only, as is the host's Java home.
+     */
+    public int launch(Path folder, List<String> arguments, DockerizedJava docker) throws IOException, InterruptedException {
+        return docker.mount(folder, folder.toString(), true).execute(javaArguments(folder, arguments));
+    }
+
+    private static List<String> javaArguments(Path folder, List<String> arguments) throws IOException {
+        SequencedProperties properties = SequencedProperties.ofFiles(folder.resolve(PROPERTIES));
+        List<String> command = new ArrayList<>();
         String modulepath = properties.getProperty("modulepath"), classpath = properties.getProperty("classpath");
         if (modulepath != null) {
             command.add("-p");
@@ -311,7 +386,7 @@ public record Jpx(Path storage,
             command.add(properties.getProperty("mainClass"));
         }
         command.addAll(arguments);
-        return new ProcessBuilder(command).inheritIO().start().waitFor();
+        return command;
     }
 
     /**

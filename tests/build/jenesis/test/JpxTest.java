@@ -3,6 +3,7 @@ package build.jenesis.test;
 import module java.base;
 import module org.junit.jupiter.api;
 import java.util.jar.Attributes;
+import build.jenesis.docker.DockerizedJava;
 import build.jenesis.HashDigestFunction;
 import build.jenesis.Jpx;
 import build.jenesis.Repository;
@@ -232,6 +233,33 @@ public class JpxTest {
         assertThatThrownBy(() -> Jpx.Command.of("tool.main/" + "x".repeat(32) + "@1.0"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Not a hexadecimal checksum");
+    }
+
+    @Test
+    @EnabledIf("dockerAvailable")
+    public void launches_in_docker() throws IOException, InterruptedException {
+        addMavenTool();
+        Jpx jpx = jpx();
+        Path folder = jpx.install(Jpx.Command.of("org.example:tool-main@1.0"), false);
+
+        Path marker = work.resolve("marker.txt");
+        assertThat(jpx.launch(folder, List.of(marker.toString()), new DockerizedJava(work))).isEqualTo(7);
+        assertThat(marker).hasContent("from-lib");
+    }
+
+    static boolean dockerAvailable() {
+        if (System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win")) {
+            return false;
+        }
+        try {
+            Process process = new ProcessBuilder("docker", "info")
+                    .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                    .redirectError(ProcessBuilder.Redirect.DISCARD)
+                    .start();
+            return process.waitFor() == 0;
+        } catch (IOException | InterruptedException _) {
+            return false;
+        }
     }
 
     @Test
