@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 #
-# Happy-path test for the POSIX SDK scripts (sdk/bin/jenesis*).
+# Happy-path test for the POSIX SDK scripts (sdk/jenesis/bin/jenesis*).
 # Exercises jenesis-init -> jenesis-version -> jenesis-validate against a
-# freshly-staged SDK at <repo>/sdk/{lib,sources}/. Exits 0 only when every
+# freshly-staged SDK at <repo>/sdk/jenesis/{lib,sources}/. Exits 0 only when every
 # check passes.
 #
 # Prerequisite: the SDK must have been staged before this script runs
 # (the matching GitHub Actions job builds Jenesis with `stage` and copies
-# the produced jar + sources jar into sdk/lib and sdk/sources).
+# the produced jar + sources jar into sdk/jenesis/lib and sdk/jenesis/sources).
 
 set -eu
 

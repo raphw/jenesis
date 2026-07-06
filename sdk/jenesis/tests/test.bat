@@ -1,6 +1,6 @@
 @echo off
 setlocal EnableDelayedExpansion
-REM Happy-path test for the Windows SDK scripts (sdk\bin\jenesis*.bat).
+REM Happy-path test for the Windows SDK scripts (sdk\jenesis\bin\jenesis*.bat).
 REM Mirrors sdk\tests\test.sh: jenesis-init -> jenesis-version -> jenesis-validate
 REM against a freshly-staged SDK at <repo>\sdk\{lib,sources}\. Exits 0 only when
 REM every check passes.

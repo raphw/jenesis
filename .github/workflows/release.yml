@@ -69,12 +69,12 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           git clean -fdX sdk/
-          mkdir -p sdk/lib sdk/sources
-          cp "target/stage/maven/output/build/jenesis/build.jenesis/${VERSION}/build.jenesis-${VERSION}.jar" sdk/lib/
-          cp "target/stage/maven/output/build/jenesis/build.jenesis/${VERSION}/build.jenesis-${VERSION}-sources.jar" sdk/sources/
-          cp LICENSE sdk/LICENSE
+          mkdir -p sdk/jenesis/lib sdk/jenesis/sources
+          cp "target/stage/maven/output/build/jenesis/build.jenesis/${VERSION}/build.jenesis-${VERSION}.jar" sdk/jenesis/lib/
+          cp "target/stage/maven/output/build/jenesis/build.jenesis/${VERSION}/build.jenesis-${VERSION}-sources.jar" sdk/jenesis/sources/
+          cp LICENSE sdk/jenesis/LICENSE
           BASE="jenesis-${VERSION}"
-          ln -sfn sdk "${BASE}"
+          ln -sfn sdk/jenesis "${BASE}"
           zip -r "sdk/${BASE}.zip" "${BASE}" -x "${BASE}/tests/*"
           rm "${BASE}"
 

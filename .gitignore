@@ -2,9 +2,12 @@ target/
 .jenesis/
 cache/
 *.class
-/sdk/*
-!/sdk/bin/
-!/sdk/tests/
+/sdk/jenesis/*
+!/sdk/jenesis/bin/
+!/sdk/jenesis/tests/
+/sdk/jpx/*
+!/sdk/jpx/bin/
+/sdk/*.zip
 
 ### IntelliJ IDEA ###
 .idea/*

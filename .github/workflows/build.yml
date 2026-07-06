@@ -183,18 +183,18 @@ jobs:
       - name: Populate SDK layout
         shell: bash
         run: |
-          mkdir -p sdk/lib sdk/sources
-          cp target/stage/maven/output/build/jenesis/build.jenesis/0.0.0-TEST/build.jenesis-0.0.0-TEST.jar sdk/lib/
-          cp target/stage/maven/output/build/jenesis/build.jenesis/0.0.0-TEST/build.jenesis-0.0.0-TEST-sources.jar sdk/sources/
+          mkdir -p sdk/jenesis/lib sdk/jenesis/sources
+          cp target/stage/maven/output/build/jenesis/build.jenesis/0.0.0-TEST/build.jenesis-0.0.0-TEST.jar sdk/jenesis/lib/
+          cp target/stage/maven/output/build/jenesis/build.jenesis/0.0.0-TEST/build.jenesis-0.0.0-TEST-sources.jar sdk/jenesis/sources/
 
       - name: Run SDK tests (POSIX)
         if: runner.os != 'Windows'
-        run: bash sdk/tests/test.sh
+        run: bash sdk/jenesis/tests/test.sh
 
       - name: Run SDK tests (Windows)
         if: runner.os == 'Windows'
         shell: cmd
-        run: sdk\tests\test.bat
+        run: sdk\jenesis\tests\test.bat
 
       - name: Upload target on failure
         if: failure()
