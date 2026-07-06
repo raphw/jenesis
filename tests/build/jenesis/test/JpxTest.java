@@ -26,6 +26,10 @@ public class JpxTest {
                 public static String value() {
                     return "from-lib";
                 }
+                public static void main(String[] arguments) throws Exception {
+                    java.nio.file.Files.writeString(java.nio.file.Path.of(arguments[0]), value());
+                    System.exit(9);
+                }
             }
             """;
 
@@ -92,7 +96,7 @@ public class JpxTest {
         addMavenTool();
         Jpx jpx = jpx();
 
-        Path folder = jpx.install(Jpx.Command.of("org.example:tool-main@1.0"), false);
+        Path folder = jpx.install(Jpx.Command.of("org.example:tool-main@1.0"), false, null);
 
         assertThat(folder.getFileName().toString()).isEqualTo("org.example--tool-main@1.0");
         SequencedProperties properties = SequencedProperties.ofFiles(folder.resolve(Jpx.PROPERTIES));
@@ -106,7 +110,7 @@ public class JpxTest {
         assertThat(properties.getProperty("checksum")).startsWith("SHA-256/");
 
         Path marker = work.resolve("marker.txt");
-        assertThat(jpx.launch(folder, List.of(marker.toString()))).isEqualTo(7);
+        assertThat(jpx.launch(folder, null, List.of(marker.toString()))).isEqualTo(7);
         assertThat(marker).hasContent("from-lib");
     }
 
@@ -116,7 +120,7 @@ public class JpxTest {
         addMavenMetadata("plain-tool", "2.0", "1.0", "2.0");
         Jpx jpx = jpx();
 
-        Path folder = jpx.install(Jpx.Command.of("org.example:plain-tool"), false);
+        Path folder = jpx.install(Jpx.Command.of("org.example:plain-tool"), false, null);
 
         assertThat(folder.getFileName().toString()).isEqualTo("org.example--plain-tool@2.0");
         SequencedProperties properties = SequencedProperties.ofFiles(folder.resolve(Jpx.PROPERTIES));
@@ -125,7 +129,7 @@ public class JpxTest {
         assertThat(properties.getProperty("classpath")).isEqualTo("plain-tool-2.0.jar");
 
         Path marker = work.resolve("marker.txt");
-        assertThat(jpx.launch(folder, List.of(marker.toString()))).isEqualTo(5);
+        assertThat(jpx.launch(folder, null, List.of(marker.toString()))).isEqualTo(5);
         assertThat(marker).hasContent("plain");
     }
 
@@ -135,7 +139,7 @@ public class JpxTest {
         addDiscoveryPom(null);
         Jpx jpx = jpx();
 
-        Path folder = jpx.install(Jpx.Command.of("tool.main"), false);
+        Path folder = jpx.install(Jpx.Command.of("tool.main"), false, null);
 
         assertThat(folder.getFileName().toString()).isEqualTo("tool.main@1.0");
         SequencedProperties properties = SequencedProperties.ofFiles(folder.resolve(Jpx.PROPERTIES));
@@ -143,7 +147,7 @@ public class JpxTest {
         assertThat(properties.getProperty("modulepath")).isEqualTo("tool-lib-1.0.jar,tool-main-1.0.jar");
 
         Path marker = work.resolve("marker.txt");
-        assertThat(jpx.launch(folder, List.of(marker.toString()))).isEqualTo(7);
+        assertThat(jpx.launch(folder, null, List.of(marker.toString()))).isEqualTo(7);
         assertThat(marker).hasContent("from-lib");
     }
 
@@ -152,7 +156,7 @@ public class JpxTest {
         addModularJars(true);
         Jpx jpx = jpx();
 
-        Path folder = jpx.install(Jpx.Command.of("tool.main@1.0"), true);
+        Path folder = jpx.install(Jpx.Command.of("tool.main@1.0"), true, null);
 
         assertThat(folder.getFileName().toString()).isEqualTo("tool.main@1.0");
         SequencedProperties properties = SequencedProperties.ofFiles(folder.resolve(Jpx.PROPERTIES));
@@ -161,7 +165,7 @@ public class JpxTest {
         assertThat(properties.getProperty("selfContainedModuleGraph")).isEqualTo("true");
 
         Path marker = work.resolve("marker.txt");
-        assertThat(jpx.launch(folder, List.of(marker.toString()))).isEqualTo(7);
+        assertThat(jpx.launch(folder, null, List.of(marker.toString()))).isEqualTo(7);
         assertThat(marker).hasContent("from-lib");
     }
 
@@ -170,7 +174,7 @@ public class JpxTest {
         addModularJars(false);
         Jpx jpx = jpx();
 
-        Path folder = jpx.install(Jpx.Command.of("tool.main"), true);
+        Path folder = jpx.install(Jpx.Command.of("tool.main"), true, null);
 
         assertThat(folder.getFileName().toString()).isEqualTo("tool.main@1.0");
     }
@@ -180,8 +184,8 @@ public class JpxTest {
         addPlainTool("1.0");
         addPlainTool("2.0");
         Jpx jpx = jpx();
-        Path older = jpx.install(Jpx.Command.of("org.example:plain-tool@2.0"), false);
-        Path newer = jpx.install(Jpx.Command.of("org.example:plain-tool@1.0"), false);
+        Path older = jpx.install(Jpx.Command.of("org.example:plain-tool@2.0"), false, null);
+        Path newer = jpx.install(Jpx.Command.of("org.example:plain-tool@1.0"), false, null);
         Files.setLastModifiedTime(newer.resolve(Jpx.PROPERTIES), FileTime.from(Instant.now().plusSeconds(60)));
         Repository offline = (_, coordinate) -> {
             throw new IOException("Offline, but fetched: " + coordinate);
@@ -191,7 +195,7 @@ public class JpxTest {
                 Map.of("maven", new MavenPomResolver()),
                 new HashDigestFunction("SHA-256"));
 
-        assertThat(offlineJpx.install(Jpx.Command.of("org.example:plain-tool"), false)).isEqualTo(newer);
+        assertThat(offlineJpx.install(Jpx.Command.of("org.example:plain-tool"), false, null)).isEqualTo(newer);
         assertThat(older).isNotEqualTo(newer);
     }
 
@@ -199,38 +203,38 @@ public class JpxTest {
     public void redoes_broken_installation() throws IOException, InterruptedException {
         addMavenTool();
         Jpx jpx = jpx();
-        Path folder = jpx.install(Jpx.Command.of("org.example:tool-main@1.0"), false);
+        Path folder = jpx.install(Jpx.Command.of("org.example:tool-main@1.0"), false, null);
         Files.delete(folder.resolve(Jpx.PROPERTIES));
 
-        assertThat(jpx.install(Jpx.Command.of("org.example:tool-main@1.0"), false)).isEqualTo(folder);
+        assertThat(jpx.install(Jpx.Command.of("org.example:tool-main@1.0"), false, null)).isEqualTo(folder);
         assertThat(folder.resolve(Jpx.PROPERTIES)).isRegularFile();
 
         Path marker = work.resolve("marker.txt");
-        assertThat(jpx.launch(folder, List.of(marker.toString()))).isEqualTo(7);
+        assertThat(jpx.launch(folder, null, List.of(marker.toString()))).isEqualTo(7);
     }
 
     @Test
     public void verifies_checksum_prefix_and_rejects_mismatch() throws IOException {
         addMavenTool();
         Jpx jpx = jpx();
-        Path folder = jpx.install(Jpx.Command.of("org.example:tool-main@1.0"), false);
+        Path folder = jpx.install(Jpx.Command.of("org.example:tool-main@1.0"), false, null);
         String checksum = SequencedProperties.ofFiles(folder.resolve(Jpx.PROPERTIES))
                 .getProperty("checksum")
                 .substring("SHA-256/".length());
 
-        assertThat(jpx.install(Jpx.Command.of("org.example:tool-main/" + checksum.substring(0, 32) + "@1.0"), false))
+        assertThat(jpx.install(Jpx.Command.of("org.example:tool-main@1.0"), false, checksum.substring(0, 32)))
                 .isEqualTo(folder);
-        assertThatThrownBy(() -> jpx.install(Jpx.Command.of("org.example:tool-main/" + "0".repeat(32) + "@1.0"), false))
+        assertThatThrownBy(() -> jpx.install(Jpx.Command.of("org.example:tool-main@1.0"), false, "0".repeat(32)))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Checksum mismatch");
     }
 
     @Test
     public void rejects_insecure_or_malformed_checksum() {
-        assertThatThrownBy(() -> Jpx.Command.of("tool.main/" + "0".repeat(31) + "@1.0"))
+        assertThatThrownBy(() -> jpx().install(Jpx.Command.of("tool.main@1.0"), false, "0".repeat(31)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("at least 32 hex characters");
-        assertThatThrownBy(() -> Jpx.Command.of("tool.main/" + "x".repeat(32) + "@1.0"))
+        assertThatThrownBy(() -> jpx().install(Jpx.Command.of("tool.main@1.0"), false, "x".repeat(32)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Not a hexadecimal checksum");
     }
@@ -240,10 +244,10 @@ public class JpxTest {
     public void launches_in_docker() throws IOException, InterruptedException {
         addMavenTool();
         Jpx jpx = jpx();
-        Path folder = jpx.install(Jpx.Command.of("org.example:tool-main@1.0"), false);
+        Path folder = jpx.install(Jpx.Command.of("org.example:tool-main@1.0"), false, null);
 
         Path marker = work.resolve("marker.txt");
-        assertThat(jpx.launch(folder, List.of(marker.toString()), new DockerizedJava(work))).isEqualTo(7);
+        assertThat(jpx.launch(folder, null, List.of(marker.toString()), new DockerizedJava(work))).isEqualTo(7);
         assertThat(marker).hasContent("from-lib");
     }
 
@@ -264,18 +268,29 @@ public class JpxTest {
 
     @Test
     public void rejects_coordinates_with_modular_switch() {
-        assertThatThrownBy(() -> jpx().install(Jpx.Command.of("org.example:tool-main@1.0"), true))
+        assertThatThrownBy(() -> jpx().install(Jpx.Command.of("org.example:tool-main@1.0"), true, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Pure module resolution requires a module name");
     }
 
     @Test
-    public void refuses_target_without_main_class() throws IOException {
+    public void installs_without_main_class_and_launches_an_override() throws IOException, InterruptedException {
         addMavenTool();
+        Jpx jpx = jpx();
 
-        assertThatThrownBy(() -> jpx().install(Jpx.Command.of("org.example:tool-lib@1.0"), false))
+        Path folder = jpx.install(Jpx.Command.of("org.example:tool-lib@1.0"), false, null);
+        assertThat(SequencedProperties.ofFiles(folder.resolve(Jpx.PROPERTIES)).getProperty("mainClass")).isNull();
+        assertThatThrownBy(() -> jpx.launch(folder, null, List.of()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("No main class");
+
+        Jpx.Command command = Jpx.Command.of("org.example:tool-lib@1.0/toollib.Lib");
+        assertThat(command.name()).isEqualTo("org.example:tool-lib");
+        assertThat(command.version()).isEqualTo("1.0");
+        assertThat(command.mainClass()).isEqualTo("toollib.Lib");
+        Path marker = work.resolve("marker.txt");
+        assertThat(jpx.launch(folder, command.mainClass(), List.of(marker.toString()))).isEqualTo(9);
+        assertThat(marker).hasContent("from-lib");
     }
 
     private Jpx jpx() {

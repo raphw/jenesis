@@ -12,7 +12,7 @@ import build.jenesis.module.ModularJarResolver;
 
 /**
  * Resolves and runs the main entry point of a published module:
- * {@code jpx [--modular] [--docker[=<image>]] <name>[/<checksum>][@<version>] [argument...]}.
+ * {@code jpx [--modular] [--docker[=<image>]] [--hash=<checksum>] <name>[@<version>][/<main-class>] [argument...]}.
  * The name is either a module name or a {@code groupId:artifactId} pair - a module name cannot contain a colon,
  * so the two forms are distinguishable. A module name resolves like the {@code modular_to_maven} layout: the
  * module's Maven coordinates are discovered through the module repository and the dependency graph is read from
@@ -21,8 +21,9 @@ import build.jenesis.module.ModularJarResolver;
  * the latest installed version is used, or failing that, the latest released version is resolved. The runtime
  * dependency closure is installed to {@code ~/.jenesis/jpx/<name>@<version>/} together with a
  * {@code jpx.properties} launch descriptor; the descriptor is written last, so its absence marks a broken
- * installation that is redone on the next run. An optional checksum pins the installation: it must be a prefix
- * of the deterministic digest over all installed jars that {@code jpx.properties} records. With {@code --docker}
+ * installation that is redone on the next run. An optional main class overrides the jar's declared entry point,
+ * as in {@code java -m <module>/<main-class>}. An optional {@code --hash} pins the installation: it must be a
+ * prefix of the deterministic digest over all installed jars that {@code jpx.properties} records. With {@code --docker}
  * only the launched process is containerized - resolution and installation always happen on the host - with the
  * installation and the host's Java home mounted read-only into the container.
  */
@@ -71,39 +72,28 @@ public record Jpx(Path storage,
     }
 
     /**
-     * A parsed command line target: {@code <name>[/<checksum>][@<version>]}.
+     * A parsed command line target: {@code <name>[@<version>][/<main-class>]}, the main class overriding
+     * the jar's declared entry point as in {@code java -m <module>/<main-class>}.
      */
-    public record Command(String name, String checksum, String version) {
+    public record Command(String name, String version, String mainClass) {
 
         public static Command of(String argument) {
-            int at = argument.lastIndexOf('@');
-            String version = at < 0 ? null : argument.substring(at + 1);
+            int slash = argument.indexOf('/');
+            String mainClass = slash < 0 ? null : argument.substring(slash + 1);
+            if (mainClass != null) {
+                requireClassName(mainClass);
+            }
+            String head = slash < 0 ? argument : argument.substring(0, slash);
+            int at = head.lastIndexOf('@');
+            String version = at < 0 ? null : head.substring(at + 1);
             if (version != null && version.isEmpty()) {
                 throw new IllegalArgumentException("Empty version in: " + argument);
             }
-            String head = at < 0 ? argument : argument.substring(0, at);
-            int slash = head.indexOf('/');
-            String name = slash < 0 ? head : head.substring(0, slash), checksum;
-            if (slash < 0) {
-                checksum = null;
-            } else {
-                checksum = head.substring(slash + 1).toLowerCase(Locale.ROOT);
-                if (checksum.startsWith("sha-256/")) {
-                    checksum = checksum.substring("sha-256/".length());
-                }
-                if (checksum.length() < MINIMUM_CHECKSUM_LENGTH) {
-                    throw new IllegalArgumentException("A checksum requires at least " + MINIMUM_CHECKSUM_LENGTH
-                            + " hex characters to remain secure, but got " + checksum.length() + ": " + checksum);
-                }
-                if (!checksum.chars().allMatch(character -> character >= '0' && character <= '9'
-                        || character >= 'a' && character <= 'f')) {
-                    throw new IllegalArgumentException("Not a hexadecimal checksum: " + checksum);
-                }
-            }
+            String name = at < 0 ? head : head.substring(0, at);
             if (name.isEmpty()) {
                 throw new IllegalArgumentException("Empty name in: " + argument);
             }
-            return new Command(name, checksum, version);
+            return new Command(name, version, mainClass);
         }
 
         /**
@@ -116,21 +106,22 @@ public record Jpx(Path storage,
     }
 
     public static final String HELP = """
-            Usage: jpx [--modular] [--docker[=<image>]] <target> [argument...]
+            Usage: jpx [--modular] [--docker[=<image>]] [--hash=<checksum>] <target> [argument...]
 
             Runs the main entry point of a published module, resolving and installing
             it on first use.
 
-            Target:
-              <module-name>[@<version>]           a module, its coordinates discovered as
-                                                  a POM, the graph read from Maven metadata
-              <groupId>:<artifactId>[@<version>]  Maven coordinates, resolved directly
-              <name>/<checksum>[@<version>]       additionally verifies the installed jars
-                                                  against a SHA-256 prefix (32+ hex chars)
+            Target: <name>[@<version>][/<main-class>]
 
-            Without a version, the latest installed version is preferred, then the latest
-            release is resolved. Installations live in ~/.jenesis/jpx/<name>@<version>/
-            beside a jpx.properties descriptor listing paths, entry point and checksum.
+              The name is a module name, its coordinates discovered as a POM and the
+              graph read from Maven metadata, or a <groupId>:<artifactId> pair, resolved
+              directly. Without a version, the latest installed version is preferred,
+              then the latest release is resolved. The main class defaults to the jar's
+              module main class or Main-Class manifest entry - name one to override it,
+              as in java -m <module>/<main-class>.
+
+            Installations live in ~/.jenesis/jpx/<name>@<version>/ beside a
+            jpx.properties descriptor listing paths, entry point and checksum.
 
             Options:
               --modular           resolve purely over module descriptors, walking requires
@@ -139,11 +130,13 @@ public record Jpx(Path storage,
                                   installation still happen on the host, the installation
                                   and the host's Java home are mounted read-only. Without
                                   an image, a minimal hardened image is used
+              --hash=<checksum>   verify the installed jars against a SHA-256 digest
+                                  prefix (at least 32 hex characters) before launching
               --help              print this help""";
 
     public static void main(String... arguments) throws IOException, InterruptedException {
         boolean modular = false, dockerized = false;
-        String image = null;
+        String image = null, checksum = null;
         int target = 0;
         while (target < arguments.length && arguments[target].startsWith("--")) {
             switch (arguments[target]) {
@@ -157,6 +150,8 @@ public record Jpx(Path storage,
                     if (arguments[target].startsWith("--docker=")) {
                         dockerized = true;
                         image = arguments[target].substring("--docker=".length());
+                    } else if (arguments[target].startsWith("--hash=")) {
+                        checksum = arguments[target].substring("--hash=".length());
                     } else {
                         System.err.println("Unknown option: " + arguments[target]);
                         System.err.println(HELP);
@@ -171,15 +166,16 @@ public record Jpx(Path storage,
             System.exit(64);
         }
         Jpx jpx = of();
-        Path folder = jpx.install(Command.of(arguments[target]), modular);
+        Command command = Command.of(arguments[target]);
+        Path folder = jpx.install(command, modular, checksum);
         List<String> remaining = List.of(arguments).subList(target + 1, arguments.length);
         if (dockerized) {
             Path workingDirectory = Path.of("").toAbsolutePath();
-            System.exit(jpx.launch(folder, remaining, image == null
+            System.exit(jpx.launch(folder, command.mainClass(), remaining, image == null
                     ? new DockerizedJava(workingDirectory)
                     : new DockerizedJava(workingDirectory, image)));
         } else {
-            System.exit(jpx.launch(folder, remaining));
+            System.exit(jpx.launch(folder, command.mainClass(), remaining));
         }
     }
 
@@ -187,17 +183,20 @@ public record Jpx(Path storage,
      * Installs the command's target unless already installed, and returns its installation folder after
      * validating any requested checksum against the jars on disk.
      */
-    public Path install(Command command, boolean modular) throws IOException {
+    public Path install(Command command, boolean modular, String checksum) throws IOException {
+        if (checksum != null) {
+            checksum = requireValidChecksum(checksum);
+        }
         if (command.version() == null) {
             Path installed = latestInstalled(command.name());
             if (installed != null) {
-                verify(installed, command.checksum());
+                verify(installed, checksum);
                 return installed;
             }
         } else {
             Path folder = storage.resolve(command.folder(command.version()));
             if (Files.isRegularFile(folder.resolve(PROPERTIES))) {
-                verify(folder, command.checksum());
+                verify(folder, checksum);
                 return folder;
             }
         }
@@ -277,7 +276,7 @@ public record Jpx(Path storage,
                     }
                 }
             }
-            verify(folder, command.checksum());
+            verify(folder, checksum);
             return folder;
         }
     }
@@ -305,13 +304,11 @@ public record Jpx(Path storage,
                     + (descriptor == null ? "nothing" : descriptor.name()) + " - the repository mapping appears stale");
         }
         String mainModule = descriptor == null ? null : descriptor.name();
+        // A jar without a declared entry point still installs: the launch requires an explicit
+        // main class then, as in java -m <module>/<main-class>.
         String mainClass = descriptor == null || descriptor.mainClass().isEmpty()
                 ? mainClassOf(root)
                 : descriptor.mainClass().get();
-        if (mainClass == null) {
-            throw new IllegalStateException("No main class: " + root.getFileName() + " declares neither a "
-                    + "module main class nor a Main-Class manifest attribute");
-        }
         List<String> modulepath = new ArrayList<>(), classpath = new ArrayList<>();
         boolean selfContainedModuleGraph = true;
         for (Map.Entry<String, Path> entry : jars.entrySet()) {
@@ -322,7 +319,9 @@ public record Jpx(Path storage,
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("name", command.name());
         properties.setProperty("version", version);
-        properties.setProperty("mainClass", mainClass);
+        if (mainClass != null) {
+            properties.setProperty("mainClass", mainClass);
+        }
         if (mainModule != null) {
             properties.setProperty("mainModule", mainModule);
         }
@@ -342,12 +341,13 @@ public record Jpx(Path storage,
     }
 
     /**
-     * Launches the installed program with the given arguments and returns its exit code.
+     * Launches the installed program with the given arguments and returns its exit code. A non-null
+     * main class overrides the installation's declared entry point.
      */
-    public int launch(Path folder, List<String> arguments) throws IOException, InterruptedException {
+    public int launch(Path folder, String mainClass, List<String> arguments) throws IOException, InterruptedException {
         List<String> command = new ArrayList<>();
         command.add(Path.of(System.getProperty("java.home"), "bin", File.separatorChar == '\\' ? "java.exe" : "java").toString());
-        command.addAll(javaArguments(folder, arguments));
+        command.addAll(javaArguments(folder, mainClass, arguments));
         return new ProcessBuilder(command).inheritIO().start().waitFor();
     }
 
@@ -356,12 +356,19 @@ public record Jpx(Path storage,
      * containerized - the installation was resolved on the host - so the container needs no network and
      * no credentials: the installation folder is mounted read-only, as is the host's Java home.
      */
-    public int launch(Path folder, List<String> arguments, DockerizedJava docker) throws IOException, InterruptedException {
-        return docker.mount(folder, folder.toString(), true).execute(javaArguments(folder, arguments));
+    public int launch(Path folder, String mainClass, List<String> arguments, DockerizedJava docker)
+            throws IOException, InterruptedException {
+        return docker.mount(folder, folder.toString(), true).execute(javaArguments(folder, mainClass, arguments));
     }
 
-    private static List<String> javaArguments(Path folder, List<String> arguments) throws IOException {
+    private static List<String> javaArguments(Path folder, String mainClass, List<String> arguments) throws IOException {
         SequencedProperties properties = SequencedProperties.ofFiles(folder.resolve(PROPERTIES));
+        String main = mainClass == null ? properties.getProperty("mainClass") : mainClass;
+        if (main == null) {
+            throw new IllegalStateException("No main class: the installation " + folder.getFileName()
+                    + " declares neither a module main class nor a Main-Class manifest attribute"
+                    + " - name one as <name>[@<version>]/<main-class>");
+        }
         List<String> command = new ArrayList<>();
         String modulepath = properties.getProperty("modulepath"), classpath = properties.getProperty("classpath");
         if (modulepath != null) {
@@ -381,9 +388,9 @@ public record Jpx(Path storage,
         String mainModule = properties.getProperty("mainModule");
         if (mainModule != null) {
             command.add("-m");
-            command.add(mainModule + "/" + properties.getProperty("mainClass"));
+            command.add(mainModule + "/" + main);
         } else {
-            command.add(properties.getProperty("mainClass"));
+            command.add(main);
         }
         command.addAll(arguments);
         return command;
@@ -487,6 +494,34 @@ public record Jpx(Path storage,
                 return FileVisitResult.CONTINUE;
             }
         });
+    }
+
+    /**
+     * Normalizes and validates a requested checksum: lower-case hex with an optional {@code SHA-256/}
+     * prefix stripped, at least {@link #MINIMUM_CHECKSUM_LENGTH} characters long.
+     */
+    private static String requireValidChecksum(String checksum) {
+        String normalized = checksum.toLowerCase(Locale.ROOT);
+        if (normalized.startsWith("sha-256/")) {
+            normalized = normalized.substring("sha-256/".length());
+        }
+        if (normalized.length() < MINIMUM_CHECKSUM_LENGTH) {
+            throw new IllegalArgumentException("A checksum requires at least " + MINIMUM_CHECKSUM_LENGTH
+                    + " hex characters to remain secure, but got " + normalized.length() + ": " + normalized);
+        }
+        if (!normalized.chars().allMatch(character -> character >= '0' && character <= '9'
+                || character >= 'a' && character <= 'f')) {
+            throw new IllegalArgumentException("Not a hexadecimal checksum: " + normalized);
+        }
+        return normalized;
+    }
+
+    private static void requireClassName(String value) {
+        for (String segment : value.split("\\.", -1)) {
+            if (segment.isEmpty() || !segment.chars().allMatch(Character::isJavaIdentifierPart)) {
+                throw new IllegalArgumentException("Not a class name: " + value);
+            }
+        }
     }
 
     private static void requireSafeSegment(String role, String value) {
