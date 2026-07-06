@@ -1196,6 +1196,38 @@ all with the same syntax as the `jenesis.project.docker.*` flags above. The buil
 `jenesis.project.docker.image` if set), and only the launch step crosses the container boundary, so the build
 image and the runtime image can differ.
 
+### Running a published module: jpx
+
+`build/jenesis/Jpx.java` is the counterpart to `Execute.java` for modules that are already released: where
+Execute builds and runs the current project's main, jpx resolves a published module (or Maven artifact),
+installs its runtime dependency closure once, and launches its main entry - an `npx` for the module path:
+
+    java build/jenesis/Jpx.java org.junit.platform.console --version
+
+The target grammar is `<name>[@<version>][/<main-class>]`. The name is either a module name - its Maven
+coordinates discovered as a POM through the module repository and the dependency graph read from Maven
+metadata, like the `modular_to_maven` layout - or a `<groupId>:<artifactId>` pair resolved directly (a module
+name can never contain a colon, which keeps the two forms distinguishable). Without a version, the most
+recently installed version is preferred; failing that, the latest release is resolved. The main class
+defaults to the jar's module main class or `Main-Class` manifest attribute; naming one explicitly overrides
+it, exactly as in `java -m <module>/<main-class>` - which also makes jars without any declared entry point
+runnable.
+
+Each resolved target installs to `~/.jenesis/jpx/<name>@<version>/`: the closure's jars in one flat folder
+beside a `jpx.properties` descriptor recording module path, class path, entry point and a deterministic
+SHA-256 digest over all jars. The descriptor is written last, so a crashed download is recognized and redone,
+and concurrent installations of the same target coordinate through a file lock. Passing `--hash=<prefix>`
+(at least 32 hex characters of that digest) verifies the installed jars before every launch - catching a
+tampered download and a tampered installation alike.
+
+The remaining flags mirror the rest of the tool. `--modular` resolves purely over module descriptors, walking
+`requires` clauses like the `modular` layout, where every module must be explicitly named.
+`--docker[=<image>]` runs the launched process in a container while resolution and installation stay on the
+host: the installation and the host's Java home are mounted read-only, so the containerized run needs no
+network and no credentials; without an image, a minimal hardened image is used. Running `jpx` without
+arguments (or with `--help`) prints the usage. The `sdk/jpx/` layout ships the same launcher as a `jpx`
+command for SDKMAN.
+
 Architecture
 ------------
 
