@@ -41,6 +41,18 @@ distributions:
     type: JAVA_BINARY
     artifacts:
       - path: 'sdk/jenesis-{{projectVersion}}.zip'
+    brew:
+      active: ALWAYS
+      formulaName: jenesis
+      repository:
+        owner: raphw
+        name: homebrew-tap
+    scoop:
+      active: ALWAYS
+      packageName: jenesis
+      bucket:
+        owner: raphw
+        name: scoop-bucket
     sdkman:
       active: ALWAYS
       candidate: jenesis
