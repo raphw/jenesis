@@ -17,22 +17,6 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        # The `-as-modular` entries force the pure MODULAR layout
-        # (-Djenesis.project.layout=modular) on the same sources that otherwise
-        # auto-detect MODULAR_TO_MAVEN, so both resolves are exercised. The
-        # `*-executable` demos run their build/Demo.java launcher, which stages a
-        # jpackage app-image and runs it. `java-multi-release` runs the shipped
-        # build/jenesis/Execute.java, which builds the multi-release jar and then
-        # launches it, so CI (on JDK 25) verifies that the Java 25 overlay is
-        # selected at runtime rather than only that it compiles. Packaging variants
-        # (`-jmod-jlink`, `-bundle`, `-launcher-strict`) select their target through a
-        # committed profile folder (build.jenesis/<profile>/packaging.properties),
-        # activated with -Djenesis.project.properties=<profile>. `custom-jmod` runs its
-        # build/Demo.java, which wraps the assembler to pack extra content into the
-        # .jmod and chains jmod -> jlink -> jpackage, then launches the produced app.
-        # Entries running a demo's own build/*.java assert themselves by launching the
-        # built application; every plain Project.java entry instead carries a `verify`
-        # command that asserts the outputs its scenario is supposed to produce.
         demo:
           - { name: java-pom, dir: demo-01-java-pom, entry: build/jenesis/Project.java, verify: 'find target -name classes.jar | grep -q .' }
           - { name: java-pom-dependencies, dir: demo-01-java-pom, entry: build/jenesis/Project.java dependencies, verify: 'find target -name graph.properties | grep -q .' }
@@ -41,10 +25,6 @@ jobs:
           - { name: java-pom-multi, dir: demo-03-java-pom-multi, entry: build/jenesis/Project.java, verify: 'test "$(find target -name classes.jar | wc -l)" -ge 2' }
           - { name: java-modular-multi, dir: demo-04-java-modular-multi, entry: build/jenesis/Project.java, verify: 'test "$(find target -name classes.jar | wc -l)" -ge 2' }
           - { name: java-modular-multi-as-modular, dir: demo-04-java-modular-multi, entry: build/jenesis/Project.java, flags: -Djenesis.project.layout=modular, verify: 'test "$(find target -name classes.jar | wc -l)" -ge 2' }
-          # The `*-module` and `*-test-filter` entries exercise selectors and test
-          # filtering: a `+<module>` selector scopes the build to one module's
-          # subtree (appended to entry), and `-Djenesis.test.filter` narrows which
-          # tests run (a -D flag, so it precedes the source file in flags).
           - { name: java-pom-multi-module, dir: demo-03-java-pom-multi, entry: build/jenesis/Project.java +greeter, verify: 'find target -path "*module-greeter*" -name classes.jar | grep -q .' }
           - { name: java-pom-multi-test-filter, dir: demo-03-java-pom-multi, entry: build/jenesis/Project.java, flags: "-Djenesis.test.filter=.*GreeterTest#prefix_is_a_greeting", verify: 'grep -rqs prefix_is_a_greeting target' }
           - { name: java-pom-multi-test-engine, dir: demo-03-java-pom-multi, entry: build/jenesis/Project.java, flags: -Djenesis.test.engine=junit-platform, verify: 'find target -type d -path "*test/executed*" | grep -q .' }
