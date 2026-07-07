@@ -10,23 +10,6 @@ import build.jenesis.maven.MavenRepository;
 import build.jenesis.module.JenesisModuleRepository;
 import build.jenesis.module.ModularJarResolver;
 
-/**
- * Resolves and runs the main entry point of a published module:
- * {@code jpx [--modular] [--docker[=<image>]] [--hash=<checksum>] <name>[@<version>][/<main-class>] [argument...]}.
- * The name is either a module name or a {@code groupId:artifactId} pair - a module name cannot contain a colon,
- * so the two forms are distinguishable. A module name resolves like the {@code modular_to_maven} layout: the
- * module's Maven coordinates are discovered through the module repository and the dependency graph is read from
- * POM metadata. With {@code --modular} it resolves like the {@code modular} layout instead: purely over module
- * descriptors, walking {@code requires} clauses, where every module must be explicitly named. Without a version,
- * the latest installed version is used, or failing that, the latest released version is resolved. The runtime
- * dependency closure is installed to {@code ~/.jenesis/jpx/<name>@<version>/} together with a
- * {@code jpx.properties} launch descriptor; the descriptor is written last, so its absence marks a broken
- * installation that is redone on the next run. An optional main class overrides the jar's declared entry point,
- * as in {@code java -m <module>/<main-class>}. An optional {@code --hash} pins the installation: it must be a
- * prefix of the deterministic digest over all installed jars that {@code jpx.properties} records. With {@code --docker}
- * only the launched process is containerized - resolution and installation always happen on the host - with the
- * installation and the host's Java home mounted read-only into the container.
- */
 public record Jpx(Path storage,
                   Map<String, Repository> repositories,
                   Map<String, Resolver> resolvers,
@@ -34,27 +17,13 @@ public record Jpx(Path storage,
 
     public static final String PROPERTIES = "jpx.properties";
 
-    /**
-     * The least accepted checksum-prefix length in hex characters. A truncation below 128 bits does not retain
-     * second-preimage resistance against dedicated SHA-256 hardware, which sustains well over 2^64 digests in
-     * short order, whereas 2^128 remains infeasible.
-     */
     private static final int MINIMUM_CHECKSUM_LENGTH = 32;
 
-    public static Jpx of() {
-        return of(Path.of(System.getProperty("user.home")).resolve(".jenesis").resolve("jpx"));
+    public Jpx() {
+        this(Path.of(System.getProperty("user.home")).resolve(".jenesis").resolve("jpx"));
     }
 
-    /**
-     * Wires the resolution the way the build layouts do, against the {@link Repository} and {@link Resolver}
-     * interfaces only: {@code module} mirrors {@code MODULAR_TO_MAVEN} (a module's coordinates are discovered
-     * as a POM in the local jenesis repository, the graph is read from Maven metadata), {@code modular}
-     * mirrors {@code MODULAR} (a strict walk of module descriptors over the local jenesis repository). Any
-     * other wiring - a remote module repository, a different discovery - is injected through the canonical
-     * constructor; a repository serving the {@code modular} prefix must materialize files (or be wrapped
-     * with {@code cached}).
-     */
-    public static Jpx of(Path storage) {
+    public Jpx(Path storage) {
         Repository local = JenesisModuleRepository.ofLocal();
         Map<String, Repository> repositories = new LinkedHashMap<>();
         repositories.put("maven", MavenDefaultRepository.of());
@@ -65,19 +34,15 @@ public record Jpx(Path storage,
         resolvers.put("maven", maven);
         resolvers.put("module", new MavenModuleResolver("maven", maven, local));
         resolvers.put("modular", new ModularJarResolver(false));
-        return new Jpx(storage,
+        this(storage,
                 Collections.unmodifiableMap(repositories),
                 Collections.unmodifiableMap(resolvers),
                 new HashDigestFunction("SHA-256"));
     }
 
-    /**
-     * A parsed command line target: {@code <name>[@<version>][/<main-class>]}, the main class overriding
-     * the jar's declared entry point as in {@code java -m <module>/<main-class>}.
-     */
     public record Command(String name, String version, String mainClass) {
 
-        public static Command of(String argument) {
+        public static Command parse(String argument) {
             int slash = argument.indexOf('/');
             String mainClass = slash < 0 ? null : argument.substring(slash + 1);
             if (mainClass != null) {
@@ -96,10 +61,6 @@ public record Jpx(Path storage,
             return new Command(name, version, mainClass);
         }
 
-        /**
-         * The installation folder name: a colon cannot occur in a file name on all platforms, whereas a dash
-         * cannot occur in a module name, so a {@code groupId:artifactId} pair is stored unambiguously.
-         */
         String folder(String version) {
             return name.replace(":", "--") + "@" + version;
         }
@@ -165,8 +126,8 @@ public record Jpx(Path storage,
             System.err.println(HELP);
             System.exit(64);
         }
-        Jpx jpx = of();
-        Command command = Command.of(arguments[target]);
+        Jpx jpx = new Jpx();
+        Command command = Command.parse(arguments[target]);
         Path folder = jpx.install(command, modular, checksum);
         List<String> remaining = List.of(arguments).subList(target + 1, arguments.length);
         if (dockerized) {
@@ -179,10 +140,6 @@ public record Jpx(Path storage,
         }
     }
 
-    /**
-     * Installs the command's target unless already installed, and returns its installation folder after
-     * validating any requested checksum against the jars on disk.
-     */
     public Path install(Command command, boolean modular, String checksum) throws IOException {
         if (checksum != null) {
             checksum = requireValidChecksum(checksum);
@@ -266,8 +223,6 @@ public record Jpx(Path storage,
             Path folder = storage.resolve(command.folder(version));
             if (!Files.isRegularFile(folder.resolve(PROPERTIES))) {
                 Files.createDirectories(storage);
-                // A blocking lock, not tryLock: a concurrent install of the same target should wait
-                // and then find the completed installation instead of failing or corrupting it.
                 try (FileChannel channel = FileChannel.open(storage.resolve(command.folder(version) + ".lock"),
                         StandardOpenOption.CREATE,
                         StandardOpenOption.WRITE); FileLock _ = channel.lock()) {
@@ -304,8 +259,6 @@ public record Jpx(Path storage,
                     + (descriptor == null ? "nothing" : descriptor.name()) + " - the repository mapping appears stale");
         }
         String mainModule = descriptor == null ? null : descriptor.name();
-        // A jar without a declared entry point still installs: the launch requires an explicit
-        // main class then, as in java -m <module>/<main-class>.
         String mainClass = descriptor == null || descriptor.mainClass().isEmpty()
                 ? mainClassOf(root)
                 : descriptor.mainClass().get();
@@ -340,10 +293,6 @@ public record Jpx(Path storage,
         Files.move(temporary, folder.resolve(PROPERTIES), StandardCopyOption.ATOMIC_MOVE);
     }
 
-    /**
-     * Launches the installed program with the given arguments and returns its exit code. A non-null
-     * main class overrides the installation's declared entry point.
-     */
     public int launch(Path folder, String mainClass, List<String> arguments) throws IOException, InterruptedException {
         List<String> command = new ArrayList<>();
         command.add(Path.of(System.getProperty("java.home"), "bin", File.separatorChar == '\\' ? "java.exe" : "java").toString());
@@ -351,11 +300,6 @@ public record Jpx(Path storage,
         return new ProcessBuilder(command).inheritIO().start().waitFor();
     }
 
-    /**
-     * Launches the installed program in a Docker container and returns its exit code. Only the run is
-     * containerized - the installation was resolved on the host - so the container needs no network and
-     * no credentials: the installation folder is mounted read-only, as is the host's Java home.
-     */
     public int launch(Path folder, String mainClass, List<String> arguments, DockerizedJava docker)
             throws IOException, InterruptedException {
         return docker.mount(folder, folder.toString(), true).execute(javaArguments(folder, mainClass, arguments));
@@ -396,10 +340,6 @@ public record Jpx(Path storage,
         return command;
     }
 
-    /**
-     * Finds the most recently completed installation of a name by the write time of its descriptor,
-     * which is the last file an installation creates.
-     */
     public Path latestInstalled(String name) throws IOException {
         if (!Files.isDirectory(storage)) {
             return null;
@@ -422,10 +362,6 @@ public record Jpx(Path storage,
         return latest;
     }
 
-    /**
-     * Validates a requested checksum prefix against the deterministic digest recomputed from the jars
-     * on disk, such that tampering after installation is discovered as well.
-     */
     private void verify(Path folder, String checksum) throws IOException {
         if (checksum == null) {
             return;
@@ -444,10 +380,6 @@ public record Jpx(Path storage,
         }
     }
 
-    /**
-     * A deterministic digest over a set of jars: the digest of the name-sorted {@code <name>\t<hex>} lines
-     * of each jar's own digest, independent of download order and file timestamps.
-     */
     private byte[] checksum(Path folder, SequencedCollection<String> names) throws IOException {
         MessageDigest digest;
         try {
@@ -496,10 +428,6 @@ public record Jpx(Path storage,
         });
     }
 
-    /**
-     * Normalizes and validates a requested checksum: lower-case hex with an optional {@code SHA-256/}
-     * prefix stripped, at least {@link #MINIMUM_CHECKSUM_LENGTH} characters long.
-     */
     private static String requireValidChecksum(String checksum) {
         String normalized = checksum.toLowerCase(Locale.ROOT);
         if (normalized.startsWith("sha-256/")) {
