@@ -20,7 +20,7 @@ public class JenesisRawGitRepository implements JenesisRepository {
     }
 
     public JenesisRawGitRepository(Scope scope, URI data, URI repository, String token) {
-        this(scope, trailingSlash(data), trailingSlash(repository), token, _ -> true, Repository.Retry.of());
+        this(scope, trailingSlash(data), trailingSlash(repository), token, _ -> true, new Repository.Retry());
     }
 
     private JenesisRawGitRepository(Scope scope,

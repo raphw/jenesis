@@ -143,7 +143,7 @@ public class MavenDefaultRepository implements MavenRepository {
                                   Map<String, URI> validations,
                                   Consumer<String> callback,
                                   String token) {
-        this(repository, local, validations, callback, token, Repository.Retry.of());
+        this(repository, local, validations, callback, token, new Repository.Retry());
     }
 
     private MavenDefaultRepository(URI repository,

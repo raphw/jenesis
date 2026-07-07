@@ -104,7 +104,7 @@ public interface Repository {
     }
 
     static InputStream open(URI uri, String token) throws IOException {
-        return open(uri, token, Retry.of());
+        return open(uri, token, new Retry());
     }
 
     static InputStream open(URI uri, String token, Retry retry) throws IOException {
@@ -191,8 +191,8 @@ public interface Repository {
             }
         }
 
-        public static Retry of() {
-            return new Retry(Integer.getInteger("jenesis.repository.retries", 2),
+        public Retry() {
+            this(Integer.getInteger("jenesis.repository.retries", 2),
                     Duration.ofMillis(Long.getLong("jenesis.repository.backoff", 125)));
         }
 
@@ -220,7 +220,7 @@ public interface Repository {
             Map<String, URI> uris,
             F versionResolver) {
         boolean verbose = Boolean.getBoolean("jenesis.print.fetch");
-        return ofUris(uris, versionResolver, verbose ? uri -> System.out.printf("%s%-11s%s %s%n",
+        return ofUris(uris, versionResolver, new Retry(0, Duration.ZERO), verbose ? uri -> System.out.printf("%s%-11s%s %s%n",
                 BuildExecutorCallback.YELLOW,
                 "[FETCHED]",
                 BuildExecutorCallback.RESET,
@@ -231,6 +231,7 @@ public interface Repository {
     static <F extends BiFunction<URI, String, Optional<URI>> & Serializable> Repository ofUris(
             Map<String, URI> uris,
             F versionResolver,
+            Retry retry,
             Consumer<URI> callback) {
         return (_, coordinate) -> {
             URI candidate = uris.get(coordinate);
@@ -254,7 +255,7 @@ public interface Repository {
             if (Objects.equals("file", uri.getScheme())) {
                 return Optional.of(RepositoryItem.ofFile(Path.of(uri), true));
             } else {
-                return Optional.of(() -> open(uri, null));
+                return Optional.of(() -> open(uri, null, retry));
             }
         };
     }

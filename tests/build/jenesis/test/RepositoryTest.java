@@ -107,9 +107,9 @@ public class RepositoryTest {
     public void retry_defaults_read_the_system_properties() {
         System.setProperty("jenesis.repository.retries", "7");
         System.setProperty("jenesis.repository.backoff", "9");
-        assertThat(Repository.Retry.of()).isEqualTo(new Repository.Retry(7, Duration.ofMillis(9)));
-        assertThat(Repository.Retry.of().retries(1)).isEqualTo(new Repository.Retry(1, Duration.ofMillis(9)));
-        assertThat(Repository.Retry.of().backoff(Duration.ofMillis(2))).isEqualTo(new Repository.Retry(7, Duration.ofMillis(2)));
+        assertThat(new Repository.Retry()).isEqualTo(new Repository.Retry(7, Duration.ofMillis(9)));
+        assertThat(new Repository.Retry().retries(1)).isEqualTo(new Repository.Retry(1, Duration.ofMillis(9)));
+        assertThat(new Repository.Retry().backoff(Duration.ofMillis(2))).isEqualTo(new Repository.Retry(7, Duration.ofMillis(2)));
     }
 
     @Test
@@ -150,7 +150,7 @@ public class RepositoryTest {
     @Test
     public void ofUris_without_version_resolver_does_not_attempt_fallback() throws IOException {
         URI bare = URI.create("https://example.test/other/foo.jar");
-        Repository repository = Repository.ofUris(Map.of("foo", bare), null, _ -> {});
+        Repository repository = Repository.ofUris(Map.of("foo", bare), null, new Repository.Retry(), _ -> {});
         assertThat(repository.fetch(Runnable::run, "foo/9.9")).isEmpty();
     }
 
@@ -159,6 +159,7 @@ public class RepositoryTest {
         URI bare = URI.create("https://example.test/other/foo.jar");
         Repository repository = Repository.ofUris(Map.of("foo", bare),
                 (BiFunction<URI, String, Optional<URI>> & Serializable) (uri, _) -> Optional.of(uri),
+                new Repository.Retry(),
                 _ -> {});
         Optional<RepositoryItem> item = repository.fetch(Runnable::run, "foo/9.9");
         assertThat(item).isPresent();
@@ -169,6 +170,7 @@ public class RepositoryTest {
         URI bare = URI.create("https://example.test/other/foo.jar");
         Repository repository = Repository.ofUris(Map.of("foo", bare),
                 (BiFunction<URI, String, Optional<URI>> & Serializable) (_, _) -> Optional.empty(),
+                new Repository.Retry(),
                 _ -> {});
         assertThat(repository.fetch(Runnable::run, "foo/9.9")).isEmpty();
     }

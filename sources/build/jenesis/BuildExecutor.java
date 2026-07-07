@@ -4,17 +4,15 @@ import module java.base;
 
 public interface BuildExecutor {
 
-    String SKIP_MARKER = ".jenesis.skip";
-
-    String LOCK_MARKER = ".jenesis.lock";
-
-    ConcurrentMap<Path, FileChannel> LOCKS = new ConcurrentHashMap<>();
+    String SKIP_MARKER = ".jenesis.skip", LOCK_MARKER = ".jenesis.lock";
 
     static BuildExecutor of(Path target) throws IOException {
         return new Configuration().of(target);
     }
 
     record Configuration(Duration timeout, String digest, boolean verbose, boolean rebuild, BuildExecutorCache cache) {
+
+        private static final ConcurrentMap<Path, FileChannel> LOCKS = new ConcurrentHashMap<>();
 
         public Configuration() {
             String location = System.getProperty("jenesis.cache.uri");
@@ -100,19 +98,17 @@ public interface BuildExecutor {
         FileChannel channel = FileChannel.open(target.resolve(LOCK_MARKER),
                 StandardOpenOption.CREATE,
                 StandardOpenOption.WRITE);
-        if (LOCKS.putIfAbsent(canonical, channel) == null) {
-            // The registry keeps the channel strongly referenced so the lock survives until the JVM
-            // exits; a garbage-collected channel would silently release it mid-build.
+        if (Configuration.LOCKS.putIfAbsent(canonical, channel) == null) {
             FileLock lock;
             try {
                 lock = channel.tryLock();
             } catch (IOException e) {
-                LOCKS.remove(canonical);
+                Configuration.LOCKS.remove(canonical);
                 channel.close();
                 throw e;
             }
             if (lock == null) {
-                LOCKS.remove(canonical);
+                Configuration.LOCKS.remove(canonical);
                 channel.close();
                 throw new IllegalStateException("Another build process is already building " + canonical
                         + ": concurrent builds over one target folder interfere with each other's staged steps");

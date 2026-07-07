@@ -110,7 +110,7 @@ public class JenesisModuleRepository implements JenesisRepository {
     }
 
     public JenesisModuleRepository(URI root, String token) {
-        this(root, token, Repository.Retry.of());
+        this(root, token, new Repository.Retry());
     }
 
     private JenesisModuleRepository(URI root, String token, Repository.Retry retry) {
