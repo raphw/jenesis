@@ -286,8 +286,6 @@ public record Jpx(Path storage,
             properties.setProperty("classpath", String.join(",", classpath));
         }
         properties.setProperty("checksum", hashFunction.encoded(checksum(folder, jars.sequencedKeySet())));
-        // The descriptor is written last and atomically: its presence marks the installation complete,
-        // so a crash beforehand leaves a folder that the next run detects as broken and redoes.
         Path temporary = Files.createTempFile(folder, PROPERTIES, ".tmp");
         properties.store(temporary);
         Files.move(temporary, folder.resolve(PROPERTIES), StandardCopyOption.ATOMIC_MOVE);
@@ -319,8 +317,6 @@ public record Jpx(Path storage,
             command.add("-p");
             command.add(join(folder, modulepath));
             if (!Boolean.parseBoolean(properties.getProperty("selfContainedModuleGraph"))) {
-                // An automatic module declares no requires and so never pulls its own dependencies
-                // into the run-time module graph - resolve everything on the module path instead.
                 command.add("--add-modules");
                 command.add("ALL-MODULE-PATH");
             }
