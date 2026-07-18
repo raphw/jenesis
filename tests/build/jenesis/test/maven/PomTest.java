@@ -134,6 +134,41 @@ public class PomTest {
     }
 
     @Test
+    public void aliased_module_is_flattened_to_its_target_in_emitted_pom() throws IOException {
+        SequencedProperties coordinates = new SequencedProperties();
+        coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "");
+        coordinates.store(argument.resolve(BuildStep.IDENTITY));
+        // An aliased module resolves to a versionless module entry beside its Maven target;
+        // only the target belongs into the published POM.
+        SequencedProperties dependencies = new SequencedProperties();
+        dependencies.setProperty("main/compile/module/toolkit.lib", "");
+        dependencies.setProperty("main/runtime/module/toolkit.lib", "");
+        dependencies.setProperty("main/compile/maven/org.example/plain-lib/1.2.3", "");
+        dependencies.setProperty("main/runtime/maven/org.example/plain-lib/1.2.3", "");
+        dependencies.store(argument.resolve(BuildStep.DEPENDENCIES));
+        SequencedProperties metadata = new SequencedProperties();
+        metadata.setProperty("project", "build.jenesis");
+        metadata.setProperty("artifact", "jenesis");
+        metadata.setProperty("version", "1.0.0");
+        metadata.store(argument.resolve(BuildStep.METADATA));
+        BuildStepResult result = new Pom().resolved(true).apply(Runnable::run,
+                        new BuildStepContext(previous, next, supplement),
+                        new LinkedHashMap<>(Map.of("argument", new BuildStepArgument(
+                                argument,
+                                Map.of(
+                                        Path.of(BuildStep.IDENTITY), Checksum.of(ChecksumStatus.ADDED),
+                                        Path.of(BuildStep.DEPENDENCIES), Checksum.of(ChecksumStatus.ADDED),
+                                        Path.of(BuildStep.METADATA), Checksum.of(ChecksumStatus.ADDED))))))
+                .toCompletableFuture()
+                .join();
+        assertThat(result.next()).isTrue();
+        assertThat(Files.readString(next.resolve(Pom.POM)))
+                .contains("<artifactId>plain-lib</artifactId>")
+                .doesNotContain("toolkit.lib")
+                .doesNotContain("jenesis.alias");
+    }
+
+    @Test
     public void compile_only_dependency_is_emitted_with_provided_scope() throws IOException {
         SequencedProperties coordinates = new SequencedProperties();
         coordinates.setProperty("maven/build.jenesis/jenesis/jar/1.0.0", "");
