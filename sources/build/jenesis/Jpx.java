@@ -258,7 +258,17 @@ public record Jpx(Path storage,
                 return new Installation(folder, hashFunction);
             }
         }
+        Files.createDirectories(storage);
+        // Repositories are wrapped in a temporary cache so stream-only fetches - for example
+        // Maven downloads without a local ~/.m2 repository to materialize into - still yield
+        // files. Installed jars are linked or copied out of the cache, so it is dropped again
+        // once the installation is complete; file-backed items are referenced in place.
+        Path cache = Files.createTempDirectory(storage, "cache-");
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            Map<String, Repository> repositories = new LinkedHashMap<>();
+            this.repositories.forEach((name, repository) -> repositories.put(name, repository instanceof MavenRepository maven
+                    ? materialized(maven, cache)
+                    : repository.cached(cache)));
             Resolver.Resolution resolution;
             String version = command.version(), root;
             int colon = command.name().indexOf(':');
@@ -323,7 +333,6 @@ public record Jpx(Path storage,
             requireSafeSegment("version", version);
             Installation installation = new Installation(storage.resolve(command.folder(version)), hashFunction);
             if (!Files.isRegularFile(installation.folder().resolve(PROPERTIES))) {
-                Files.createDirectories(storage);
                 try (FileChannel channel = FileChannel.open(storage.resolve(command.folder(version) + ".lock"),
                         StandardOpenOption.CREATE,
                         StandardOpenOption.WRITE); FileLock _ = channel.lock()) {
@@ -333,7 +342,65 @@ public record Jpx(Path storage,
                 }
             }
             return installation;
+        } finally {
+            clear(cache);
+            Files.delete(cache);
         }
+    }
+
+    /**
+     * Wraps a Maven repository so stream-only artifacts are spilled to the given folder under
+     * their Maven file names, which the installation adopts. Unlike {@link Repository#cached(Path)},
+     * file-backed items pass through untouched and nothing is keyed by encoded coordinates.
+     */
+    private static MavenRepository materialized(MavenRepository repository, Path folder) {
+        return new MavenRepository() {
+            @Override
+            public Optional<RepositoryItem> fetch(Executor executor,
+                                                  String groupId,
+                                                  String artifactId,
+                                                  String version,
+                                                  String type,
+                                                  String classifier,
+                                                  String checksum) throws IOException {
+                Optional<RepositoryItem> candidate = repository.fetch(executor,
+                        groupId,
+                        artifactId,
+                        version,
+                        type,
+                        classifier,
+                        checksum);
+                RepositoryItem item = candidate.orElse(null);
+                if (item == null || checksum != null || item.file().isPresent()) {
+                    return candidate;
+                }
+                Path target = Files.createDirectories(folder.resolve(groupId)).resolve(artifactId
+                        + "-" + version
+                        + (classifier == null ? "" : "-" + classifier)
+                        + "." + (type == null ? "jar" : type));
+                if (!Files.exists(target)) {
+                    Path temporary = Files.createTempFile(target.getParent(), "fetch", ".tmp");
+                    try (InputStream inputStream = item.toInputStream()) {
+                        Files.copy(inputStream, temporary, StandardCopyOption.REPLACE_EXISTING);
+                        Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE);
+                    } catch (FileAlreadyExistsException _) {
+                        Files.deleteIfExists(temporary);
+                    } catch (Throwable t) {
+                        Files.deleteIfExists(temporary);
+                        throw t;
+                    }
+                }
+                return Optional.of(RepositoryItem.ofFile(target));
+            }
+
+            @Override
+            public Optional<RepositoryItem> fetchMetadata(Executor executor,
+                                                          String groupId,
+                                                          String artifactId,
+                                                          String checksum) throws IOException {
+                return repository.fetchMetadata(executor, groupId, artifactId, checksum);
+            }
+        };
     }
 
     private void materialize(Command command,

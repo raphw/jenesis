@@ -64,11 +64,13 @@ if "!RC!"=="0" goto :fail
 findstr /c:"at least 32 hex characters" "%OUTFILE%" >nul || goto :fail
 echo   ok
 
-REM [5/6] install and launch a sample tool from a file-backed Maven repository
+REM [5/6] install and launch a sample tool from a file-backed Maven repository;
+REM the redirected home deliberately has no .m2 repository, so the installation
+REM must succeed without a local Maven cache to materialize into.
 echo [5/6] jpx install and launch
 mkdir "%TMPDIR%\src\exampletool"
 mkdir "%TMPDIR%\classes"
-mkdir "%TMPDIR%\home\.m2\repository"
+mkdir "%TMPDIR%\home"
 (
 echo package exampletool;
 echo public class Main {
@@ -99,6 +101,7 @@ if not "!RC!"=="7" goto :fail
 findstr /c:"jpx-sdk-test" "%TMPDIR%\marker.txt" >nul || goto :fail
 set "DESCRIPTOR=%TMPDIR%\home\.jenesis\jpx\org.example--tool@1.0\jpx.properties"
 if not exist "%DESCRIPTOR%" goto :fail
+findstr /c:"classpath=tool-1.0.jar" "%DESCRIPTOR%" >nul || goto :fail
 echo   ok
 
 REM [6/6] --hash verifies the recorded checksum prefix and rejects a mismatch

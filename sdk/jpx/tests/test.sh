@@ -81,9 +81,11 @@ set -e
 printf '%s' "$OUT" | grep -qF "at least 32 hex characters" || dump_and_fail "missing checksum complaint" "$OUT"
 echo "  ok"
 
-# [5/6] install and launch a sample tool from a file-backed Maven repository
+# [5/6] install and launch a sample tool from a file-backed Maven repository;
+# the redirected home deliberately has no .m2 repository, so the installation
+# must succeed without a local Maven cache to materialize into.
 echo "[5/6] jpx install and launch"
-mkdir -p "$TMPDIR/src/exampletool" "$TMPDIR/classes" "$TMPDIR/home/.m2/repository"
+mkdir -p "$TMPDIR/src/exampletool" "$TMPDIR/classes" "$TMPDIR/home"
 cat > "$TMPDIR/src/exampletool/Main.java" <<'SOURCE'
 package exampletool;
 public class Main {
@@ -113,6 +115,7 @@ set -e
 [ "$(cat "$TMPDIR/marker.txt")" = "jpx-sdk-test" ] || dump_and_fail "marker file not written by the tool"
 DESCRIPTOR="$TMPDIR/home/.jenesis/jpx/org.example--tool@1.0/jpx.properties"
 [ -f "$DESCRIPTOR" ] || dump_and_fail "no descriptor at $DESCRIPTOR"
+grep -qF "classpath=tool-1.0.jar" "$DESCRIPTOR" || dump_and_fail "descriptor does not record the Maven jar name" "$(cat "$DESCRIPTOR")"
 echo "  ok"
 
 # [6/6] --hash verifies the recorded checksum prefix and rejects a mismatch

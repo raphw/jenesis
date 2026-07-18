@@ -199,6 +199,28 @@ public class JpxTest {
     }
 
     @Test
+    public void installs_without_local_maven_repository() throws IOException, InterruptedException {
+        addMavenTool();
+        // Without a local repository to materialize into, the Maven repository only
+        // streams its items; the installation spills them to a temporary cache instead.
+        Repository streaming = new MavenDefaultRepository(mavenRepoFolder.toUri(), null, Map.of(), _ -> {});
+        Jpx jpx = new Jpx(storage,
+                Map.of("maven", streaming),
+                Map.of("maven", new MavenPomResolver()),
+                new HashDigestFunction("SHA-256"));
+
+        Jpx.Installation installation = jpx.install(Jpx.Command.parse("org.example:tool-main@1.0"));
+
+        assertThat(installation.properties().getProperty("modulepath")).isEqualTo("tool-lib-1.0.jar,tool-main-1.0.jar");
+        try (Stream<Path> entries = Files.list(storage)) {
+            assertThat(entries.filter(entry -> entry.getFileName().toString().startsWith("cache-"))).isEmpty();
+        }
+        Path marker = work.resolve("marker.txt");
+        assertThat(installation.launch(List.of(marker.toString()))).isEqualTo(7);
+        assertThat(marker).hasContent("from-lib");
+    }
+
+    @Test
     public void redoes_broken_installation() throws IOException, InterruptedException {
         addMavenTool();
         Jpx jpx = jpx();
