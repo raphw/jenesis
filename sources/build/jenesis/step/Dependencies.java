@@ -345,12 +345,14 @@ public class Dependencies implements BuildStep {
                             });
                         }
                     }
-                    // Module aliases are declarations, not versions: they bypass the pinning-mode
-                    // transformations above and reach the resolver under the reserved key prefix.
-                    moduleAliases.getOrDefault(group, new LinkedHashMap<>())
-                            .getOrDefault(repo, new LinkedHashMap<>())
-                            .forEach((alias, target) -> bom.put(Resolver.ALIAS + alias, target));
-                    Resolver.Resolution resolution = resolver.dependencies(executor, repo, wrapped, coordinates, bom, intent);
+                    Resolver.Resolution resolution = resolver.dependencies(executor,
+                            repo,
+                            wrapped,
+                            coordinates,
+                            bom,
+                            moduleAliases.getOrDefault(group, new LinkedHashMap<>())
+                                    .getOrDefault(repo, new LinkedHashMap<>()),
+                            intent);
                     for (Map.Entry<String, Resolver.Resolved> entry : resolution.artifacts().entrySet()) {
                         String coordinate = entry.getKey().substring(entry.getKey().indexOf('/') + 1);
                         String declared = repoEntry.getValue().get(coordinate);

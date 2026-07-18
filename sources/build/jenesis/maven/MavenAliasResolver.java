@@ -45,15 +45,17 @@ public class MavenAliasResolver implements Resolver {
                                             SequencedMap<String, SequencedSet<String>> coordinates,
                                             SequencedMap<String, String> versions,
                                             DependencyScope scope) throws IOException {
-        SequencedMap<String, String> aliases = new LinkedHashMap<>();
-        SequencedMap<String, String> remaining = new LinkedHashMap<>();
-        for (Map.Entry<String, String> entry : versions.entrySet()) {
-            if (entry.getKey().startsWith(Resolver.ALIAS)) {
-                aliases.put(entry.getKey().substring(Resolver.ALIAS.length()), entry.getValue());
-            } else {
-                remaining.put(entry.getKey(), entry.getValue());
-            }
-        }
+        return delegate.dependencies(executor, prefix, repositories, coordinates, versions, scope);
+    }
+
+    @Override
+    public Resolver.Resolution dependencies(Executor executor,
+                                            String prefix,
+                                            Map<String, Repository> repositories,
+                                            SequencedMap<String, SequencedSet<String>> coordinates,
+                                            SequencedMap<String, String> versions,
+                                            SequencedMap<String, String> aliases,
+                                            DependencyScope scope) throws IOException {
         if (aliases.isEmpty()) {
             return delegate.dependencies(executor, prefix, repositories, coordinates, versions, scope);
         }
@@ -64,7 +66,7 @@ public class MavenAliasResolver implements Resolver {
             int space = declaration.indexOf(' ');
             String token = space < 0 ? declaration : declaration.substring(0, space);
             String inline = space < 0 ? null : declaration.substring(space + 1).trim();
-            if (remaining.containsKey(alias)) {
+            if (versions.containsKey(alias)) {
                 throw new IllegalArgumentException("Module " + alias + " is an alias for " + token
                         + " - pin the target instead: @jenesis.pin " + token + " <version>");
             }
@@ -77,7 +79,7 @@ public class MavenAliasResolver implements Resolver {
             // A pin or BOM entry for the target coordinate wins - and is where a checksum is
             // declared - then the inline version; without either, the latest release is
             // negotiated, as for any Maven coordinate that names no version.
-            String pinned = remaining.get(token);
+            String pinned = versions.get(token);
             String version;
             if (pinned != null) {
                 version = version(pinned, alias, token);
@@ -131,7 +133,7 @@ public class MavenAliasResolver implements Resolver {
             return Optional.of(RepositoryItem.ofFile(jar, true));
         };
         wrapped.merge(mavenPrefix, artifacts, (existing, overlay) -> MavenRepository.of(existing).prepend(overlay));
-        Resolver.Resolution resolution = delegate.dependencies(executor, prefix, wrapped, coordinates, remaining, scope);
+        Resolver.Resolution resolution = delegate.dependencies(executor, prefix, wrapped, coordinates, versions, scope);
         SequencedMap<String, Resolver.Resolved> renamed = new LinkedHashMap<>();
         resolution.artifacts().forEach((coordinate, resolved) ->
                 renamed.put(rename(coordinate, base, poms.sequencedKeySet()), resolved));

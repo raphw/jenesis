@@ -23,7 +23,8 @@ public class ModularJarResolverTest {
                 "module",
                 Map.of("module", (_, _) -> Optional.empty()),
                 new LinkedHashMap<>(Map.of("toolkit.lib", Collections.emptyNavigableSet())),
-                new LinkedHashMap<>(Map.of(Resolver.ALIAS + "toolkit.lib", "org.example/plain-lib")),
+                new LinkedHashMap<>(),
+                new LinkedHashMap<>(Map.of("toolkit.lib", "org.example/plain-lib")),
                 DependencyScope.COMPILE))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("not supported when resolving purely over module descriptors");

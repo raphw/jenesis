@@ -47,9 +47,8 @@ public class MavenAliasResolverTest {
                 "module",
                 Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), mavenRepoFolder, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("toolkit.lib", Collections.emptyNavigableSet())),
-                new LinkedHashMap<>(Map.of(
-                        Resolver.ALIAS + "toolkit.lib", "org.example/plain-lib",
-                        "org.example/plain-lib", "1.2.3")),
+                new LinkedHashMap<>(Map.of("org.example/plain-lib", "1.2.3")),
+                new LinkedHashMap<>(Map.of("toolkit.lib", "org.example/plain-lib")),
                 DependencyScope.COMPILE);
 
         assertThat(resolution.artifacts()).containsOnlyKeys(
@@ -98,9 +97,8 @@ public class MavenAliasResolverTest {
                 "module",
                 Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), mavenRepoFolder, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("toolkit.lib", Collections.emptyNavigableSet())),
-                new LinkedHashMap<>(Map.of(
-                        Resolver.ALIAS + "toolkit.lib", "org.example/plain-lib",
-                        "org.example/plain-lib", "1.0")),
+                new LinkedHashMap<>(Map.of("org.example/plain-lib", "1.0")),
+                new LinkedHashMap<>(Map.of("toolkit.lib", "org.example/plain-lib")),
                 DependencyScope.COMPILE);
 
         assertThat(resolution.artifacts()).containsOnlyKeys(
@@ -124,9 +122,8 @@ public class MavenAliasResolverTest {
                 "module",
                 Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), mavenRepoFolder, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("toolkit.lib", Collections.emptyNavigableSet())),
-                new LinkedHashMap<>(Map.of(
-                        Resolver.ALIAS + "toolkit.lib", "org.example/plain-lib",
-                        "org.example/plain-lib", "1.0 " + checksum)),
+                new LinkedHashMap<>(Map.of("org.example/plain-lib", "1.0 " + checksum)),
+                new LinkedHashMap<>(Map.of("toolkit.lib", "org.example/plain-lib")),
                 DependencyScope.COMPILE);
 
         assertThat(resolution.artifacts().get("maven/org.example/plain-lib/1.0").checksum()).isEqualTo(checksum);
@@ -147,7 +144,8 @@ public class MavenAliasResolverTest {
                 "module",
                 Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), mavenRepoFolder, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("toolkit.lib", Collections.emptyNavigableSet())),
-                new LinkedHashMap<>(Map.of(Resolver.ALIAS + "toolkit.lib", "org.example/plain-lib 1.2.3")),
+                new LinkedHashMap<>(),
+                new LinkedHashMap<>(Map.of("toolkit.lib", "org.example/plain-lib 1.2.3")),
                 DependencyScope.COMPILE);
 
         assertThat(resolution.artifacts()).containsOnlyKeys(
@@ -170,9 +168,8 @@ public class MavenAliasResolverTest {
                 "module",
                 Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), mavenRepoFolder, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("toolkit.lib", Collections.emptyNavigableSet())),
-                new LinkedHashMap<>(Map.of(
-                        Resolver.ALIAS + "toolkit.lib", "org.example/plain-lib 1.0",
-                        "org.example/plain-lib", "2.0")),
+                new LinkedHashMap<>(Map.of("org.example/plain-lib", "2.0")),
+                new LinkedHashMap<>(Map.of("toolkit.lib", "org.example/plain-lib 1.0")),
                 DependencyScope.COMPILE);
 
         assertThat(resolution.artifacts()).containsOnlyKeys(
@@ -208,7 +205,8 @@ public class MavenAliasResolverTest {
                 "module",
                 Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), mavenRepoFolder, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("toolkit.lib", Collections.emptyNavigableSet())),
-                new LinkedHashMap<>(Map.of(Resolver.ALIAS + "toolkit.lib", "org.example/plain-lib")),
+                new LinkedHashMap<>(),
+                new LinkedHashMap<>(Map.of("toolkit.lib", "org.example/plain-lib")),
                 DependencyScope.COMPILE);
 
         assertThat(resolution.artifacts()).containsOnlyKeys(
@@ -232,7 +230,8 @@ public class MavenAliasResolverTest {
                 "module",
                 Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), mavenRepoFolder, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("toolkit.natives", Collections.emptyNavigableSet())),
-                new LinkedHashMap<>(Map.of(Resolver.ALIAS + "toolkit.natives", "org.example/plain-lib/jar/natives 1.0")),
+                new LinkedHashMap<>(),
+                new LinkedHashMap<>(Map.of("toolkit.natives", "org.example/plain-lib/jar/natives 1.0")),
                 DependencyScope.COMPILE);
 
         assertThat(resolution.artifacts().sequencedKeySet())
@@ -246,9 +245,8 @@ public class MavenAliasResolverTest {
                 "module",
                 Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), mavenRepoFolder, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("toolkit.lib", Collections.emptyNavigableSet())),
-                new LinkedHashMap<>(Map.of(
-                        Resolver.ALIAS + "toolkit.lib", "org.example/plain-lib",
-                        "toolkit.lib", "1.0")),
+                new LinkedHashMap<>(Map.of("toolkit.lib", "1.0")),
+                new LinkedHashMap<>(Map.of("toolkit.lib", "org.example/plain-lib")),
                 DependencyScope.COMPILE))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("pin the target instead");
@@ -310,7 +308,8 @@ public class MavenAliasResolverTest {
                 "module",
                 Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), mavenRepoFolder, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("toolkit.lib", Collections.emptyNavigableSet())),
-                new LinkedHashMap<>(Map.of(Resolver.ALIAS + "toolkit.lib", "org.example/plain-lib 1.0")),
+                new LinkedHashMap<>(),
+                new LinkedHashMap<>(Map.of("toolkit.lib", "org.example/plain-lib 1.0")),
                 DependencyScope.COMPILE);
 
         Path sources = Files.createDirectories(work.resolve("app-sources"));

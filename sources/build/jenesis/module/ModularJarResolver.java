@@ -28,6 +28,23 @@ public class ModularJarResolver implements Resolver {
                                             Map<String, Repository> repositories,
                                             SequencedMap<String, SequencedSet<String>> coordinates,
                                             SequencedMap<String, String> versions,
+                                            SequencedMap<String, String> aliases,
+                                            DependencyScope scope) throws IOException {
+        if (!aliases.isEmpty()) {
+            throw new IllegalArgumentException("@jenesis.alias is not supported when resolving purely over"
+                    + " module descriptors - "
+                    + String.join(", ", aliases.sequencedKeySet())
+                    + " can only be aliased in a Maven-backed layout (modular_to_maven)");
+        }
+        return dependencies(executor, prefix, repositories, coordinates, versions, scope);
+    }
+
+    @Override
+    public Resolver.Resolution dependencies(Executor executor,
+                                            String prefix,
+                                            Map<String, Repository> repositories,
+                                            SequencedMap<String, SequencedSet<String>> coordinates,
+                                            SequencedMap<String, String> versions,
                                             DependencyScope scope) throws IOException {
         coordinates.forEach((coordinate, exclusions) -> {
             if (!exclusions.isEmpty()) {
@@ -35,14 +52,6 @@ public class ModularJarResolver implements Resolver {
                         "Module system does not support exclusions, but " + coordinate + " declares " + exclusions);
             }
         });
-        for (String key : versions.sequencedKeySet()) {
-            if (key.startsWith(Resolver.ALIAS)) {
-                throw new IllegalArgumentException("@jenesis.alias is not supported when resolving purely over"
-                        + " module descriptors - module "
-                        + key.substring(Resolver.ALIAS.length())
-                        + " can only be aliased in a Maven-backed layout (modular_to_maven)");
-            }
-        }
         SequencedMap<String, Resolver.Resolved> dependencies = new LinkedHashMap<>();
         SequencedSet<String> resolved = new LinkedHashSet<>();
         SequencedSet<String> unresolved = new LinkedHashSet<>();

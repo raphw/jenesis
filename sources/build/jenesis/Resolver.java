@@ -5,13 +5,6 @@ import module java.base;
 @FunctionalInterface
 public interface Resolver extends Serializable {
 
-    /**
-     * Key prefix within the versions map that declares a module alias rather than a version
-     * pin: {@code alias:<module-name>} maps to a {@code <groupId>/<artifactId>} target. Only
-     * resolvers that support aliasing accept such entries; all others reject them.
-     */
-    String ALIAS = "alias:";
-
     record Resolved(Path file, String checksum, boolean internal) implements Serializable {
     }
 
@@ -32,6 +25,26 @@ public interface Resolver extends Serializable {
                             SequencedMap<String, SequencedSet<String>> coordinates,
                             SequencedMap<String, String> versions,
                             DependencyScope scope) throws IOException;
+
+    /**
+     * Resolves dependencies with module aliases: each entry maps a module name to a Maven
+     * coordinate declaration, {@code <groupId>/<artifactId>[/<type>[/<classifier>]] [<version>]}.
+     * Only resolvers that support aliasing override this method; by default, any alias
+     * declaration is rejected.
+     */
+    default Resolution dependencies(Executor executor,
+                                    String prefix,
+                                    Map<String, Repository> repositories,
+                                    SequencedMap<String, SequencedSet<String>> coordinates,
+                                    SequencedMap<String, String> versions,
+                                    SequencedMap<String, String> aliases,
+                                    DependencyScope scope) throws IOException {
+        if (!aliases.isEmpty()) {
+            throw new IllegalArgumentException("Module aliases are not supported by this resolver: "
+                    + String.join(", ", aliases.sequencedKeySet()));
+        }
+        return dependencies(executor, prefix, repositories, coordinates, versions, scope);
+    }
 
     default SequencedSet<String> managedPrefixes() {
         return Collections.emptyNavigableSet();
