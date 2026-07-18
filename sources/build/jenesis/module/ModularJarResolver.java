@@ -35,6 +35,14 @@ public class ModularJarResolver implements Resolver {
                         "Module system does not support exclusions, but " + coordinate + " declares " + exclusions);
             }
         });
+        for (String key : versions.sequencedKeySet()) {
+            if (key.startsWith(Resolver.ALIAS)) {
+                throw new IllegalArgumentException("@jenesis.alias is not supported when resolving purely over"
+                        + " module descriptors - module "
+                        + key.substring(Resolver.ALIAS.length())
+                        + " can only be aliased in a Maven-backed layout (modular_to_maven)");
+            }
+        }
         SequencedMap<String, Resolver.Resolved> dependencies = new LinkedHashMap<>();
         SequencedSet<String> resolved = new LinkedHashSet<>();
         SequencedSet<String> unresolved = new LinkedHashSet<>();

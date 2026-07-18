@@ -807,6 +807,20 @@ Two callbacks govern how the build is assembled, and they are pluggable independ
   the pin step the same way the dependency closure does: `Dependencies` records the fetched BOM files and the
   merged entry map in its output `boms.properties`, and `Inventory` mirrors them as indexed `prefix.bom.<n>`
   entries.
+- **Module aliases** (`MODULAR_TO_MAVEN` layout only) give a Maven artifact a stable module name of the
+  project's choosing: `@jenesis.alias <module-name> <groupId>/<artifactId>` in `module-info.java` lets the
+  module `requires <module-name>;` even when the artifact is non-modular and would otherwise only be
+  addressable through a filename-derived automatic module name. The `MavenAliasResolver` synthesizes the
+  aliased module locally - a discovery POM whose only dependency is the target, and an empty jar carrying
+  just an `Automatic-Module-Name` manifest entry - so requiring the alias resolves the target and its
+  dependency graph, with automatic-module implied readability making the target's packages visible. The
+  alias is pure name mapping: the target's version and checksum stay governed by the ordinary `@jenesis.pin`
+  and BOM channels for its Maven coordinates (a missing version fails resolution with a pointer to pin the
+  target), and a `pin` run records the target like any other Maven dependency while never pinning the alias
+  itself. The synthetic artifacts are internal: they appear in the resolved closure as a versionless
+  `module/<module-name>` entry, are excluded from published POMs and Maven staging, and each declaration is
+  scoped to the module that carries it. In the purely modular layout the tag is rejected, since resolution
+  there walks module descriptors only.
 - The **inferred documentation chain** (`InferredDocumentationChainModule`) mirrors the compiler chain for API
   documentation. A `scan` step walks the module's `sources/` and records which languages are present
   (`.java`, `.kt`, `.scala`, `.groovy`); a `document` sub-module then wires the documentation tools and an

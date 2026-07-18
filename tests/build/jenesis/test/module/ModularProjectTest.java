@@ -126,6 +126,30 @@ public class ModularProjectTest {
     }
 
     @Test
+    public void emits_aliases_properties_from_javadoc_declarations() throws IOException {
+        Files.writeString(project.resolve("module-info.java"), """
+                /**
+                 * @jenesis.alias toolkit.lib org.example/plain-lib
+                 */
+                module foo {
+                  requires toolkit.lib;
+                }
+                """);
+        BuildExecutor executor = BuildExecutor.of(build,
+                Duration.ZERO,
+                new HashDigestFunction("MD5"),
+                BuildStepHashFunction.ofSerializationDigest("MD5"),
+                BuildExecutorCallback.nop(), BuildExecutorCache.nop(), false);
+        executor.addModule("module", new ModularProject("module", project));
+        SequencedMap<String, Path> results = executor.execute(Runnable::run).toCompletableFuture().join();
+        Path module = results.get("module/module-/manifests");
+        Path aliasesFile = module.resolve(BuildStep.ALIASES);
+        assertThat(aliasesFile).exists();
+        assertThat(SequencedProperties.ofFiles(aliasesFile)).containsOnly(
+                Map.entry("main/module/toolkit.lib", "org.example/plain-lib"));
+    }
+
+    @Test
     public void selects_guarded_pin_matching_platform() throws IOException {
         Files.writeString(project.resolve("module-info.java"), """
                 /**

@@ -5,6 +5,13 @@ import module java.base;
 @FunctionalInterface
 public interface Resolver extends Serializable {
 
+    /**
+     * Key prefix within the versions map that declares a module alias rather than a version
+     * pin: {@code alias:<module-name>} maps to a {@code <groupId>/<artifactId>} target. Only
+     * resolvers that support aliasing accept such entries; all others reject them.
+     */
+    String ALIAS = "alias:";
+
     record Resolved(Path file, String checksum, boolean internal) implements Serializable {
     }
 

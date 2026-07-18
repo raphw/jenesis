@@ -246,6 +246,12 @@ public class ModularProject implements BuildExecutorModule {
             info.plugins().forEach((coordinate, group) ->
                     requires.setProperty(group + "/plugin/" + coordinate, ""));
             requires.store(context.next().resolve(BuildStep.REQUIRES));
+            if (!info.aliases().isEmpty()) {
+                SequencedProperties aliases = new SequencedProperties();
+                info.aliases().forEach((alias, target) ->
+                        aliases.setProperty(group + "/" + prefix + "/" + alias, target));
+                aliases.store(context.next().resolve(BuildStep.ALIASES));
+            }
             SequencedMap<String, String> versions = new LinkedHashMap<>(info.versions());
             for (Map.Entry<String, SequencedMap<String, String>> variant : info.variants().entrySet()) {
                 String selected = platform.select(variant.getKey(),

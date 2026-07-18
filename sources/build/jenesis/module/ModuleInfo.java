@@ -11,6 +11,7 @@ public record ModuleInfo(String coordinate,
                          SequencedSet<String> requires,
                          SequencedSet<String> runtimeRequires,
                          SequencedMap<String, String> plugins,
+                         SequencedMap<String, String> aliases,
                          SequencedMap<String, String> versions,
                          SequencedMap<String, SequencedMap<String, String>> variants,
                          SequencedMap<String, String> boms,
@@ -18,7 +19,7 @@ public record ModuleInfo(String coordinate,
 
     public ModuleInfo(String coordinate, SequencedSet<String> requires, SequencedSet<String> runtimeRequires) {
         this(coordinate, null, null, null, null, null, requires, runtimeRequires,
-                Collections.emptyNavigableMap(),
+                Collections.emptyNavigableMap(), Collections.emptyNavigableMap(),
                 Collections.emptyNavigableMap(), Collections.emptyNavigableMap(),
                 Collections.emptyNavigableMap(), Collections.emptyNavigableMap());
     }

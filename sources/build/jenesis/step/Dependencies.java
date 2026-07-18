@@ -82,6 +82,7 @@ public class Dependencies implements BuildStep {
         return arguments.values().stream().anyMatch(argument -> argument.hasChanged(
                 Path.of(REQUIRES),
                 Path.of(VERSIONS),
+                Path.of(ALIASES),
                 Path.of(BOMS),
                 Path.of(EXCLUSIONS),
                 Path.of(SPDX)));
@@ -123,6 +124,7 @@ public class Dependencies implements BuildStep {
         }
         SequencedMap<String, SequencedMap<String, SequencedMap<String, SequencedMap<String, String>>>> requires = new LinkedHashMap<>();
         SequencedMap<String, SequencedMap<String, SequencedMap<String, String>>> versions = new LinkedHashMap<>();
+        SequencedMap<String, SequencedMap<String, SequencedMap<String, String>>> moduleAliases = new LinkedHashMap<>();
         SequencedMap<String, String> bomTokens = new LinkedHashMap<>();
         SequencedMap<String, SequencedMap<String, SequencedMap<String, SequencedMap<String, SequencedSet<String>>>>> exclusions = new LinkedHashMap<>();
         for (BuildStepArgument argument : arguments.values()) {
@@ -154,6 +156,24 @@ public class Dependencies implements BuildStep {
                                 + ": expected <group>/<repository>/<coordinate>");
                     }
                     versions.computeIfAbsent(key.substring(0, first), _ -> new LinkedHashMap<>())
+                            .computeIfAbsent(key.substring(first + 1, second), _ -> new LinkedHashMap<>())
+                            .putIfAbsent(key.substring(second + 1), properties.getProperty(key));
+                }
+            }
+            Path aliasesFile = argument.folder().resolve(ALIASES);
+            if (Files.exists(aliasesFile)) {
+                SequencedProperties properties = SequencedProperties.ofFiles(aliasesFile);
+                for (String key : properties.stringPropertyNames()) {
+                    int first = key.indexOf('/');
+                    int second = first < 1 ? -1 : key.indexOf('/', first + 1);
+                    if (first < 1 || second <= first || second == key.length() - 1) {
+                        throw new IllegalArgumentException("Malformed module alias '"
+                                + key
+                                + "' in "
+                                + aliasesFile
+                                + ": expected <group>/<repository>/<module-name>");
+                    }
+                    moduleAliases.computeIfAbsent(key.substring(0, first), _ -> new LinkedHashMap<>())
                             .computeIfAbsent(key.substring(first + 1, second), _ -> new LinkedHashMap<>())
                             .putIfAbsent(key.substring(second + 1), properties.getProperty(key));
                 }
@@ -325,6 +345,11 @@ public class Dependencies implements BuildStep {
                             });
                         }
                     }
+                    // Module aliases are declarations, not versions: they bypass the pinning-mode
+                    // transformations above and reach the resolver under the reserved key prefix.
+                    moduleAliases.getOrDefault(group, new LinkedHashMap<>())
+                            .getOrDefault(repo, new LinkedHashMap<>())
+                            .forEach((alias, target) -> bom.put(Resolver.ALIAS + alias, target));
                     Resolver.Resolution resolution = resolver.dependencies(executor, repo, wrapped, coordinates, bom, intent);
                     for (Map.Entry<String, Resolver.Resolved> entry : resolution.artifacts().entrySet()) {
                         String coordinate = entry.getKey().substring(entry.getKey().indexOf('/') + 1);

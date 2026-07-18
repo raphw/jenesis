@@ -20,6 +20,7 @@ public class MultiProjectDependencies implements BuildStep {
         return arguments.values().stream().anyMatch(argument -> argument.hasChanged(
                 Path.of(REQUIRES),
                 Path.of(VERSIONS),
+                Path.of(ALIASES),
                 Path.of(BOMS),
                 Path.of(EXCLUSIONS),
                 Path.of(IDENTITY),
@@ -34,6 +35,7 @@ public class MultiProjectDependencies implements BuildStep {
         SequencedMap<String, Path> coordinates = new LinkedHashMap<>();
         SequencedMap<String, String> dependencies = new LinkedHashMap<>(),
                 versions = new LinkedHashMap<>(),
+                aliases = new LinkedHashMap<>(),
                 boms = new LinkedHashMap<>(),
                 exclusions = new LinkedHashMap<>();
         for (Map.Entry<String, BuildStepArgument> entry : arguments.entrySet()) {
@@ -48,6 +50,13 @@ public class MultiProjectDependencies implements BuildStep {
                 if (Files.exists(versionsPath)) {
                     SequencedProperties properties = SequencedProperties.ofFiles(versionsPath);
                     properties.stringPropertyNames().forEach(property -> versions.putIfAbsent(
+                            property,
+                            properties.getProperty(property)));
+                }
+                Path aliasesPath = entry.getValue().folder().resolve(ALIASES);
+                if (Files.exists(aliasesPath)) {
+                    SequencedProperties properties = SequencedProperties.ofFiles(aliasesPath);
+                    properties.stringPropertyNames().forEach(property -> aliases.putIfAbsent(
                             property,
                             properties.getProperty(property)));
                 }
@@ -93,6 +102,11 @@ public class MultiProjectDependencies implements BuildStep {
             SequencedProperties versionProperties = new SequencedProperties();
             versions.forEach(versionProperties::setProperty);
             versionProperties.store(context.next().resolve(VERSIONS));
+        }
+        if (!aliases.isEmpty()) {
+            SequencedProperties aliasProperties = new SequencedProperties();
+            aliases.forEach(aliasProperties::setProperty);
+            aliasProperties.store(context.next().resolve(ALIASES));
         }
         if (!boms.isEmpty()) {
             SequencedProperties bomProperties = new SequencedProperties();

@@ -17,6 +17,19 @@ public class ModularJarResolverTest {
     private Path jars;
 
     @Test
+    public void rejects_module_aliases() {
+        assertThatThrownBy(() -> new ModularJarResolver(false).dependencies(
+                Runnable::run,
+                "module",
+                Map.of("module", (_, _) -> Optional.empty()),
+                new LinkedHashMap<>(Map.of("toolkit.lib", Collections.emptyNavigableSet())),
+                new LinkedHashMap<>(Map.of(Resolver.ALIAS + "toolkit.lib", "org.example/plain-lib")),
+                DependencyScope.COMPILE))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("not supported when resolving purely over module descriptors");
+    }
+
+    @Test
     public void can_parse_module_info() throws IOException {
         SequencedMap<String, Resolver.Resolved> dependencies = new ModularJarResolver(false).dependencies(
                 Runnable::run,

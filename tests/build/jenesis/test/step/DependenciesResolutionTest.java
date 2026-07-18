@@ -98,6 +98,34 @@ public class DependenciesResolutionTest {
     }
 
     @Test
+    public void passes_module_aliases_to_resolver_under_reserved_prefix() throws IOException {
+        SequencedProperties properties = new SequencedProperties();
+        properties.setProperty("main/compile/foo/qux", "");
+        properties.store(dependencies.resolve(BuildStep.REQUIRES));
+        SequencedProperties aliases = new SequencedProperties();
+        aliases.setProperty("main/foo/toolkit.lib", "org.example/plain-lib");
+        aliases.store(dependencies.resolve(BuildStep.ALIASES));
+        SequencedMap<String, String> observed = new LinkedHashMap<>();
+        BuildStepResult result = new Dependencies(Map.of("foo", files(Map.of())), Map.of("foo", (executor, prefix, repositories, descriptors, bom, _) -> {
+                    observed.putAll(bom);
+                    SequencedMap<String, String> resolved = new LinkedHashMap<>();
+                    descriptors.sequencedKeySet().forEach(descriptor -> resolved.put(prefix + "/" + descriptor, ""));
+                    return new Resolver.Resolution(Resolver.materializeAll(executor, repositories, prefix, resolved), List.of(), new LinkedHashMap<>());
+                })).apply(
+                Runnable::run,
+                new BuildStepContext(previous, next, supplement),
+                new LinkedHashMap<>(Map.of("dependencies", new BuildStepArgument(
+                        dependencies,
+                        Map.of(
+                                Path.of(BuildStep.REQUIRES),
+                                Checksum.of(ChecksumStatus.ADDED),
+                                Path.of(BuildStep.ALIASES),
+                                Checksum.of(ChecksumStatus.ADDED)))))).toCompletableFuture().join();
+        assertThat(result.next()).isTrue();
+        assertThat(observed).containsEntry(Resolver.ALIAS + "toolkit.lib", "org.example/plain-lib");
+    }
+
+    @Test
     public void can_resolve_dependencies_from_streaming_repository() throws IOException {
         SequencedProperties properties = new SequencedProperties();
         properties.setProperty("main/compile/foo/qux", "");

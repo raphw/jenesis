@@ -2,6 +2,7 @@ package build.jenesis;
 
 import module java.base;
 import build.jenesis.docker.DockerizedJava;
+import build.jenesis.maven.MavenAliasResolver;
 import build.jenesis.maven.MavenDefaultRepository;
 import build.jenesis.maven.MavenModuleResolver;
 import build.jenesis.maven.MavenPomResolver;
@@ -267,8 +268,8 @@ public record Project(
                                 .prepend(JenesisModuleRepository.ofLocal()));
                 Map<String, Resolver> resolvers = new LinkedHashMap<>(project.resolvers());
                 resolvers.putIfAbsent("maven", new MavenPomResolver());
-                resolvers.putIfAbsent("module", new MavenModuleResolver("maven",
-                        MavenResolver.of(resolvers.get("maven")), repositories.get("module")));
+                resolvers.putIfAbsent("module", new MavenAliasResolver("maven", new MavenModuleResolver("maven",
+                        MavenResolver.of(resolvers.get("maven")), repositories.get("module"))));
                 SequencedSet<String> modulesDeps = new LinkedHashSet<>();
                 inherited.sequencedKeySet().stream()
                         .filter(key -> key.startsWith(BuildExecutorModule.PREVIOUS + METADATA + "/"))
@@ -582,6 +583,14 @@ public record Project(
                                                        an optional trailing %{name}[<token>,<token>...]%{reset} guard applies
                                                        the pin only when those tokens are in the active platform,
                                                        with an unguarded line for the same coordinate as fallback
+                      %{name}@jenesis.alias%{reset} <module> <groupId>/<artifactId>
+                                                       Alias a module name to a Maven artifact (MODULAR_TO_MAVEN
+                                                       layout only): requiring <module> resolves the artifact and
+                                                       its dependency graph under that stable name, so also a
+                                                       non-modular artifact can be required without relying on a
+                                                       derived automatic module name; the target's version and
+                                                       checksum stay governed by @jenesis.pin and BOM entries for
+                                                       its Maven coordinates
                       %{name}@jenesis.bom%{reset} <token> [<ver> [<algo>/<hex>]] [<guard>]
                                                        Import a BOM properties file of version and checksum pins;
                                                        the token follows the pin grammar (bare <module> is short for
@@ -887,6 +896,23 @@ public record Project(
                                                         active platform, with an
                                                         unguarded line for the same
                                                         coordinate as the fallback.
+                      @jenesis.alias <module> <groupId>/<artifactId>
+                                                        Alias a module name to a
+                                                        Maven artifact
+                                                        (MODULAR_TO_MAVEN layout
+                                                        only). Requiring <module>
+                                                        resolves the artifact and
+                                                        its dependency graph under
+                                                        that stable name, so also
+                                                        a non-modular artifact can
+                                                        be required without
+                                                        relying on a derived
+                                                        automatic module name. The
+                                                        target's version and
+                                                        checksum stay governed by
+                                                        @jenesis.pin and BOM
+                                                        entries for its Maven
+                                                        coordinates.
                       @jenesis.bom <token> [<ver> [<algo>/<hex>]] [<guard>]
                                                         Import a BOM properties
                                                         file of version and

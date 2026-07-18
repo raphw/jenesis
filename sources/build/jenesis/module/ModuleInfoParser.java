@@ -48,6 +48,7 @@ public class ModuleInfoParser {
                     }
                 }
             }
+            SequencedMap<String, String> aliases = new LinkedHashMap<>();
             SequencedMap<String, String> versions = new LinkedHashMap<>();
             SequencedMap<String, SequencedMap<String, String>> variants = new LinkedHashMap<>();
             SequencedMap<String, String> boms = new LinkedHashMap<>();
@@ -198,6 +199,42 @@ public class ModuleInfoParser {
                                 }
                                 plugins.put(token.indexOf('/') < 0 ? "module/" + token : token, group);
                             }
+                            case "jenesis.alias" -> {
+                                String declaration = content.replaceAll("\\s+", " ").trim();
+                                int split = declaration.indexOf(' ');
+                                if (split < 1 || split == declaration.length() - 1) {
+                                    throw new IllegalArgumentException("Malformed @jenesis.alias declaration '"
+                                            + content
+                                            + "': expected <module-name> <groupId>/<artifactId>");
+                                }
+                                String alias = declaration.substring(0, split);
+                                String target = declaration.substring(split + 1);
+                                if (alias.startsWith("java.") || alias.startsWith("jdk.")) {
+                                    throw new IllegalArgumentException("Illegal @jenesis.alias name '"
+                                            + alias
+                                            + "': platform modules cannot be aliased");
+                                }
+                                if (alias.indexOf('/') >= 0) {
+                                    throw new IllegalArgumentException("Illegal @jenesis.alias name '"
+                                            + alias
+                                            + "': expected a module name");
+                                }
+                                int slash = target.indexOf('/');
+                                if (slash < 1 || slash == target.length() - 1 || target.indexOf('/', slash + 1) >= 0) {
+                                    throw new IllegalArgumentException("Malformed @jenesis.alias target '"
+                                            + target
+                                            + "': expected <groupId>/<artifactId>");
+                                }
+                                String previous = aliases.putIfAbsent(alias, target);
+                                if (previous != null && !previous.equals(target)) {
+                                    throw new IllegalArgumentException("Duplicate @jenesis.alias for "
+                                            + alias
+                                            + ": "
+                                            + previous
+                                            + " and "
+                                            + target);
+                                }
+                            }
                             case "jenesis.release" -> {
                                 if (!content.isEmpty()) {
                                     release = content;
@@ -222,6 +259,7 @@ public class ModuleInfoParser {
                     dependencies,
                     runtimeDependencies,
                     plugins,
+                    aliases,
                     versions,
                     variants,
                     boms,

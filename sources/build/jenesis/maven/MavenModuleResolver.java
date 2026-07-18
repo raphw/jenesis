@@ -37,6 +37,12 @@ public class MavenModuleResolver implements Resolver {
                         "Module system does not support exclusions, but " + coordinate + " declares " + exclusions);
             }
         });
+        for (String key : versions.sequencedKeySet()) {
+            if (key.startsWith(Resolver.ALIAS)) {
+                throw new IllegalArgumentException("Module aliases require wrapping this resolver in a"
+                        + " MavenAliasResolver: " + key.substring(Resolver.ALIAS.length()));
+            }
+        }
         Repository repository = repositories.getOrDefault(Resolver.base(prefix), discovery);
         List<MavenResolver.RootPom> rootPoms = new ArrayList<>();
         for (String coordinate : coordinates.sequencedKeySet()) {

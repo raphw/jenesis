@@ -78,6 +78,66 @@ public class ModuleInfoParserTest {
     }
 
     @Test
+    public void jenesis_alias_maps_module_name_to_maven_coordinate() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @jenesis.alias toolkit.lib org.example/plain-lib
+                 * @jenesis.alias   other.lib   org.example/other-lib \s
+                 */
+                module foo {
+                    requires toolkit.lib;
+                }
+                """);
+        ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
+        assertThat(info.aliases())
+                .containsEntry("toolkit.lib", "org.example/plain-lib")
+                .containsEntry("other.lib", "org.example/other-lib");
+    }
+
+    @Test
+    public void jenesis_alias_rejects_malformed_target() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @jenesis.alias toolkit.lib org.example.plain-lib
+                 */
+                module foo {
+                }
+                """);
+        assertThatThrownBy(() -> new ModuleInfoParser().identify(folder.resolve("module-info.java")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("expected <groupId>/<artifactId>");
+    }
+
+    @Test
+    public void jenesis_alias_rejects_platform_module_names() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @jenesis.alias java.sql org.example/plain-lib
+                 */
+                module foo {
+                }
+                """);
+        assertThatThrownBy(() -> new ModuleInfoParser().identify(folder.resolve("module-info.java")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("platform modules cannot be aliased");
+    }
+
+    @Test
+    public void jenesis_alias_rejects_conflicting_duplicates() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @jenesis.alias toolkit.lib org.example/plain-lib
+                 * @jenesis.alias toolkit.lib org.example/other-lib
+                 */
+                module foo {
+                }
+                """);
+        assertThatThrownBy(() -> new ModuleInfoParser().identify(folder.resolve("module-info.java")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Duplicate @jenesis.alias for toolkit.lib");
+    }
+
+    @Test
     public void can_identify_module_info() throws IOException {
         Files.writeString(folder.resolve("module-info.java"), """
                 module foo {
