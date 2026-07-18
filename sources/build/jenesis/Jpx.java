@@ -259,16 +259,16 @@ public record Jpx(Path storage,
             }
         }
         Files.createDirectories(storage);
-        // Repositories are wrapped in a temporary cache so stream-only fetches - for example
-        // Maven downloads without a local ~/.m2 repository to materialize into - still yield
-        // files. Installed jars are linked or copied out of the cache, so it is dropped again
-        // once the installation is complete; file-backed items are referenced in place.
-        Path cache = Files.createTempDirectory(storage, "cache-");
+        // Stream-only fetches - for example Maven downloads without a local ~/.m2 repository
+        // to materialize into - are spilled into a staging folder that becomes the installation
+        // folder once the resolved version names it, so downloaded jars are written exactly once
+        // and retained. File-backed items are referenced in place and linked or copied in later.
+        Path staging = Files.createTempDirectory(storage, "staging-");
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             Map<String, Repository> repositories = new LinkedHashMap<>();
             this.repositories.forEach((name, repository) -> repositories.put(name, repository instanceof MavenRepository maven
-                    ? materialized(maven, cache)
-                    : repository.cached(cache)));
+                    ? spilling(maven, staging)
+                    : spilling(repository, staging)));
             Resolver.Resolution resolution;
             String version = command.version(), root;
             int colon = command.name().indexOf(':');
@@ -337,23 +337,28 @@ public record Jpx(Path storage,
                         StandardOpenOption.CREATE,
                         StandardOpenOption.WRITE); FileLock _ = channel.lock()) {
                     if (!Files.isRegularFile(installation.folder().resolve(PROPERTIES))) {
-                        materialize(command, version, resolution, resolution.artifacts().get(root).file(), installation);
+                        materialize(command, version, resolution, resolution.artifacts().get(root).file(), staging, installation);
                     }
                 }
             }
             return installation;
         } finally {
-            clear(cache);
-            Files.delete(cache);
+            // The staging folder was either adopted as the installation folder or - on failure,
+            // or when a concurrent installation won the lock - its remains are discarded.
+            if (Files.exists(staging)) {
+                clear(staging);
+                Files.delete(staging);
+            }
         }
     }
 
     /**
      * Wraps a Maven repository so stream-only artifacts are spilled to the given folder under
-     * their Maven file names, which the installation adopts. Unlike {@link Repository#cached(Path)},
-     * file-backed items pass through untouched and nothing is keyed by encoded coordinates.
+     * their Maven file names, which the installation adopts in place. POMs are graph input that
+     * resolvers parse off the stream and checksum items guard other fetches - neither is part
+     * of an installation, so both pass through unspilled, as do file-backed items.
      */
-    private static MavenRepository materialized(MavenRepository repository, Path folder) {
+    private static MavenRepository spilling(MavenRepository repository, Path folder) {
         return new MavenRepository() {
             @Override
             public Optional<RepositoryItem> fetch(Executor executor,
@@ -371,26 +376,13 @@ public record Jpx(Path storage,
                         classifier,
                         checksum);
                 RepositoryItem item = candidate.orElse(null);
-                if (item == null || checksum != null || item.file().isPresent()) {
+                if (item == null || checksum != null || "pom".equals(type) || item.file().isPresent()) {
                     return candidate;
                 }
-                Path target = Files.createDirectories(folder.resolve(groupId)).resolve(artifactId
+                return Optional.of(spill(item, folder.resolve(artifactId
                         + "-" + version
                         + (classifier == null ? "" : "-" + classifier)
-                        + "." + (type == null ? "jar" : type));
-                if (!Files.exists(target)) {
-                    Path temporary = Files.createTempFile(target.getParent(), "fetch", ".tmp");
-                    try (InputStream inputStream = item.toInputStream()) {
-                        Files.copy(inputStream, temporary, StandardCopyOption.REPLACE_EXISTING);
-                        Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE);
-                    } catch (FileAlreadyExistsException _) {
-                        Files.deleteIfExists(temporary);
-                    } catch (Throwable t) {
-                        Files.deleteIfExists(temporary);
-                        throw t;
-                    }
-                }
-                return Optional.of(RepositoryItem.ofFile(target));
+                        + "." + (type == null ? "jar" : type))));
             }
 
             @Override
@@ -403,21 +395,56 @@ public record Jpx(Path storage,
         };
     }
 
+    private static Repository spilling(Repository repository, Path folder) {
+        return (executor, coordinate) -> {
+            Optional<RepositoryItem> candidate = repository.fetch(executor, coordinate);
+            RepositoryItem item = candidate.orElse(null);
+            if (item == null || item.file().isPresent()) {
+                return candidate;
+            }
+            return Optional.of(spill(item, folder.resolve(coordinate.replace('/', '-') + ".jar")));
+        };
+    }
+
+    private static RepositoryItem spill(RepositoryItem item, Path target) throws IOException {
+        if (!Files.exists(target)) {
+            Path temporary = Files.createTempFile(target.getParent(), "spill", ".tmp");
+            try (InputStream inputStream = item.toInputStream()) {
+                Files.copy(inputStream, temporary, StandardCopyOption.REPLACE_EXISTING);
+                Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE);
+            } catch (FileAlreadyExistsException _) {
+                Files.deleteIfExists(temporary);
+            } catch (Throwable t) {
+                Files.deleteIfExists(temporary);
+                throw t;
+            }
+        }
+        return RepositoryItem.ofFile(target);
+    }
+
     private void materialize(Command command,
                              String version,
                              Resolver.Resolution resolution,
                              Path root,
+                             Path staging,
                              Installation installation) throws IOException {
         Path folder = installation.folder();
         if (Files.exists(folder)) {
             clear(folder);
+            Files.delete(folder);
         }
-        Files.createDirectories(folder);
+        // The staging folder already contains all spilled artifacts and becomes the
+        // installation folder as-is; only file-backed items still need to be linked in.
+        Files.move(staging, folder);
+        if (root.startsWith(staging)) {
+            root = folder.resolve(root.getFileName());
+        }
         SequencedMap<String, Path> jars = new TreeMap<>();
         for (Resolver.Resolved resolved : resolution.artifacts().values()) {
             Path file = resolved.file();
-            if (jars.putIfAbsent(file.getFileName().toString(), file) == null) {
-                BuildStep.linkOrCopy(folder.resolve(file.getFileName().toString()), file);
+            Path placed = file.startsWith(staging) ? folder.resolve(file.getFileName()) : file;
+            if (jars.putIfAbsent(file.getFileName().toString(), placed) == null && !placed.startsWith(folder)) {
+                BuildStep.linkOrCopy(folder.resolve(file.getFileName().toString()), placed);
             }
         }
         ModuleDescriptor descriptor = PathPlacement.moduleDescriptor(root);
