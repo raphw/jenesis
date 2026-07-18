@@ -200,15 +200,14 @@ public class ModuleInfoParser {
                                 plugins.put(token.indexOf('/') < 0 ? "module/" + token : token, group);
                             }
                             case "jenesis.alias" -> {
-                                String declaration = content.replaceAll("\\s+", " ").trim();
-                                int split = declaration.indexOf(' ');
-                                if (split < 1 || split == declaration.length() - 1) {
+                                String[] words = content.replaceAll("\\s+", " ").trim().split(" ");
+                                if (words.length < 2 || words.length > 3) {
                                     throw new IllegalArgumentException("Malformed @jenesis.alias declaration '"
                                             + content
-                                            + "': expected <module-name> <groupId>/<artifactId>");
+                                            + "': expected <module-name> <groupId>/<artifactId>[/<type>[/<classifier>]]"
+                                            + " [<version>] - checksums are pinned on the Maven coordinate instead");
                                 }
-                                String alias = declaration.substring(0, split);
-                                String target = declaration.substring(split + 1);
+                                String alias = words[0];
                                 if (alias.startsWith("java.") || alias.startsWith("jdk.")) {
                                     throw new IllegalArgumentException("Illegal @jenesis.alias name '"
                                             + alias
@@ -219,20 +218,28 @@ public class ModuleInfoParser {
                                             + alias
                                             + "': expected a module name");
                                 }
-                                int slash = target.indexOf('/');
-                                if (slash < 1 || slash == target.length() - 1 || target.indexOf('/', slash + 1) >= 0) {
+                                String[] segments = words[1].split("/", -1);
+                                if (segments.length < 2 || segments.length > 4
+                                        || Arrays.stream(segments).anyMatch(String::isEmpty)) {
                                     throw new IllegalArgumentException("Malformed @jenesis.alias target '"
-                                            + target
-                                            + "': expected <groupId>/<artifactId>");
+                                            + words[1]
+                                            + "': expected <groupId>/<artifactId>[/<type>[/<classifier>]]");
                                 }
-                                String previous = aliases.putIfAbsent(alias, target);
-                                if (previous != null && !previous.equals(target)) {
+                                if (words.length > 2 && (words[2].isEmpty() || words[2].indexOf('/') >= 0)) {
+                                    throw new IllegalArgumentException("Malformed @jenesis.alias version '"
+                                            + words[2]
+                                            + "': checksums and other qualifiers are pinned on the Maven"
+                                            + " coordinate instead");
+                                }
+                                String value = String.join(" ", Arrays.asList(words).subList(1, words.length));
+                                String previous = aliases.putIfAbsent(alias, value);
+                                if (previous != null && !previous.equals(value)) {
                                     throw new IllegalArgumentException("Duplicate @jenesis.alias for "
                                             + alias
                                             + ": "
                                             + previous
                                             + " and "
-                                            + target);
+                                            + value);
                                 }
                             }
                             case "jenesis.release" -> {

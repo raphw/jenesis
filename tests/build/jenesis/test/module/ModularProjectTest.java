@@ -129,7 +129,7 @@ public class ModularProjectTest {
     public void emits_aliases_properties_from_javadoc_declarations() throws IOException {
         Files.writeString(project.resolve("module-info.java"), """
                 /**
-                 * @jenesis.alias toolkit.lib org.example/plain-lib
+                 * @jenesis.alias toolkit.lib org.example/plain-lib 1.0
                  */
                 module foo {
                   requires toolkit.lib;
@@ -146,7 +146,7 @@ public class ModularProjectTest {
         Path aliasesFile = module.resolve(BuildStep.ALIASES);
         assertThat(aliasesFile).exists();
         assertThat(SequencedProperties.ofFiles(aliasesFile)).containsOnly(
-                Map.entry("main/module/toolkit.lib", "org.example/plain-lib"));
+                Map.entry("main/module/toolkit.lib", "org.example/plain-lib 1.0"));
     }
 
     @Test

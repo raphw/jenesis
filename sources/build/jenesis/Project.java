@@ -583,14 +583,15 @@ public record Project(
                                                        an optional trailing %{name}[<token>,<token>...]%{reset} guard applies
                                                        the pin only when those tokens are in the active platform,
                                                        with an unguarded line for the same coordinate as fallback
-                      %{name}@jenesis.alias%{reset} <module> <groupId>/<artifactId>
+                      %{name}@jenesis.alias%{reset} <module> <groupId>/<artifactId>[/<type>[/<classifier>]] [<ver>]
                                                        Alias a module name to a Maven artifact (MODULAR_TO_MAVEN
                                                        layout only): requiring <module> resolves the artifact and
                                                        its dependency graph under that stable name, so also a
                                                        non-modular artifact can be required without relying on a
-                                                       derived automatic module name; the target's version and
-                                                       checksum stay governed by @jenesis.pin and BOM entries for
-                                                       its Maven coordinates
+                                                       derived automatic module name; a @jenesis.pin or BOM entry
+                                                       for the coordinate overrides the version and is the place
+                                                       for a checksum, and without any version the latest release
+                                                       is negotiated implicitly
                       %{name}@jenesis.bom%{reset} <token> [<ver> [<algo>/<hex>]] [<guard>]
                                                        Import a BOM properties file of version and checksum pins;
                                                        the token follows the pin grammar (bare <module> is short for
@@ -896,7 +897,7 @@ public record Project(
                                                         active platform, with an
                                                         unguarded line for the same
                                                         coordinate as the fallback.
-                      @jenesis.alias <module> <groupId>/<artifactId>
+                      @jenesis.alias <module> <groupId>/<artifactId>[/<type>[/<classifier>]] [<ver>]
                                                         Alias a module name to a
                                                         Maven artifact
                                                         (MODULAR_TO_MAVEN layout
@@ -908,11 +909,16 @@ public record Project(
                                                         be required without
                                                         relying on a derived
                                                         automatic module name. The
-                                                        target's version and
-                                                        checksum stay governed by
-                                                        @jenesis.pin and BOM
-                                                        entries for its Maven
-                                                        coordinates.
+                                                        target follows the Maven
+                                                        pin token grammar. A
+                                                        @jenesis.pin or BOM entry
+                                                        for the coordinate
+                                                        overrides the inline
+                                                        version and is the place
+                                                        for a checksum; without
+                                                        any version the latest
+                                                        release is negotiated
+                                                        implicitly.
                       @jenesis.bom <token> [<ver> [<algo>/<hex>]] [<guard>]
                                                         Import a BOM properties
                                                         file of version and

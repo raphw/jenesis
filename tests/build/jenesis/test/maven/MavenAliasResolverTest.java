@@ -133,16 +133,110 @@ public class MavenAliasResolverTest {
     }
 
     @Test
-    public void rejects_alias_without_target_version() {
-        assertThatThrownBy(() -> resolver.dependencies(
+    public void resolves_inline_version_without_pin() throws IOException {
+        addToMavenRepository("org.example", "plain-lib", "1.2.3", """
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <groupId>org.example</groupId>
+                    <artifactId>plain-lib</artifactId>
+                    <version>1.2.3</version>
+                </project>""");
+        addJarToMavenRepository("org.example", "plain-lib", "1.2.3");
+
+        Resolver.Resolution resolution = resolver.dependencies(
+                Runnable::run,
+                "module",
+                Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), mavenRepoFolder, Map.of(), _ -> {})),
+                new LinkedHashMap<>(Map.of("toolkit.lib", Collections.emptyNavigableSet())),
+                new LinkedHashMap<>(Map.of(Resolver.ALIAS + "toolkit.lib", "org.example/plain-lib 1.2.3")),
+                DependencyScope.COMPILE);
+
+        assertThat(resolution.artifacts()).containsOnlyKeys(
+                "maven/org.example/plain-lib/1.2.3",
+                "module/toolkit.lib");
+    }
+
+    @Test
+    public void pin_overrides_inline_version() throws IOException {
+        addToMavenRepository("org.example", "plain-lib", "2.0", """
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <groupId>org.example</groupId>
+                    <artifactId>plain-lib</artifactId>
+                    <version>2.0</version>
+                </project>""");
+        addJarToMavenRepository("org.example", "plain-lib", "2.0");
+
+        Resolver.Resolution resolution = resolver.dependencies(
+                Runnable::run,
+                "module",
+                Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), mavenRepoFolder, Map.of(), _ -> {})),
+                new LinkedHashMap<>(Map.of("toolkit.lib", Collections.emptyNavigableSet())),
+                new LinkedHashMap<>(Map.of(
+                        Resolver.ALIAS + "toolkit.lib", "org.example/plain-lib 1.0",
+                        "org.example/plain-lib", "2.0")),
+                DependencyScope.COMPILE);
+
+        assertThat(resolution.artifacts()).containsOnlyKeys(
+                "maven/org.example/plain-lib/2.0",
+                "module/toolkit.lib");
+    }
+
+    @Test
+    public void negotiates_release_without_any_version() throws IOException {
+        addToMavenRepository("org.example", "plain-lib", "3.1", """
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <groupId>org.example</groupId>
+                    <artifactId>plain-lib</artifactId>
+                    <version>3.1</version>
+                </project>""");
+        addJarToMavenRepository("org.example", "plain-lib", "3.1");
+        Files.writeString(mavenRepoFolder.resolve("org/example/plain-lib/maven-metadata.xml"), """
+                <metadata>
+                    <groupId>org.example</groupId>
+                    <artifactId>plain-lib</artifactId>
+                    <versioning>
+                        <latest>3.1</latest>
+                        <release>3.1</release>
+                        <versions>
+                            <version>3.0</version>
+                            <version>3.1</version>
+                        </versions>
+                    </versioning>
+                </metadata>""");
+
+        Resolver.Resolution resolution = resolver.dependencies(
                 Runnable::run,
                 "module",
                 Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), mavenRepoFolder, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("toolkit.lib", Collections.emptyNavigableSet())),
                 new LinkedHashMap<>(Map.of(Resolver.ALIAS + "toolkit.lib", "org.example/plain-lib")),
-                DependencyScope.COMPILE))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("No version for org.example/plain-lib");
+                DependencyScope.COMPILE);
+
+        assertThat(resolution.artifacts()).containsOnlyKeys(
+                "maven/org.example/plain-lib/3.1",
+                "module/toolkit.lib");
+    }
+
+    @Test
+    public void resolves_classified_target() throws IOException {
+        addToMavenRepository("org.example", "plain-lib", "1.0", """
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <groupId>org.example</groupId>
+                    <artifactId>plain-lib</artifactId>
+                    <version>1.0</version>
+                </project>""");
+        Files.write(mavenRepoFolder.resolve("org/example/plain-lib/1.0/plain-lib-1.0-natives.jar"),
+                "natives".getBytes(StandardCharsets.UTF_8));
+
+        Resolver.Resolution resolution = resolver.dependencies(
+                Runnable::run,
+                "module",
+                Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), mavenRepoFolder, Map.of(), _ -> {})),
+                new LinkedHashMap<>(Map.of("toolkit.natives", Collections.emptyNavigableSet())),
+                new LinkedHashMap<>(Map.of(Resolver.ALIAS + "toolkit.natives", "org.example/plain-lib/jar/natives 1.0")),
+                DependencyScope.COMPILE);
+
+        assertThat(resolution.artifacts().sequencedKeySet())
+                .contains("maven/org.example/plain-lib/jar/natives/1.0", "module/toolkit.natives");
     }
 
     @Test
@@ -216,9 +310,7 @@ public class MavenAliasResolverTest {
                 "module",
                 Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), mavenRepoFolder, Map.of(), _ -> {})),
                 new LinkedHashMap<>(Map.of("toolkit.lib", Collections.emptyNavigableSet())),
-                new LinkedHashMap<>(Map.of(
-                        Resolver.ALIAS + "toolkit.lib", "org.example/plain-lib",
-                        "org.example/plain-lib", "1.0")),
+                new LinkedHashMap<>(Map.of(Resolver.ALIAS + "toolkit.lib", "org.example/plain-lib 1.0")),
                 DependencyScope.COMPILE);
 
         Path sources = Files.createDirectories(work.resolve("app-sources"));

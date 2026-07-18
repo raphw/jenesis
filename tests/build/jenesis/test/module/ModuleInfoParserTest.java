@@ -82,7 +82,8 @@ public class ModuleInfoParserTest {
         Files.writeString(folder.resolve("module-info.java"), """
                 /**
                  * @jenesis.alias toolkit.lib org.example/plain-lib
-                 * @jenesis.alias   other.lib   org.example/other-lib \s
+                 * @jenesis.alias   other.lib   org.example/other-lib   2.0 \s
+                 * @jenesis.alias natives.lib org.example/plain-lib/jar/natives-linux
                  */
                 module foo {
                     requires toolkit.lib;
@@ -91,7 +92,22 @@ public class ModuleInfoParserTest {
         ModuleInfo info = new ModuleInfoParser().identify(folder.resolve("module-info.java"));
         assertThat(info.aliases())
                 .containsEntry("toolkit.lib", "org.example/plain-lib")
-                .containsEntry("other.lib", "org.example/other-lib");
+                .containsEntry("other.lib", "org.example/other-lib 2.0")
+                .containsEntry("natives.lib", "org.example/plain-lib/jar/natives-linux");
+    }
+
+    @Test
+    public void jenesis_alias_rejects_checksum_declaration() throws IOException {
+        Files.writeString(folder.resolve("module-info.java"), """
+                /**
+                 * @jenesis.alias toolkit.lib org.example/plain-lib 1.0 SHA-256/cafebabe
+                 */
+                module foo {
+                }
+                """);
+        assertThatThrownBy(() -> new ModuleInfoParser().identify(folder.resolve("module-info.java")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("checksums are pinned on the Maven coordinate instead");
     }
 
     @Test

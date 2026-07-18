@@ -8,13 +8,16 @@ import build.jenesis.RepositoryItem;
 import build.jenesis.Resolver;
 
 /**
- * Resolves module aliases declared as {@code @jenesis.alias <module-name> <groupId>/<artifactId>}
- * over a Maven-backed module resolver. An aliased module is synthesized locally: its discovery
- * POM declares the target as its only dependency, and its jar is empty apart from an
- * {@code Automatic-Module-Name} manifest entry carrying the alias. Requiring the alias thereby
- * grants implied readability of the (typically non-modular) target under a stable module name,
- * while the target's version and checksum remain governed by the ordinary pin and BOM channels
- * for its Maven coordinates. The synthetic artifacts are internal and never published.
+ * Resolves module aliases declared as {@code @jenesis.alias <module-name>
+ * <groupId>/<artifactId>[/<type>[/<classifier>]] [<version>]} over a Maven-backed module
+ * resolver. An aliased module is synthesized locally: its discovery POM declares the target as
+ * its only dependency, and its jar is empty apart from an {@code Automatic-Module-Name} manifest
+ * entry carrying the alias. Requiring the alias thereby grants implied readability of the
+ * (typically non-modular) target under a stable module name. The target follows the Maven pin
+ * token grammar. Its version resolves like any Maven coordinate's: a pin or BOM entry for the
+ * coordinate wins - and is the only place a checksum can be declared - then the inline version,
+ * and without either the latest release is negotiated implicitly. The synthetic artifacts are
+ * internal and never published.
  */
 public class MavenAliasResolver implements Resolver {
 
@@ -57,20 +60,39 @@ public class MavenAliasResolver implements Resolver {
         String base = Resolver.base(prefix);
         SequencedMap<String, byte[]> poms = new LinkedHashMap<>();
         for (Map.Entry<String, String> entry : aliases.entrySet()) {
-            String alias = entry.getKey(), target = entry.getValue();
+            String alias = entry.getKey(), declaration = entry.getValue();
+            int space = declaration.indexOf(' ');
+            String token = space < 0 ? declaration : declaration.substring(0, space);
+            String inline = space < 0 ? null : declaration.substring(space + 1).trim();
             if (remaining.containsKey(alias)) {
-                throw new IllegalArgumentException("Module " + alias + " is an alias for " + target
-                        + " - pin the target instead: @jenesis.pin " + target + " <version>");
+                throw new IllegalArgumentException("Module " + alias + " is an alias for " + token
+                        + " - pin the target instead: @jenesis.pin " + token + " <version>");
             }
-            int slash = target.indexOf('/');
-            if (slash < 1 || slash == target.length() - 1 || target.indexOf('/', slash + 1) >= 0) {
-                throw new IllegalArgumentException("Malformed alias target for " + alias
-                        + ": expected <groupId>/<artifactId>, but got " + target);
+            MavenDependencyKey key;
+            try {
+                key = MavenDependencyKey.parseKey(token);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Malformed alias target for " + alias + ": " + token, e);
             }
-            poms.put(alias, pom(alias,
-                    target.substring(0, slash),
-                    target.substring(slash + 1),
-                    version(remaining.get(target), alias, target)));
+            // A pin or BOM entry for the target coordinate wins - and is where a checksum is
+            // declared - then the inline version; without either, the latest release is
+            // negotiated, as for any Maven coordinate that names no version.
+            String pinned = remaining.get(token);
+            String version;
+            if (pinned != null) {
+                version = version(pinned, alias, token);
+            } else if (inline != null) {
+                version = version(inline, alias, token);
+            } else {
+                version = MavenDefaultVersionNegotiator.maven().get().resolve(executor,
+                        MavenRepository.of(repositories.getOrDefault(mavenPrefix, Repository.empty())),
+                        key.groupId(),
+                        key.artifactId(),
+                        key.type() == null ? "jar" : key.type(),
+                        key.classifier(),
+                        "RELEASE");
+            }
+            poms.put(alias, pom(alias, key, version));
         }
         Map<String, Repository> wrapped = new LinkedHashMap<>(repositories);
         Repository discovery = (_, coordinate) -> {
@@ -145,21 +167,23 @@ public class MavenAliasResolver implements Resolver {
         return coordinate;
     }
 
-    private static String version(String pinned, String alias, String target) {
-        if (pinned == null) {
-            throw new IllegalArgumentException("No version for " + target + ", aliased as " + alias
-                    + " - pin it as @jenesis.pin " + target + " <version> or manage it in a BOM");
-        }
-        int space = pinned.indexOf(' ');
-        String version = space < 0 ? pinned : pinned.substring(0, space);
+    private static String version(String value, String alias, String target) {
+        int space = value.indexOf(' ');
+        String version = space < 0 ? value : value.substring(0, space);
         if (version.isEmpty() || version.startsWith(":")) {
-            throw new IllegalArgumentException("Malformed version '" + pinned + "' for " + target
+            throw new IllegalArgumentException("Malformed version '" + value + "' for " + target
                     + ", aliased as " + alias);
         }
         return version;
     }
 
-    private static byte[] pom(String alias, String groupId, String artifactId, String version) {
+    private static byte[] pom(String alias, MavenDependencyKey key, String version) {
+        String type = key.type() == null || key.type().equals("jar")
+                ? ""
+                : "\n            <type>" + key.type() + "</type>";
+        String classifier = key.classifier() == null
+                ? ""
+                : "\n            <classifier>" + key.classifier() + "</classifier>";
         String xml = """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0">
@@ -171,11 +195,11 @@ public class MavenAliasResolver implements Resolver {
                         <dependency>
                             <groupId>%s</groupId>
                             <artifactId>%s</artifactId>
-                            <version>%s</version>
+                            <version>%s</version>%s%s
                         </dependency>
                     </dependencies>
                 </project>
-                """.formatted(GROUP, alias, VERSION, groupId, artifactId, version);
+                """.formatted(GROUP, alias, VERSION, key.groupId(), key.artifactId(), version, type, classifier);
         return xml.getBytes(StandardCharsets.UTF_8);
     }
 
