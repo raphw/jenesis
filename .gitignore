@@ -7,6 +7,7 @@ cache/
 !/sdk/jenesis/tests/
 /sdk/jpx/*
 !/sdk/jpx/bin/
+!/sdk/jpx/tests/
 /sdk/*.zip
 
 ### IntelliJ IDEA ###
