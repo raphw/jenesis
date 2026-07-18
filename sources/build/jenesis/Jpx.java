@@ -66,6 +66,105 @@ public record Jpx(Path storage,
         }
     }
 
+    /**
+     * An installed target below {@link #storage()}: the closure's jars in one flat folder beside
+     * a {@value #PROPERTIES} descriptor. Installations are yielded by {@link #install(Command)}
+     * and carry the operations over that folder - reading the descriptor, verifying the recorded
+     * jars against a checksum and launching the entry point, locally or in a Docker container.
+     */
+    public record Installation(Path folder, HashDigestFunction hashFunction) {
+
+        public SequencedProperties properties() throws IOException {
+            return SequencedProperties.ofFiles(folder.resolve(PROPERTIES));
+        }
+
+        public Installation verify(String checksum) throws IOException {
+            String expected = requireValidChecksum(checksum);
+            SequencedProperties properties = properties();
+            SequencedSet<String> names = new TreeSet<>();
+            for (String path : new String[]{properties.getProperty("modulepath"), properties.getProperty("classpath")}) {
+                if (path != null) {
+                    names.addAll(List.of(path.split(",")));
+                }
+            }
+            String computed = HexFormat.of().formatHex(checksum(names));
+            if (!computed.startsWith(expected)) {
+                throw new IllegalStateException("Checksum mismatch for " + folder.getFileName()
+                        + ": expected a digest starting with " + expected + " but computed " + computed);
+            }
+            return this;
+        }
+
+        public int launch(List<String> arguments) throws IOException, InterruptedException {
+            return launch(null, arguments);
+        }
+
+        public int launch(String mainClass, List<String> arguments) throws IOException, InterruptedException {
+            List<String> command = new ArrayList<>();
+            command.add(Path.of(System.getProperty("java.home"), "bin", File.separatorChar == '\\' ? "java.exe" : "java").toString());
+            command.addAll(javaArguments(mainClass, arguments));
+            return new ProcessBuilder(command).inheritIO().start().waitFor();
+        }
+
+        public int launch(String mainClass, List<String> arguments, DockerizedJava docker)
+                throws IOException, InterruptedException {
+            return docker.mount(folder, folder.toString(), true).execute(javaArguments(mainClass, arguments));
+        }
+
+        public List<String> javaArguments(String mainClass, List<String> arguments) throws IOException {
+            SequencedProperties properties = properties();
+            String main = mainClass == null ? properties.getProperty("mainClass") : mainClass;
+            if (main == null) {
+                throw new IllegalStateException("No main class: the installation " + folder.getFileName()
+                        + " declares neither a module main class nor a Main-Class manifest attribute"
+                        + " - name one as <name>[@<version>]/<main-class>");
+            }
+            List<String> command = new ArrayList<>();
+            String modulepath = properties.getProperty("modulepath"), classpath = properties.getProperty("classpath");
+            if (modulepath != null) {
+                command.add("-p");
+                command.add(join(modulepath));
+                if (!Boolean.parseBoolean(properties.getProperty("selfContainedModuleGraph"))) {
+                    command.add("--add-modules");
+                    command.add("ALL-MODULE-PATH");
+                }
+            }
+            if (classpath != null) {
+                command.add("-cp");
+                command.add(join(classpath));
+            }
+            String mainModule = properties.getProperty("mainModule");
+            if (mainModule != null) {
+                command.add("-m");
+                command.add(mainModule + "/" + main);
+            } else {
+                command.add(main);
+            }
+            command.addAll(arguments);
+            return command;
+        }
+
+        private byte[] checksum(SequencedCollection<String> names) throws IOException {
+            MessageDigest digest;
+            try {
+                digest = MessageDigest.getInstance(hashFunction.algorithm());
+            } catch (NoSuchAlgorithmException e) {
+                throw new IllegalStateException(e);
+            }
+            for (String name : new TreeSet<>(names)) {
+                digest.update((name + "\t" + HexFormat.of().formatHex(hashFunction.hash(folder.resolve(name))) + "\n")
+                        .getBytes(StandardCharsets.UTF_8));
+            }
+            return digest.digest();
+        }
+
+        private String join(String names) {
+            return Arrays.stream(names.split(","))
+                    .map(name -> folder.resolve(name).toString())
+                    .collect(Collectors.joining(File.pathSeparator));
+        }
+    }
+
     public static final String HELP = """
             Usage: jpx [--modular] [--docker[=<image>]] [--hash=<checksum>] <target> [argument...]
 
@@ -112,7 +211,7 @@ public record Jpx(Path storage,
                         dockerized = true;
                         image = arguments[target].substring("--docker=".length());
                     } else if (arguments[target].startsWith("--hash=")) {
-                        checksum = arguments[target].substring("--hash=".length());
+                        checksum = requireValidChecksum(arguments[target].substring("--hash=".length()));
                     } else {
                         System.err.println("Unknown option: " + arguments[target]);
                         System.err.println(HELP);
@@ -128,33 +227,35 @@ public record Jpx(Path storage,
         }
         Jpx jpx = new Jpx();
         Command command = Command.parse(arguments[target]);
-        Path folder = jpx.install(command, modular, checksum);
+        Installation installation = jpx.install(command, modular);
+        if (checksum != null) {
+            installation.verify(checksum);
+        }
         List<String> remaining = List.of(arguments).subList(target + 1, arguments.length);
         if (dockerized) {
             Path workingDirectory = Path.of("").toAbsolutePath();
-            System.exit(jpx.launch(folder, command.mainClass(), remaining, image == null
+            System.exit(installation.launch(command.mainClass(), remaining, image == null
                     ? new DockerizedJava(workingDirectory)
                     : new DockerizedJava(workingDirectory, image)));
         } else {
-            System.exit(jpx.launch(folder, command.mainClass(), remaining));
+            System.exit(installation.launch(command.mainClass(), remaining));
         }
     }
 
-    public Path install(Command command, boolean modular, String checksum) throws IOException {
-        if (checksum != null) {
-            checksum = requireValidChecksum(checksum);
-        }
+    public Installation install(Command command) throws IOException {
+        return install(command, false);
+    }
+
+    public Installation install(Command command, boolean modular) throws IOException {
         if (command.version() == null) {
-            Path installed = latestInstalled(command.name());
+            Installation installed = latestInstalled(command.name()).orElse(null);
             if (installed != null) {
-                verify(installed, checksum);
                 return installed;
             }
         } else {
             Path folder = storage.resolve(command.folder(command.version()));
             if (Files.isRegularFile(folder.resolve(PROPERTIES))) {
-                verify(folder, checksum);
-                return folder;
+                return new Installation(folder, hashFunction);
             }
         }
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
@@ -220,27 +321,27 @@ public record Jpx(Path storage,
                 }
             }
             requireSafeSegment("version", version);
-            Path folder = storage.resolve(command.folder(version));
-            if (!Files.isRegularFile(folder.resolve(PROPERTIES))) {
+            Installation installation = new Installation(storage.resolve(command.folder(version)), hashFunction);
+            if (!Files.isRegularFile(installation.folder().resolve(PROPERTIES))) {
                 Files.createDirectories(storage);
                 try (FileChannel channel = FileChannel.open(storage.resolve(command.folder(version) + ".lock"),
                         StandardOpenOption.CREATE,
                         StandardOpenOption.WRITE); FileLock _ = channel.lock()) {
-                    if (!Files.isRegularFile(folder.resolve(PROPERTIES))) {
-                        install(command, version, resolution, resolution.artifacts().get(root).file(), folder);
+                    if (!Files.isRegularFile(installation.folder().resolve(PROPERTIES))) {
+                        materialize(command, version, resolution, resolution.artifacts().get(root).file(), installation);
                     }
                 }
             }
-            verify(folder, checksum);
-            return folder;
+            return installation;
         }
     }
 
-    private void install(Command command,
-                         String version,
-                         Resolver.Resolution resolution,
-                         Path root,
-                         Path folder) throws IOException {
+    private void materialize(Command command,
+                             String version,
+                             Resolver.Resolution resolution,
+                             Path root,
+                             Installation installation) throws IOException {
+        Path folder = installation.folder();
         if (Files.exists(folder)) {
             clear(folder);
         }
@@ -285,60 +386,15 @@ public record Jpx(Path storage,
         if (!classpath.isEmpty()) {
             properties.setProperty("classpath", String.join(",", classpath));
         }
-        properties.setProperty("checksum", hashFunction.encoded(checksum(folder, jars.sequencedKeySet())));
+        properties.setProperty("checksum", hashFunction.encoded(installation.checksum(jars.sequencedKeySet())));
         Path temporary = Files.createTempFile(folder, PROPERTIES, ".tmp");
         properties.store(temporary);
         Files.move(temporary, folder.resolve(PROPERTIES), StandardCopyOption.ATOMIC_MOVE);
     }
 
-    public int launch(Path folder, String mainClass, List<String> arguments) throws IOException, InterruptedException {
-        List<String> command = new ArrayList<>();
-        command.add(Path.of(System.getProperty("java.home"), "bin", File.separatorChar == '\\' ? "java.exe" : "java").toString());
-        command.addAll(javaArguments(folder, mainClass, arguments));
-        return new ProcessBuilder(command).inheritIO().start().waitFor();
-    }
-
-    public int launch(Path folder, String mainClass, List<String> arguments, DockerizedJava docker)
-            throws IOException, InterruptedException {
-        return docker.mount(folder, folder.toString(), true).execute(javaArguments(folder, mainClass, arguments));
-    }
-
-    private static List<String> javaArguments(Path folder, String mainClass, List<String> arguments) throws IOException {
-        SequencedProperties properties = SequencedProperties.ofFiles(folder.resolve(PROPERTIES));
-        String main = mainClass == null ? properties.getProperty("mainClass") : mainClass;
-        if (main == null) {
-            throw new IllegalStateException("No main class: the installation " + folder.getFileName()
-                    + " declares neither a module main class nor a Main-Class manifest attribute"
-                    + " - name one as <name>[@<version>]/<main-class>");
-        }
-        List<String> command = new ArrayList<>();
-        String modulepath = properties.getProperty("modulepath"), classpath = properties.getProperty("classpath");
-        if (modulepath != null) {
-            command.add("-p");
-            command.add(join(folder, modulepath));
-            if (!Boolean.parseBoolean(properties.getProperty("selfContainedModuleGraph"))) {
-                command.add("--add-modules");
-                command.add("ALL-MODULE-PATH");
-            }
-        }
-        if (classpath != null) {
-            command.add("-cp");
-            command.add(join(folder, classpath));
-        }
-        String mainModule = properties.getProperty("mainModule");
-        if (mainModule != null) {
-            command.add("-m");
-            command.add(mainModule + "/" + main);
-        } else {
-            command.add(main);
-        }
-        command.addAll(arguments);
-        return command;
-    }
-
-    public Path latestInstalled(String name) throws IOException {
+    public Optional<Installation> latestInstalled(String name) throws IOException {
         if (!Files.isDirectory(storage)) {
-            return null;
+            return Optional.empty();
         }
         String prefix = new Command(name, null, null).folder("");
         Path latest = null;
@@ -355,45 +411,7 @@ public record Jpx(Path storage,
                 }
             }
         }
-        return latest;
-    }
-
-    private void verify(Path folder, String checksum) throws IOException {
-        if (checksum == null) {
-            return;
-        }
-        SequencedProperties properties = SequencedProperties.ofFiles(folder.resolve(PROPERTIES));
-        SequencedSet<String> names = new TreeSet<>();
-        for (String path : new String[]{properties.getProperty("modulepath"), properties.getProperty("classpath")}) {
-            if (path != null) {
-                names.addAll(List.of(path.split(",")));
-            }
-        }
-        String computed = HexFormat.of().formatHex(checksum(folder, names));
-        if (!computed.startsWith(checksum)) {
-            throw new IllegalStateException("Checksum mismatch for " + folder.getFileName()
-                    + ": expected a digest starting with " + checksum + " but computed " + computed);
-        }
-    }
-
-    private byte[] checksum(Path folder, SequencedCollection<String> names) throws IOException {
-        MessageDigest digest;
-        try {
-            digest = MessageDigest.getInstance(hashFunction.algorithm());
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
-        }
-        for (String name : new TreeSet<>(names)) {
-            digest.update((name + "\t" + HexFormat.of().formatHex(hashFunction.hash(folder.resolve(name))) + "\n")
-                    .getBytes(StandardCharsets.UTF_8));
-        }
-        return digest.digest();
-    }
-
-    private static String join(Path folder, String names) {
-        return Arrays.stream(names.split(","))
-                .map(name -> folder.resolve(name).toString())
-                .collect(Collectors.joining(File.pathSeparator));
+        return latest == null ? Optional.empty() : Optional.of(new Installation(latest, hashFunction));
     }
 
     private static String mainClassOf(Path jar) throws IOException {
