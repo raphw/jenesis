@@ -294,6 +294,17 @@ Covered by IO-1/IO-6 — a hung fetch with no timeout gives the user no signal a
 
 Each versioned install leaves a `<name>@<version>.lock` under the storage root forever. Cosmetic (the lock correctly targets a separate file from the installation), but `~/.jenesis/jpx` fills over time. **Fix:** sweep orphaned `*.lock` opportunistically, or document as intentional.
 
+### USE-6 — [Low] Tests should default to fail-fast = false (report every failure in one run)
+**Category:** usability-dx
+
+For a build tool, the useful default when running tests is **not** to fail-fast: a single run should execute *all* tests across *all* modules and report the complete set of failures, rather than stopping at the first failing test or the first failing test module. This is what CI and local iteration want — one run tells you everything that's broken, instead of fix-one-rerun-discover-the-next.
+
+Two levels apply:
+- **Within a module:** JUnit Platform already runs all tests by default (no fail-fast), so this is only a concern if Jenesis ever passes a fail-fast/stop-on-first-failure option to the engine — it should not, by default.
+- **Across modules:** the more important level. `BuildExecutorDefault` propagates a step failure through the DAG, so a failing test step can abort the run before sibling test modules have reported. That means in a multi-module build the developer sees only the first module's failures. The desirable behavior is that a test-execution failure is *collected* rather than *thrown*, so every module's test step runs and the build reports an aggregated failure at the end (still failing the build overall, just after gathering all results).
+
+**Recommendation:** make fail-fast = false the default for test execution — run every module's tests to completion and aggregate failures — with an opt-in (`-Djenesis.test.failFast=true`) for the fast-feedback case. This is a developer-experience improvement, not a correctness bug, but it materially changes how usable the test phase is on a real multi-module project.
+
 ---
 
 ## 6. Test gaps
