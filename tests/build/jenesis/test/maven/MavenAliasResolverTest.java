@@ -215,6 +215,54 @@ public class MavenAliasResolverTest {
     }
 
     @Test
+    public void escapes_negotiated_version_preventing_pom_injection() throws IOException {
+        // The alias target resolves at RELEASE; a hostile repository serves a <release> that tries to
+        // break out of the synthesized POM's <version> element and inject an extra <dependency>.
+        addToMavenRepository("org.example", "plain-lib", "1.0", """
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <groupId>org.example</groupId>
+                    <artifactId>plain-lib</artifactId>
+                    <version>1.0</version>
+                </project>""");
+        addJarToMavenRepository("org.example", "plain-lib", "1.0");
+        // The artifact the injection would pull onto the classpath - it must never be resolved.
+        addToMavenRepository("org.attacker", "evil", "1.0", """
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                    <groupId>org.attacker</groupId>
+                    <artifactId>evil</artifactId>
+                    <version>1.0</version>
+                </project>""");
+        addJarToMavenRepository("org.attacker", "evil", "1.0");
+        String malicious = "1.0</version></dependency><dependency>"
+                + "<groupId>org.attacker</groupId><artifactId>evil</artifactId><version>1.0</version>"
+                + "</dependency><dependency><version>1.0";
+        Files.writeString(Files.createDirectories(mavenRepoFolder.resolve("org/example/plain-lib"))
+                .resolve("maven-metadata.xml"), """
+                <metadata>
+                    <groupId>org.example</groupId>
+                    <artifactId>plain-lib</artifactId>
+                    <versioning>
+                        <latest>%s</latest>
+                        <release>%s</release>
+                        <versions><version>%s</version></versions>
+                    </versioning>
+                </metadata>""".formatted(malicious, malicious, malicious));
+
+        // With the version escaped as text, the synthetic POM has exactly one dependency whose
+        // version is the whole (bogus) string, so the target cannot be fetched and resolution
+        // fails - rather than silently pulling org.attacker/evil onto the classpath.
+        assertThatThrownBy(() -> resolver.dependencies(
+                Runnable::run,
+                "module",
+                Map.of("maven", new MavenDefaultRepository(mavenRepoFolder.toUri(), mavenRepoFolder, Map.of(), _ -> {})),
+                new LinkedHashMap<>(Map.of("toolkit.lib", Collections.emptyNavigableSet())),
+                new LinkedHashMap<>(),
+                new LinkedHashMap<>(Map.of("toolkit.lib", "org.example/plain-lib")),
+                DependencyScope.COMPILE))
+                .isInstanceOf(Exception.class);
+    }
+
+    @Test
     public void resolves_classified_target() throws IOException {
         addToMavenRepository("org.example", "plain-lib", "1.0", """
                 <project xmlns="http://maven.apache.org/POM/4.0.0">

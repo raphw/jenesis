@@ -1,6 +1,7 @@
 package build.jenesis.maven;
 
 import module java.base;
+import module java.xml;
 import java.util.jar.Attributes;
 import build.jenesis.DependencyScope;
 import build.jenesis.Repository;
@@ -179,30 +180,52 @@ public class MavenAliasResolver implements Resolver {
         return version;
     }
 
+    private static final String POM_NAMESPACE = "http://maven.apache.org/POM/4.0.0";
+
     private static byte[] pom(String alias, MavenDependencyKey key, String version) {
-        String type = key.type() == null || key.type().equals("jar")
-                ? ""
-                : "\n            <type>" + key.type() + "</type>";
-        String classifier = key.classifier() == null
-                ? ""
-                : "\n            <classifier>" + key.classifier() + "</classifier>";
-        String xml = """
-                <?xml version="1.0" encoding="UTF-8"?>
-                <project xmlns="http://maven.apache.org/POM/4.0.0">
-                    <modelVersion>4.0.0</modelVersion>
-                    <groupId>%s</groupId>
-                    <artifactId>%s</artifactId>
-                    <version>%s</version>
-                    <dependencies>
-                        <dependency>
-                            <groupId>%s</groupId>
-                            <artifactId>%s</artifactId>
-                            <version>%s</version>%s%s
-                        </dependency>
-                    </dependencies>
-                </project>
-                """.formatted(GROUP, alias, VERSION, key.groupId(), key.artifactId(), version, type, classifier);
-        return xml.getBytes(StandardCharsets.UTF_8);
+        // The POM is assembled through the DOM so setTextContent escapes every value: the target
+        // version can be a RELEASE string negotiated from a remote maven-metadata.xml, and raw
+        // interpolation would let a hostile repository inject additional <dependency> elements.
+        Document document;
+        try {
+            document = MavenDefaultVersionNegotiator.toDocumentBuilderFactory().newDocumentBuilder().newDocument();
+        } catch (ParserConfigurationException e) {
+            throw new IllegalStateException(e);
+        }
+        Element project = document.createElementNS(POM_NAMESPACE, "project");
+        document.appendChild(project);
+        appendChild(document, project, "modelVersion", "4.0.0");
+        appendChild(document, project, "groupId", GROUP);
+        appendChild(document, project, "artifactId", alias);
+        appendChild(document, project, "version", VERSION);
+        Element dependencies = document.createElementNS(POM_NAMESPACE, "dependencies");
+        project.appendChild(dependencies);
+        Element dependency = document.createElementNS(POM_NAMESPACE, "dependency");
+        dependencies.appendChild(dependency);
+        appendChild(document, dependency, "groupId", key.groupId());
+        appendChild(document, dependency, "artifactId", key.artifactId());
+        appendChild(document, dependency, "version", version);
+        if (key.type() != null && !key.type().equals("jar")) {
+            appendChild(document, dependency, "type", key.type());
+        }
+        if (key.classifier() != null) {
+            appendChild(document, dependency, "classifier", key.classifier());
+        }
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try {
+            Transformer transformer = TransformerFactory.newInstance().newTransformer();
+            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+            transformer.transform(new DOMSource(document), new StreamResult(out));
+        } catch (TransformerException e) {
+            throw new IllegalStateException(e);
+        }
+        return out.toByteArray();
+    }
+
+    private static void appendChild(Document document, Element parent, String name, String value) {
+        Element child = document.createElementNS(POM_NAMESPACE, name);
+        child.setTextContent(value);
+        parent.appendChild(child);
     }
 
     private static Path emptyJar(String alias) throws IOException {
